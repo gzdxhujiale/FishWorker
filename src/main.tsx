@@ -21,9 +21,11 @@ import {
   RefreshCw,
   Settings,
   SlidersHorizontal,
-  X
+  X,
+  Clock
 } from "lucide-react";
 import { AiAssistantPanel } from "./features/assistant/AiAssistantPanel";
+import { TimeManagementPanel } from "./features/time-management/TimeManagementPanel";
 import { CourseSidebar } from "./features/course/CourseSidebar";
 import { courseApi } from "./features/course/courseService";
 import type { Course, CourseSection, CourseStore, CourseSyncStatus } from "./features/course/courseTypes";
@@ -182,7 +184,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
 }
 
 type CourseDialogMode = "create" | "edit";
-type AppSection = "knowledge" | "assistant";
+type AppSection = "knowledge" | "assistant" | "time-management";
 type DetailPaneMode = "catalog" | "format";
 type SettingsPage = "database" | "shortcuts" | "updates";
 
@@ -1104,6 +1106,17 @@ function App() {
           >
             <Bot size={19} strokeWidth={1.9} />
           </button>
+          
+          <button
+            className={activeSection === "time-management" ? "nav-button active" : "nav-button"}
+            title="时间管理"
+            aria-label="时间管理"
+            aria-current={activeSection === "time-management" ? "page" : undefined}
+            type="button"
+            onClick={() => setActiveSection("time-management")}
+          >
+            <Clock size={19} strokeWidth={1.9} />
+          </button>
         </nav>
         <button className="nav-button settings-button" title="设置" aria-label="设置" type="button" onClick={() => setIsSettingsOpen(true)}>
           <Settings size={18} strokeWidth={1.9} />
@@ -1285,6 +1298,8 @@ function App() {
           nodeTitle={selectedMindMapNode.title}
           contextText={mindMapOutline.slice(0, 80).map((item) => `${"  ".repeat(Math.max(0, item.level))}${item.title}`).join("\n")}
         />
+      ) : activeSection === "time-management" ? (
+        <TimeManagementPanel />
       ) : null}
 
       {dialogMode ? (
