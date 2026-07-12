@@ -52,6 +52,7 @@ import { TextbookPdfWindow } from "./features/textbook/TextbookPdfWindow";
 import { startCoreFeatureWarmup } from "./lib/performanceWarmup";
 import { drainBeforeCloseSaves } from "./lib/saveDrain";
 import "./styles.css";
+import { ScaleContainer } from "./lib/ScaleContainer";
 
 declare global {
   interface Window {
@@ -1352,7 +1353,9 @@ const routeParams = new URLSearchParams(window.location.search);
 const rootContent = routeParams.get("view") === "textbook-pdf" ? <TextbookPdfWindow /> : <App />;
 
 createRoot(document.getElementById("root")!).render(
-  <AppErrorBoundary>
-    {rootContent}
-  </AppErrorBoundary>
+  <ScaleContainer>
+    <AppErrorBoundary>
+      {rootContent}
+    </AppErrorBoundary>
+  </ScaleContainer>
 );
