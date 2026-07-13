@@ -18,9 +18,6 @@ type AiChatResult = {
 };
 
 type AiAssistantPanelProps = {
-  courseTitle?: string;
-  nodeTitle?: string;
-  contextText?: string;
   compact?: boolean;
   initialInput?: string;
   storageKey?: string;
@@ -112,8 +109,6 @@ function clearStoredSession(storageKey: string) {
 }
 
 export function AiAssistantPanel({
-  courseTitle = "",
-  nodeTitle = "",
   compact = false,
   initialInput = "",
   storageKey = "global",
@@ -137,6 +132,16 @@ export function AiAssistantPanel({
   const messagesRef = React.useRef<HTMLDivElement | null>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const contextVisible = showContext ?? !compact;
+
+  const [courseContext, setCourseContext] = React.useState({ courseTitle: "", nodeTitle: "", contextText: "" });
+
+  React.useEffect(() => {
+    import("../course/courseContextStore").then(({ courseContextStore }) => {
+      setCourseContext(courseContextStore.getState());
+      const unsubscribe = courseContextStore.subscribe(setCourseContext);
+      return unsubscribe;
+    }).catch(() => {});
+  }, []);
 
   React.useEffect(() => {
     const nextSession = readStoredSession(resolvedStorageKey);
@@ -276,8 +281,8 @@ export function AiAssistantPanel({
 
         {contextVisible ? (
           <section className="assistant-context" aria-label="当前上下文">
-            <span>{courseTitle || "未选择课程"}</span>
-            <span>{nodeTitle || "未选择节点"}</span>
+            <span>{courseContext.courseTitle || "未选择课程"}</span>
+            <span>{courseContext.nodeTitle || "未选择节点"}</span>
             <span>
               <CheckCircle2 size={14} />
               复用已登录端口

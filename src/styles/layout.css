@@ -201,7 +201,7 @@
 }
 
 .pane-collapse-button.library-toggle {
-  left: calc(var(--library-pane-width) - 14px);
+  left: calc(var(--library-pane-width) - 4px);
 }
 
 .study-layout.library-collapsed .pane-collapse-button.library-toggle {

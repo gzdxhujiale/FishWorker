@@ -18,7 +18,7 @@ import type {
   UpdateDownloadResult,
   UpdateDownloadProgress,
   SettingsPage,
-} from "../types/updates";
+} from "../../types/updates";
 import {
   formatMindMapShortcutFromEvent,
   MIND_MAP_BRANCH_SHORTCUTS,
@@ -27,8 +27,8 @@ import {
   writeMindMapShortcutSettings,
   type MindMapBranchShortcutCommand,
   type MindMapShortcutSettings,
-} from "../features/mindmap/mindMapShortcutSettings";
-import { DatabaseSettingsPanel } from "./DatabaseSettingsPanel";
+} from "../mindmap/mindMapShortcutSettings";
+import { DatabaseSettingsPanel } from "./components/DatabaseSettingsPanel";
 
 function formatFileSize(size: number) {
   if (!size) return "";
@@ -50,7 +50,7 @@ async function loadUpdateInfo() {
   return window.aistudyUpdates.loadInfo();
 }
 
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [activePage, setActivePage] = React.useState<SettingsPage>("database");
   const [updateInfo, setUpdateInfo] = React.useState<UpdateManagerInfo | null>(null);
   const [checkResult, setCheckResult] = React.useState<UpdateCheckResult | null>(null);

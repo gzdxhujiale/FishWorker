@@ -5,9 +5,6 @@ import { Role, Task } from './timeManagementTypes';
 interface WeeklyPlanningProps {
   roles: Role[];
   tasks: Task[];
-  onAddRole: (name: string, color: string) => void;
-  onDeleteRole: (roleId: string) => void;
-  onAddTask: (title: string, roleId: string) => void;
   onScheduleTask: (taskId: string, date: string | undefined) => void;
   hideCompleted: boolean;
   onDeleteTask: (taskId: string) => void;
@@ -37,9 +34,7 @@ function getWeekDates() {
 
 const PREDEFINED_COLORS = ['#1f6fd1', '#25845a', '#d97706', '#7657d6', '#d32f2f', '#0ea5e9'];
 
-export function WeeklyPlanning({ roles, tasks, onAddRole, onDeleteRole, onAddTask, onScheduleTask, hideCompleted, onDeleteTask, onEditTask }: WeeklyPlanningProps) {
-  const [draftRoleName, setDraftRoleName] = React.useState('');
-  const [draftTasks, setDraftTasks] = React.useState<Record<string, string>>({});
+export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, onDeleteTask, onEditTask }: WeeklyPlanningProps) {
   const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
   
   const weekDates = React.useMemo(() => getWeekDates(), []);
@@ -72,95 +67,8 @@ export function WeeklyPlanning({ roles, tasks, onAddRole, onDeleteRole, onAddTas
     setDraggedTaskId(null);
   };
 
-  const handleAddRole = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && draftRoleName.trim()) {
-      const randomColor = PREDEFINED_COLORS[Math.floor(Math.random() * PREDEFINED_COLORS.length)];
-      onAddRole(draftRoleName.trim(), randomColor);
-      setDraftRoleName('');
-    }
-  };
-
-  const handleAddTask = (e: React.KeyboardEvent<HTMLInputElement>, roleId: string) => {
-    if (e.key === 'Enter') {
-      const title = draftTasks[roleId]?.trim();
-      if (title) {
-        onAddTask(title, roleId);
-        setDraftTasks(prev => ({ ...prev, [roleId]: '' }));
-      }
-    }
-  };
-
   return (
-    <div className="weekly-planning-layout">
-      {/* Sidebar: Roles & Backlog */}
-      <div className="tm-roles-sidebar">
-        <div className="tm-sidebar-header">
-          <h3>角色与目标池</h3>
-          <span className="text-muted">为每个角色设定 Q2 要事</span>
-        </div>
-        
-        <div className="tm-roles-list">
-          {roles.map(role => {
-            const roleTasks = backlogTasks.filter(t => t.roleId === role.id);
-            return (
-              <div key={role.id} className="tm-role-card" style={{ borderLeftColor: role.color }}>
-                <div className="tm-role-header">
-                  <div className="tm-role-title">
-                    <User size={16} color={role.color} />
-                    <strong style={{ color: role.color }}>{role.name}</strong>
-                  </div>
-                  <button className="icon-button tm-role-delete" onClick={() => onDeleteRole(role.id)}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                
-                <div className="tm-role-tasks" onDragOver={handleDragOver} onDragEnter={handleDragEnter} onDrop={(e) => handleDrop(e, undefined)}>
-                  {roleTasks.map(task => (
-                    <div 
-                      key={task.id} 
-                      className="tm-backlog-task"
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, task.id)}
-                      onClick={() => onEditTask(task)}
-                    >
-                      <GripVertical size={14} className="drag-handle" />
-                      <span className="task-text-truncate">{task.title}</span>
-                      <button 
-                        className="icon-button tm-task-delete-btn" 
-                        onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                  
-                  <div className="tm-add-goal">
-                    <Plus size={14} className="text-muted" />
-                    <input 
-                      type="text"
-                      placeholder="添加本周目标..."
-                      value={draftTasks[role.id] || ''}
-                      onChange={(e) => setDraftTasks(prev => ({ ...prev, [role.id]: e.target.value }))}
-                      onKeyDown={(e) => handleAddTask(e, role.id)}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        <div className="tm-add-role-input">
-          <input 
-            type="text"
-            placeholder="+ 添加新角色 (按 Enter 保存)"
-            value={draftRoleName}
-            onChange={(e) => setDraftRoleName(e.target.value)}
-            onKeyDown={handleAddRole}
-          />
-        </div>
-      </div>
-      
+    <div className="weekly-planning-layout" style={{ flex: 1 }}>
       {/* Main Area: Weekly Schedule Board */}
       <div className="tm-weekly-board">
         <div className="tm-board-header">
