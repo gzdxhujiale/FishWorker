@@ -1,4 +1,4 @@
-export type KnowledgeDocumentElement = unknown;
+type KnowledgeDocumentElement = unknown;
 
 export type KnowledgeDocumentContent = {
   header?: KnowledgeDocumentElement[];
@@ -46,7 +46,7 @@ export type KnowledgeDocumentSaveInput = {
   snapshot: KnowledgeDocumentSnapshot;
 };
 
-export type KnowledgeDocumentCommand =
+type KnowledgeDocumentCommand =
   | "undo"
   | "redo"
   | "bold"
@@ -60,7 +60,7 @@ export type KnowledgeDocumentCommand =
   | "save";
 
 export type KnowledgeDocumentAlignment = "left" | "center" | "right" | "alignment" | "justify";
-export type KnowledgeDocumentTitleLevel = "paragraph" | "first" | "second" | "third" | "fourth" | "fifth" | "sixth";
+type KnowledgeDocumentTitleLevel = "paragraph" | "first" | "second" | "third" | "fourth" | "fifth" | "sixth";
 export type KnowledgeDocumentListType = "none" | "ul" | "ol";
 export type KnowledgeDocumentColumnCount = 2 | 3;
 export type KnowledgeDocumentColumnLayout = 1 | KnowledgeDocumentColumnCount;

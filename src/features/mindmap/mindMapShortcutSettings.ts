@@ -14,7 +14,7 @@ export type MindMapShortcutSetting = {
 
 export type MindMapShortcutSettings = Record<MindMapBranchShortcutCommand, string>;
 
-export const MIND_MAP_SHORTCUT_SETTINGS_KEY = "aistudy:mindmap-shortcuts:v1";
+const MIND_MAP_SHORTCUT_SETTINGS_KEY = "aistudy:mindmap-shortcuts:v1";
 export const MIND_MAP_SHORTCUTS_CHANGED_EVENT = "aistudy:mindmap-shortcuts-changed";
 
 export const MIND_MAP_BRANCH_SHORTCUTS: MindMapShortcutSetting[] = [

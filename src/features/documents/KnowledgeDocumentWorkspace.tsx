@@ -36,7 +36,7 @@ import { AiAssistantPanel } from "../assistant/AiAssistantPanel";
 import { ImporterDialog } from "../importer/ImporterDialog";
 import { createKnowledgeDocumentBinding } from "../../domain/coreContracts";
 import { registerBeforeCloseSave } from "../../lib/saveDrain";
-import { deleteLocalSnapshot, readLocalSnapshot, writeLocalSnapshot } from "../../lib/localSnapshotStore";
+
 import {
   areViewportScrollStatesEqual,
   EMPTY_VIEWPORT_SCROLL_STATE,
@@ -118,7 +118,6 @@ function areDocumentFormatStatesEqual(left: KnowledgeDocumentFormatState, right:
 }
 
 const SAVE_DEBOUNCE_MS = 900;
-const DOCUMENT_STORAGE_PREFIX = "aistudy:knowledge-document:v1:";
 const FONT_FAMILY_OPTIONS = ["Microsoft YaHei", "SimSun", "SimHei", "KaiTi", "Arial", "Times New Roman"];
 const FONT_SIZE_OPTIONS = [10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48];
 const COLOR_OPTIONS = ["#1f2937", "#2563eb", "#0f766e", "#d97706", "#dc2626", "#7c3aed"];
@@ -152,9 +151,7 @@ declare global {
   }
 }
 
-function getStorageKey(courseId: string, mindMapId: string, nodeId: string) {
-  return `${DOCUMENT_STORAGE_PREFIX}${courseId}:${mindMapId}:${nodeId}`;
-}
+
 
 function formatSavedAt() {
   return new Date().toLocaleTimeString();
@@ -190,9 +187,11 @@ async function saveLocalDocument(input: KnowledgeDocumentSaveInput) {
   }
 }
 
-async function deleteLocalDocument(courseId: string, mindMapId: string, nodeId: string) {
+async function deleteLocalDocument(_courseId: string, _mindMapId: string, _nodeId: string) {
   // Local snapshots deletion handled in Tauri by the parent node deletion typically.
 }
+
+
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? `${fallback}: ${error.message}` : fallback;

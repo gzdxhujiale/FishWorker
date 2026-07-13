@@ -161,7 +161,7 @@ function inlineElementsToLatex(elements: MathInlineElement[]) {
   }).join("");
 }
 
-export function normalizeDisplayMathLatex(value: string) {
+function normalizeDisplayMathLatex(value: string) {
   const stripped = stripMathDelimiters(value).replace(/\r\n?/g, "\n").trim();
   if (!stripped) return "";
   if (/\\[A-Za-z]+/u.test(stripped)) return stripped.replace(/\u2212/g, "-");
@@ -358,7 +358,7 @@ function plainTextHasDocumentSignal(text: string) {
   });
 }
 
-export function parsePlainTextDocumentBlocks(text: string): ClipboardDocumentBlock[] {
+function parsePlainTextDocumentBlocks(text: string): ClipboardDocumentBlock[] {
   const blocks: ClipboardDocumentBlock[] = [];
   let mathFence: { end: RegExp; lines: string[] } | null = null;
   for (const rawLine of text.replace(/\r\n?/g, "\n").split("\n")) {

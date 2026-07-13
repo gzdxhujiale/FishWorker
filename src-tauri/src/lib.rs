@@ -1,7 +1,6 @@
 mod course;
 mod db;
 mod document;
-mod mindmap;
 mod schema;
 
 use tauri::Manager;
@@ -29,8 +28,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
-            mindmap::mindmaps_load,
-            mindmap::mindmaps_save,
             course::courses_load,
             course::course_create,
             course::course_rename,

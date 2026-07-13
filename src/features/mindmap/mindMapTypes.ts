@@ -1,4 +1,4 @@
-export type SimpleMindMapNodeData = {
+type SimpleMindMapNodeData = {
   uid?: string;
   text: string;
   note?: string;
@@ -135,7 +135,7 @@ export type MindMapOutlineItem = {
   children: MindMapOutlineItem[];
 };
 
-export type MindMapViewportAxisState = {
+type MindMapViewportAxisState = {
   position: number;
   size: number;
   enabled: boolean;

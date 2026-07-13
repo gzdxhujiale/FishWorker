@@ -1,10 +1,10 @@
 import type { KnowledgeDocumentSnapshot } from "../documents/knowledgeDocumentTypes";
 
-export type ImportSourceKind = "file";
+type ImportSourceKind = "file";
 
-export type ImportTargetKind = "current-node-document";
+type ImportTargetKind = "current-node-document";
 
-export type ImportBlockKind = "heading" | "paragraph";
+type ImportBlockKind = "heading" | "paragraph";
 
 export type ImportBlock = {
   id: string;

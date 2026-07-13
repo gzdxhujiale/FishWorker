@@ -2,14 +2,14 @@ import { AISTUDY_CORE_CONTRACT } from "../../domain/coreContracts";
 import type { MindMapLayoutType, MindMapOutlineItem, MindMapSnapshot, SimpleMindMapNode } from "./mindMapTypes";
 
 export const MIND_MAP_EDITOR_VERSION = "0.14.0-fix.2";
-export const RIGHT_BRANCH_LAYOUT: MindMapLayoutType = AISTUDY_CORE_CONTRACT.mindMap.defaultLayout;
+const RIGHT_BRANCH_LAYOUT: MindMapLayoutType = AISTUDY_CORE_CONTRACT.mindMap.defaultLayout;
 export const MIND_MAP_DEFAULT_FONT_SIZE = AISTUDY_CORE_CONTRACT.mindMap.defaultFontSize;
 const DEFAULT_THEME = "default";
 const MIND_MAP_FONT_FAMILY = '"Microsoft YaHei", "微软雅黑", Arial, sans-serif';
 const UNTITLED_NODE_TITLE = "未命名";
 const NODE_ID_PREFIX = AISTUDY_CORE_CONTRACT.mindMap.nodeIdPrefix;
 
-export const MIND_MAP_CATALOG_RELATION = Object.freeze({
+const MIND_MAP_CATALOG_RELATION = Object.freeze({
   source: "mindmap",
   childField: "children",
   rootLevel: 0,
@@ -128,7 +128,7 @@ function createDefaultTheme() {
   };
 }
 
-export function createRootNode(title: string): SimpleMindMapNode {
+function createRootNode(title: string): SimpleMindMapNode {
   return {
     data: {
       uid: createCatalogNodeId(MIND_MAP_CATALOG_RELATION.rootPath),
@@ -214,7 +214,8 @@ function readNodeTitle(node: SimpleMindMapNode, fallbackTitle = UNTITLED_NODE_TI
   return typeof node.data?.text === "string" && node.data.text.trim() ? node.data.text.trim() : fallbackTitle;
 }
 
-export function isMindMapCatalogBoundary(node: SimpleMindMapNode | null | undefined) {
+
+function isMindMapCatalogBoundary(node: SimpleMindMapNode | null | undefined) {
   return node?.data?.[MIND_MAP_CATALOG_BOUNDARY_KEY] === true;
 }
 
