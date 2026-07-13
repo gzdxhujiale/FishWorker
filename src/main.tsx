@@ -22,10 +22,12 @@ import {
   Settings,
   SlidersHorizontal,
   X,
-  Clock
+  Clock,
+  Lightbulb
 } from "lucide-react";
 import { AiAssistantPanel } from "./features/assistant/AiAssistantPanel";
 import { TimeManagementPanel } from "./features/time-management/TimeManagementPanel";
+import { UnlearningPanel } from "./features/unlearning-loop/UnlearningPanel";
 import { CourseSidebar } from "./features/course/CourseSidebar";
 import { courseApi } from "./features/course/courseService";
 import type { Course, CourseSection, CourseStore, CourseSyncStatus } from "./features/course/courseTypes";
@@ -48,7 +50,7 @@ import {
   type WorkspaceNodeSelectionRequest
 } from "./features/mindmap/MindMapWorkspace";
 import type { MindMapOutlineItem, MindMapSelectedNode } from "./features/mindmap/mindMapTypes";
-import { TextbookPdfWindow } from "./features/textbook/TextbookPdfWindow";
+
 import { startCoreFeatureWarmup } from "./lib/performanceWarmup";
 import { drainBeforeCloseSaves } from "./lib/saveDrain";
 import "./styles.css";
@@ -185,12 +187,12 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
 }
 
 type CourseDialogMode = "create" | "edit";
-type AppSection = "knowledge" | "assistant" | "time-management";
+type AppSection = "knowledge" | "assistant" | "time-management" | "unlearning";
 type DetailPaneMode = "catalog" | "format";
 type SettingsPage = "database" | "shortcuts" | "updates";
 
 function normalizeWorkspaceEditorMode(value: unknown): WorkspaceEditorMode {
-  return value === "word" || value === "textbook" ? value : "mindmap";
+  return value === "word" ? value : "mindmap";
 }
 
 function getCourseWorkspaceMode(store: CourseStore) {
@@ -246,6 +248,17 @@ async function loadUpdateInfo() {
   }
   return window.aistudyUpdates.loadInfo();
 }
+
+import { invoke } from "@tauri-apps/api/core";
+
+function getDatabaseApi() {
+  if (window.aistudyDatabase) return window.aistudyDatabase;
+  return {
+    getConfig: () => invoke("db_get_config"),
+    saveConfig: (config: any) => invoke("db_save_config", { config })
+  };
+}
+
 function DatabaseSettingsPanel() {
   const [config, setConfig] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
@@ -253,7 +266,7 @@ function DatabaseSettingsPanel() {
   const [message, setMessage] = React.useState("");
 
   React.useEffect(() => {
-    window.aistudyDatabase?.getConfig().then((cfg) => {
+    getDatabaseApi().getConfig().then((cfg) => {
       setConfig(cfg);
       setLoading(false);
     }).catch(err => {
@@ -264,11 +277,10 @@ function DatabaseSettingsPanel() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!window.aistudyDatabase) return;
     setSaving(true);
     setMessage("");
     try {
-      await window.aistudyDatabase.saveConfig(config);
+      await getDatabaseApi().saveConfig(config);
       setMessage("配置已保存。请重启应用以生效新连接！");
     } catch (err: any) {
       setMessage("保存失败：" + (err.message || err));
@@ -1118,6 +1130,17 @@ function App() {
           >
             <Clock size={19} strokeWidth={1.9} />
           </button>
+          
+          <button
+            className={activeSection === "unlearning" ? "nav-button active" : "nav-button"}
+            title="反学习回路"
+            aria-label="反学习回路"
+            aria-current={activeSection === "unlearning" ? "page" : undefined}
+            type="button"
+            onClick={() => setActiveSection("unlearning")}
+          >
+            <Lightbulb size={19} strokeWidth={1.9} />
+          </button>
         </nav>
         <button className="nav-button settings-button" title="设置" aria-label="设置" type="button" onClick={() => setIsSettingsOpen(true)}>
           <Settings size={18} strokeWidth={1.9} />
@@ -1189,15 +1212,7 @@ function App() {
                   <FileText size={15} />
                   <span>文档</span>
                 </button>
-                <button
-                  type="button"
-                  className={workspaceEditorMode === "textbook" ? "active" : ""}
-                  onClick={() => requestWorkspaceMode("textbook")}
-                  disabled={!activeCourse}
-                >
-                  <BookOpen size={15} />
-                  <span>教材</span>
-                </button>
+
               </div>
             </div>
 
@@ -1301,6 +1316,8 @@ function App() {
         />
       ) : activeSection === "time-management" ? (
         <TimeManagementPanel />
+      ) : activeSection === "unlearning" ? (
+        <UnlearningPanel />
       ) : null}
 
       {dialogMode ? (
@@ -1350,7 +1367,7 @@ function App() {
 }
 
 const routeParams = new URLSearchParams(window.location.search);
-const rootContent = routeParams.get("view") === "textbook-pdf" ? <TextbookPdfWindow /> : <App />;
+const rootContent = <App />;
 
 createRoot(document.getElementById("root")!).render(
   <ScaleContainer>

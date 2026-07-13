@@ -1,13 +1,14 @@
-import { readLocalSnapshot, writeLocalSnapshot } from "../../lib/localSnapshotStore";
+import { invoke } from "@tauri-apps/api/core";
 import { registerBeforeCloseSave } from "../../lib/saveDrain";
 import { createInitialSnapshot } from "./mindMapSnapshot";
 import type { MindMapDocument, MindMapSnapshot } from "./mindMapTypes";
 
 export async function loadMindMap(courseId: string, mapId: string): Promise<MindMapDocument> {
-  const key = `fishworker:mindmap:${courseId}:${mapId}`;
-  const data = await readLocalSnapshot<MindMapDocument>(key);
-
-  if (!data) {
+  try {
+    const data = await invoke<MindMapDocument>("mindmaps_load", { courseId, mapId });
+    return data;
+  } catch (error) {
+    console.warn("Failed to load mind map from backend, creating a new one:", error);
     // Create default
     const title = "思维导图";
     const initialSnapshot = createInitialSnapshot(title);
@@ -19,41 +20,29 @@ export async function loadMindMap(courseId: string, mapId: string): Promise<Mind
       updatedAt: new Date().toISOString(),
       nodeCount: 1,
     };
-    await writeLocalSnapshot(key, "mindmap", newDoc);
+    await invoke("mindmaps_save", { 
+      request: {
+        courseId,
+        mapId,
+        title,
+        snapshot: initialSnapshot
+      }
+    });
     return newDoc;
   }
-
-  return data;
 }
 
 export async function saveMindMap(courseId: string, mapId: string, snapshot: MindMapSnapshot): Promise<void> {
-  const key = `fishworker:mindmap:${courseId}:${mapId}`;
-
-  
   const title = snapshot.root.data.text || "思维导图";
   
-  // Count nodes
-  let nodeCount = 0;
-  const stack = [snapshot.root];
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (!node) continue;
-    nodeCount++;
-    if (node.children) {
-      stack.push(...node.children);
+  await invoke("mindmaps_save", { 
+    request: {
+      courseId,
+      mapId,
+      title,
+      snapshot
     }
-  }
-
-  const newDoc: MindMapDocument = {
-    courseId,
-    mapId,
-    title,
-    snapshot,
-    updatedAt: new Date().toISOString(),
-    nodeCount,
-  };
-
-  await writeLocalSnapshot(key, "mindmap", newDoc);
+  });
 }
 
 // Simple debounce for auto-save

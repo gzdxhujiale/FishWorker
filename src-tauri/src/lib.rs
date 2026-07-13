@@ -1,3 +1,11 @@
+mod course;
+mod db;
+mod document;
+mod mindmap;
+mod schema;
+
+use tauri::Manager;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -8,7 +16,39 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .setup(|app| {
+            match tauri::async_runtime::block_on(async { db::establish_connection().await }) {
+                Ok(pool) => {
+                    app.manage(pool);
+                }
+                Err(e) => {
+                    eprintln!("Failed to connect to MySQL database: {}", e);
+                }
+            }
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            mindmap::mindmaps_load,
+            mindmap::mindmaps_save,
+            course::courses_load,
+            course::course_create,
+            course::course_rename,
+            course::course_move,
+            course::course_reorder,
+            course::course_delete,
+            course::section_create,
+            course::section_rename,
+            course::section_toggle,
+            course::section_toggle_all,
+            course::section_reorder,
+            course::section_delete,
+            course::courses_save_store,
+            document::knowledge_documents_load,
+            document::knowledge_documents_save,
+            db::db_get_config,
+            db::db_save_config
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

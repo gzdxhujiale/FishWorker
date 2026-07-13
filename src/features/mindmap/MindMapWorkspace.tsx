@@ -22,7 +22,6 @@ import {
 import { MindMapCanvas, type MindMapCanvasHandle } from "./MindMapCanvas";
 import { MindMapTextFormatToolbar } from "./MindMapTextFormatToolbar";
 import { KnowledgeDocumentWorkspace } from "../documents/KnowledgeDocumentWorkspace";
-import { TextbookWorkspace } from "../textbook/TextbookWorkspace";
 import { drainBeforeCloseSaves, registerBeforeCloseSave } from "../../lib/saveDrain";
 import { deleteLocalSnapshot, readLocalSnapshot, writeLocalSnapshot } from "../../lib/localSnapshotStore";
 import {
@@ -56,7 +55,7 @@ import type {
   MindMapTextFormatPatch
 } from "./mindMapTypes";
 
-export type WorkspaceEditorMode = "mindmap" | "word" | "textbook";
+export type WorkspaceEditorMode = "mindmap" | "word";
 
 export type WorkspaceModeChangeRequest = {
   mode: WorkspaceEditorMode;
@@ -1432,15 +1431,6 @@ export function MindMapWorkspace({
           detailPaneMode={documentDetailPaneMode}
           onOpenFormatPane={onOpenDocumentFormatPane}
           onCloseFormatPane={onCloseDocumentFormatPane}
-        />
-      ) : editorMode === "textbook" ? (
-        <TextbookWorkspace
-          courseId={courseId}
-          mindMapId={mapId}
-          selectedNode={selectedNode}
-          nodeSelectionRequest={nodeSelectionRequest}
-          outline={outline}
-          onNodeSelect={selectDocumentNode}
         />
       ) : (
       <div className="mindmap-status-strip">

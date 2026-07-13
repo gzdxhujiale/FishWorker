@@ -17,7 +17,6 @@
     "@tauri-apps/plugin-opener": "^2",
     "jszip": "^3.10.1",
     "lucide-react": "^1.24.0",
-    "pdfjs-dist": "^6.1.200",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "simple-mind-map": "0.14.0-fix.3"
@@ -28,9 +27,9 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "quill": "file:./scripts/npm-stubs/quill",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4",
-    "quill": "file:./scripts/npm-stubs/quill"
+    "vite": "^7.0.4"
   },
   "pnpm.overrides": {
     "quill": "file:./scripts/npm-stubs/quill",

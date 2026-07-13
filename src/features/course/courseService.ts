@@ -32,58 +32,51 @@ declare global {
   }
 }
 
-let mockStore: CourseStore = {
-  sections: [],
-  courses: [{
-    id: "mock-course-1",
-    name: "示例知识库",
-    description: "本地调试",
-    sectionId: null,
-    lastWorkspaceMode: "mindmap",
-    sortOrder: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }],
-  activeCourseId: "mock-course-1"
-};
+import { invoke } from "@tauri-apps/api/core";
+
+const LOCAL_STORAGE_ACTIVE_COURSE_KEY = "aistudy_active_course_id";
 
 function requireCourseApi() {
   if (window.aistudyCourses) {
     return window.aistudyCourses;
   }
+
+  // Tauri backend fallback
   return {
-    load: async () => mockStore,
-    save: async (store: CourseStore) => { mockStore = store; return mockStore; },
-    create: async (input: CourseCreateInput) => {
-      const newCourse: typeof mockStore.courses[0] = {
-        id: `c${Date.now()}`,
-        name: input.name,
-        description: input.description,
-        sectionId: input.sectionId,
-        lastWorkspaceMode: "mindmap",
-        sortOrder: mockStore.courses.length,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      mockStore = { ...mockStore, courses: [...mockStore.courses, newCourse], activeCourseId: newCourse.id };
-      return mockStore;
+    load: async (): Promise<CourseStore> => {
+      const store = await invoke<CourseStore>("courses_load");
+      const savedActiveCourseId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_COURSE_KEY);
+      if (savedActiveCourseId && store.courses.some(c => c.id === savedActiveCourseId)) {
+         store.activeCourseId = savedActiveCourseId;
+      }
+      return store;
     },
-    rename: async (input: CourseRenameInput) => {
-      mockStore = { ...mockStore, courses: mockStore.courses.map(c => c.id === input.id ? { ...c, name: input.name, description: input.description } : c) };
-      return mockStore;
+    save: async (store: CourseStore): Promise<CourseStore> => {
+      return await invoke<CourseStore>("courses_save_store", { store });
     },
-    move: async (input: CourseMoveInput) => {
-      mockStore = { ...mockStore, courses: mockStore.courses.map(c => c.id === input.id ? { ...c, sectionId: input.sectionId } : c) };
-      return mockStore;
+    create: async (input: CourseCreateInput): Promise<CourseStore> => {
+      return await invoke<CourseStore>("course_create", { input });
     },
-    reorder: async (_input: CourseReorderInput) => mockStore,
-    delete: async (courseId: string) => {
-      mockStore = { ...mockStore, courses: mockStore.courses.filter(c => c.id !== courseId), activeCourseId: mockStore.activeCourseId === courseId ? null : mockStore.activeCourseId };
-      return mockStore;
+    rename: async (input: CourseRenameInput): Promise<CourseStore> => {
+      return await invoke<CourseStore>("course_rename", { input });
     },
-    select: async (courseId: string | null) => {
-      mockStore = { ...mockStore, activeCourseId: courseId };
-      return mockStore;
+    move: async (input: CourseMoveInput): Promise<CourseStore> => {
+      return await invoke<CourseStore>("course_move", { input });
+    },
+    reorder: async (input: CourseReorderInput): Promise<CourseStore> => {
+      return await invoke<CourseStore>("course_reorder", { input });
+    },
+    delete: async (courseId: string): Promise<CourseStore> => {
+      return await invoke<CourseStore>("course_delete", { id: courseId });
+    },
+    select: async (courseId: string | null): Promise<CourseStore> => {
+      if (courseId) {
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_COURSE_KEY, courseId);
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_COURSE_KEY);
+      }
+      const store = await requireCourseApi().load();
+      return { ...store, activeCourseId: courseId };
     },
     syncStatus: async (): Promise<CourseSyncStatus> => ({ state: "saved", pendingCount: 0 })
   };
@@ -93,35 +86,26 @@ function requireCourseSectionApi() {
   if (window.aistudyCourseSections) {
     return window.aistudyCourseSections;
   }
+  
+  // Tauri backend fallback
   return {
-    create: async (input: { name: string }) => {
-      const newSection = {
-        id: `s${Date.now()}`,
-        name: input.name,
-        sortOrder: mockStore.sections.length,
-        collapsed: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      mockStore = { ...mockStore, sections: [...mockStore.sections, newSection] };
-      return mockStore;
+    create: async (input: { name: string }): Promise<CourseStore> => {
+      return await invoke<CourseStore>("section_create", { input });
     },
-    rename: async (input: { id: string; name: string }) => {
-      mockStore = { ...mockStore, sections: mockStore.sections.map(s => s.id === input.id ? { ...s, name: input.name } : s) };
-      return mockStore;
+    rename: async (input: { id: string; name: string }): Promise<CourseStore> => {
+      return await invoke<CourseStore>("section_rename", { input });
     },
-    toggle: async (input: { id: string; collapsed: boolean }) => {
-      mockStore = { ...mockStore, sections: mockStore.sections.map(s => s.id === input.id ? { ...s, collapsed: input.collapsed } : s) };
-      return mockStore;
+    toggle: async (input: { id: string; collapsed: boolean }): Promise<CourseStore> => {
+      return await invoke<CourseStore>("section_toggle", { input });
     },
-    toggleAll: async (input: { collapsed: boolean }) => {
-      mockStore = { ...mockStore, sections: mockStore.sections.map(s => ({ ...s, collapsed: input.collapsed })) };
-      return mockStore;
+    toggleAll: async (input: { collapsed: boolean }): Promise<CourseStore> => {
+      return await invoke<CourseStore>("section_toggle_all", { input });
     },
-    reorder: async (_input: CourseSectionReorderInput) => mockStore,
-    delete: async (sectionId: string) => {
-      mockStore = { ...mockStore, sections: mockStore.sections.filter(s => s.id !== sectionId) };
-      return mockStore;
+    reorder: async (input: CourseSectionReorderInput): Promise<CourseStore> => {
+      return await invoke<CourseStore>("section_reorder", { input });
+    },
+    delete: async (sectionId: string): Promise<CourseStore> => {
+      return await invoke<CourseStore>("section_delete", { id: sectionId });
     }
   };
 }

@@ -160,32 +160,38 @@ function formatSavedAt() {
   return new Date().toLocaleTimeString();
 }
 
-async function loadLocalDocument(courseId: string, mindMapId: string, nodeId: string): Promise<KnowledgeDocumentSnapshot | null> {
-  const storageKey = getStorageKey(courseId, mindMapId, nodeId);
-  try {
-    const snapshot = await readLocalSnapshot<KnowledgeDocumentSnapshot>(storageKey);
-    if (snapshot) return snapshot;
-  } catch {
-    // IndexedDB failure should not block legacy localStorage recovery.
-  }
+import { invoke } from "@tauri-apps/api/core";
 
+async function loadLocalDocument(courseId: string, mindMapId: string, nodeId: string): Promise<KnowledgeDocumentSnapshot | null> {
   try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return null;
-    const snapshot = JSON.parse(raw) as KnowledgeDocumentSnapshot;
-    void writeLocalSnapshot(storageKey, "document", snapshot);
-    return snapshot;
-  } catch {
+    const doc = await invoke<any>("knowledge_documents_load", {
+      request: { courseId, mindMapId, nodeId }
+    });
+    return doc?.snapshot || null;
+  } catch (error) {
+    console.error("Failed to load document from backend:", error);
     return null;
   }
 }
 
 async function saveLocalDocument(input: KnowledgeDocumentSaveInput) {
-  await writeLocalSnapshot(getStorageKey(input.courseId, input.mindMapId, input.nodeId), "document", input.snapshot);
+  try {
+    await invoke("knowledge_documents_save", {
+      request: {
+        courseId: input.courseId,
+        mindMapId: input.mindMapId,
+        nodeId: input.nodeId,
+        title: input.title,
+        snapshot: input.snapshot
+      }
+    });
+  } catch (error) {
+    console.error("Failed to save document to backend:", error);
+  }
 }
 
 async function deleteLocalDocument(courseId: string, mindMapId: string, nodeId: string) {
-  await deleteLocalSnapshot(getStorageKey(courseId, mindMapId, nodeId));
+  // Local snapshots deletion handled in Tauri by the parent node deletion typically.
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
