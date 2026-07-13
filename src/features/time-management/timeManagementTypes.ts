@@ -13,6 +13,7 @@ export interface Task {
   roleId?: string; // Optional connection to a role
   quadrant: QuadrantType;
   scheduledDate?: string; // Format: YYYY-MM-DD
+  timeOfDay?: 'morning' | 'afternoon';
   completed: boolean;
   createdAt: number;
   completedAt?: number;

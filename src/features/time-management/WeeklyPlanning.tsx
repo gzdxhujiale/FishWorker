@@ -5,7 +5,7 @@ import { Role, Task } from './timeManagementTypes';
 interface WeeklyPlanningProps {
   roles: Role[];
   tasks: Task[];
-  onScheduleTask: (taskId: string, date: string | undefined) => void;
+  onScheduleTask: (taskId: string, date: string | undefined, timeOfDay?: 'morning' | 'afternoon') => void;
   hideCompleted: boolean;
   onDeleteTask: (taskId: string) => void;
   onEditTask: (task: Task) => void;
@@ -57,12 +57,12 @@ export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, on
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, targetDateStr: string | undefined) => {
+  const handleDrop = (e: React.DragEvent, targetDateStr: string | undefined, timeOfDay?: 'morning' | 'afternoon') => {
     e.preventDefault();
     e.stopPropagation();
     const taskId = e.dataTransfer.getData('application/tm-task-id') || draggedTaskId;
     if (taskId) {
-      onScheduleTask(taskId, targetDateStr);
+      onScheduleTask(taskId, targetDateStr, timeOfDay);
     }
     setDraggedTaskId(null);
   };
@@ -72,7 +72,7 @@ export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, on
       {/* Main Area: Weekly Schedule Board */}
       <div className="tm-weekly-board">
         <div className="tm-board-header">
-          <h3>本周日程看板</h3>
+          <h3>本周计划看板</h3>
           <span className="text-muted">将左侧目标拖拽到具体日期中安排执行</span>
         </div>
         
@@ -88,17 +88,54 @@ export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, on
               <div 
                 key={dayInfo.dateStr} 
                 className={`tm-kanban-column ${isToday ? 'is-today' : ''}`}
-                onDragOver={handleDragOver}
-                onDragEnter={handleDragEnter}
-                onDrop={(e) => handleDrop(e, dayInfo.dateStr)}
               >
                 <div className="tm-column-header">
                   <strong>{dayInfo.label}</strong>
                   <span className="tm-date-label">{dayInfo.dateStr.slice(5)}</span>
                 </div>
                 
-                <div className="tm-column-content">
-                  {dayTasks.map(task => {
+                <div 
+                  className="tm-column-content tm-column-morning"
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragEnter}
+                  onDrop={(e) => handleDrop(e, dayInfo.dateStr, 'morning')}
+                  style={{ flex: 1, borderBottom: '1px dashed rgba(123, 145, 169, 0.2)', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '120px' }}
+                >
+                  <div className="tm-time-label" style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '4px' }}>上午</div>
+                  {dayTasks.filter(t => t.timeOfDay === 'morning' || !t.timeOfDay).map(task => {
+                    const taskRole = roles.find(r => r.id === task.roleId);
+                    return (
+                      <div 
+                        key={task.id} 
+                        className={`tm-scheduled-task ${task.completed ? 'completed' : ''}`}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, task.id)}
+                        onClick={() => onEditTask(task)}
+                        style={taskRole ? { borderLeftColor: taskRole.color } : {}}
+                      >
+                        <div className="tm-scheduled-task-content">
+                          <span className="tm-task-title">{task.title}</span>
+                        </div>
+                        <button 
+                          className="icon-button tm-task-delete-btn" 
+                          onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div 
+                  className="tm-column-content tm-column-afternoon"
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragEnter}
+                  onDrop={(e) => handleDrop(e, dayInfo.dateStr, 'afternoon')}
+                  style={{ flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '120px' }}
+                >
+                  <div className="tm-time-label" style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '4px' }}>下午</div>
+                  {dayTasks.filter(t => t.timeOfDay === 'afternoon').map(task => {
                     const taskRole = roles.find(r => r.id === task.roleId);
                     return (
                       <div 

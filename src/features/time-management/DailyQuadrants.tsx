@@ -1,12 +1,14 @@
-import React from 'react';
-import { Plus, GripVertical, CheckCircle2, Circle, Clock, AlignLeft, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Plus, CheckCircle2, Circle, AlignLeft, X, MoreHorizontal } from 'lucide-react';
 import { Task, QuadrantType } from './timeManagementTypes';
+import { CollapsibleGroup } from './components/CollapsibleGroup';
+import { QuickAddPopover } from './components/QuickAddPopover';
 
 interface DailyQuadrantsProps {
   tasks: Task[];
   onToggleComplete: (taskId: string) => void;
   onMoveTask: (taskId: string, newQuadrant: QuadrantType) => void;
-  onAddTask: (title: string, quadrant: QuadrantType) => void;
+  onAddTask: (title: string, quadrant: QuadrantType, deadline?: number) => void;
   hideCompleted: boolean;
   onDeleteTask: (taskId: string) => void;
   onEditTask: (task: Task) => void;
@@ -20,13 +22,17 @@ const quadrantConfig: Record<QuadrantType, { title: string; desc: string; color:
 };
 
 export function DailyQuadrants({ tasks, onToggleComplete, onMoveTask, onAddTask, hideCompleted, onDeleteTask, onEditTask }: DailyQuadrantsProps) {
-  const [draftTasks, setDraftTasks] = React.useState<Record<QuadrantType, string>>({ Q1: '', Q2: '', Q3: '', Q4: '' });
-  const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [activePopover, setActivePopover] = useState<QuadrantType | null>(null);
+  
+  const q1Ref = useRef<HTMLButtonElement>(null);
+  const q2Ref = useRef<HTMLButtonElement>(null);
+  const q3Ref = useRef<HTMLButtonElement>(null);
+  const q4Ref = useRef<HTMLButtonElement>(null);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     setDraggedTaskId(taskId);
     e.dataTransfer.effectAllowed = 'move';
-    // Required for Firefox
     e.dataTransfer.setData('application/tm-task-id', taskId);
   };
 
@@ -49,14 +55,40 @@ export function DailyQuadrants({ tasks, onToggleComplete, onMoveTask, onAddTask,
     setDraggedTaskId(null);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, quadrant: QuadrantType) => {
-    if (e.key === 'Enter') {
-      const title = draftTasks[quadrant].trim();
-      if (title) {
-        onAddTask(title, quadrant);
-        setDraftTasks(prev => ({ ...prev, [quadrant]: '' }));
-      }
-    }
+  const renderTasks = (taskList: Task[], color: string) => {
+    return taskList.map(task => (
+      <div 
+        key={task.id} 
+        className={`tm-task-item-minimal ${task.completed ? 'completed' : ''}`}
+        draggable
+        onDragStart={(e) => handleDragStart(e, task.id)}
+        onClick={() => onEditTask(task)}
+      >
+        <button 
+          className="tm-task-checkbox" 
+          onClick={(e) => { e.stopPropagation(); onToggleComplete(task.id); }}
+          type="button"
+        >
+          {task.completed ? <CheckCircle2 size={16} color={color} /> : <Circle size={16} />}
+        </button>
+        <div className="tm-task-content-wrapper">
+          <span className="tm-task-title">{task.title}</span>
+          {task.description && (
+            <div className="tm-task-meta">
+              <span className="tm-meta-item">
+                <AlignLeft size={10} />
+              </span>
+            </div>
+          )}
+        </div>
+        <button 
+          className="icon-button tm-task-delete-btn" 
+          onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+    ));
   };
 
   const renderQuadrant = (type: QuadrantType) => {
@@ -67,11 +99,33 @@ export function DailyQuadrants({ tasks, onToggleComplete, onMoveTask, onAddTask,
       qTasks = qTasks.filter(t => !t.completed);
     }
     
-    // Sort tasks: uncompleted first, then by creation time
     const sortedTasks = [...qTasks].sort((a, b) => {
       if (a.completed === b.completed) return b.createdAt - a.createdAt;
       return a.completed ? 1 : -1;
     });
+
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const noDate: Task[] = [];
+    const within1Day: Task[] = [];
+    const within3Days: Task[] = [];
+    const within1Week: Task[] = [];
+    const beyond1Week: Task[] = [];
+
+    sortedTasks.forEach(t => {
+      if (!t.deadline) {
+        noDate.push(t);
+      } else {
+        const diffDays = (t.deadline - now) / MS_PER_DAY;
+        if (diffDays <= 1) within1Day.push(t);
+        else if (diffDays <= 3) within3Days.push(t);
+        else if (diffDays <= 7) within1Week.push(t);
+        else beyond1Week.push(t);
+      }
+    });
+
+    const ref = type === 'Q1' ? q1Ref : type === 'Q2' ? q2Ref : type === 'Q3' ? q3Ref : q4Ref;
 
     return (
       <div 
@@ -82,70 +136,52 @@ export function DailyQuadrants({ tasks, onToggleComplete, onMoveTask, onAddTask,
         onDrop={(e) => handleDrop(e, type)}
       >
         <div className="quadrant-header">
-          <div className="quadrant-title">
+          <div className="quadrant-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ background: config.color, color: '#fff', width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>{type[1]}</div>
             <h3 style={{ color: config.color }}>{config.title}</h3>
-            <span>{config.desc}</span>
           </div>
-          <div className="quadrant-count">{qTasks.filter(t => !t.completed).length}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button 
+              ref={ref}
+              onClick={() => setActivePopover(activePopover === type ? null : type)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-strong)' }}
+            >
+              <Plus size={18} />
+            </button>
+            <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-strong)' }}>
+              <MoreHorizontal size={18} />
+            </button>
+          </div>
         </div>
         
         <div className="quadrant-task-list">
-          {sortedTasks.map(task => (
-            <div 
-              key={task.id} 
-              className={`tm-task-item ${task.completed ? 'completed' : ''}`}
-              draggable
-              onDragStart={(e) => handleDragStart(e, task.id)}
-              onClick={() => onEditTask(task)}
-            >
-              <div className="tm-task-drag-handle">
-                <GripVertical size={14} />
-              </div>
-              <button 
-                className="tm-task-checkbox" 
-                onClick={(e) => { e.stopPropagation(); onToggleComplete(task.id); }}
-                type="button"
-              >
-                {task.completed ? <CheckCircle2 size={16} color={config.color} /> : <Circle size={16} />}
-              </button>
-              <div className="tm-task-content-wrapper">
-                <span className="tm-task-title">{task.title}</span>
-                {(task.deadline || task.description) && (
-                  <div className="tm-task-meta">
-                    {task.deadline && (
-                      <span className={`tm-meta-item ${task.deadline < Date.now() ? 'overdue' : ''}`}>
-                        <Clock size={10} />
-                        {new Date(task.deadline).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </span>
-                    )}
-                    {task.description && (
-                      <span className="tm-meta-item">
-                        <AlignLeft size={10} />
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-              <button 
-                className="icon-button tm-task-delete-btn" 
-                onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
+          <CollapsibleGroup title="一天内" count={within1Day.length}>
+            {renderTasks(within1Day, config.color)}
+          </CollapsibleGroup>
+          <CollapsibleGroup title="三天内" count={within3Days.length}>
+            {renderTasks(within3Days, config.color)}
+          </CollapsibleGroup>
+          <CollapsibleGroup title="一周内" count={within1Week.length}>
+            {renderTasks(within1Week, config.color)}
+          </CollapsibleGroup>
+          <CollapsibleGroup title="一周外" count={beyond1Week.length}>
+            {renderTasks(beyond1Week, config.color)}
+          </CollapsibleGroup>
+          <CollapsibleGroup title="无日期" count={noDate.length}>
+            {renderTasks(noDate, config.color)}
+          </CollapsibleGroup>
         </div>
-        
-        <div className="quadrant-add-task">
-          <Plus size={16} className="add-icon" />
-          <input 
-            type="text"
-            placeholder="添加任务..."
-            value={draftTasks[type]}
-            onChange={(e) => setDraftTasks(prev => ({ ...prev, [type]: e.target.value }))}
-            onKeyDown={(e) => handleKeyDown(e, type)}
+
+        {activePopover === type && (
+          <QuickAddPopover
+            quadrant={type}
+            onAdd={(title, q, deadline) => {
+              onAddTask(title, q, deadline);
+            }}
+            onClose={() => setActivePopover(null)}
+            triggerRef={ref}
           />
-        </div>
+        )}
       </div>
     );
   };

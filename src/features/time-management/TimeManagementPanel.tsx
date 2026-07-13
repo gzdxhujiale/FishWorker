@@ -62,9 +62,11 @@ export function TimeManagementPanel() {
     setData(timeManagementStore.load());
   };
 
-  const handleAddTaskToQuadrant = (title: string, quadrant: QuadrantType) => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    timeManagementStore.addTask(title, quadrant, todayStr);
+  const handleAddTaskToQuadrant = (title: string, quadrant: QuadrantType, deadline?: number) => {
+    const task = timeManagementStore.addTask(title, quadrant, undefined);
+    if (deadline) {
+      timeManagementStore.updateTask(task.id, { deadline });
+    }
     setData(timeManagementStore.load());
   };
 
@@ -93,8 +95,16 @@ export function TimeManagementPanel() {
     }
   };
 
-  const handleScheduleTask = (taskId: string, date: string | undefined) => {
-    timeManagementStore.updateTask(taskId, { scheduledDate: date });
+  const handleScheduleTask = (taskId: string, date: string | undefined, timeOfDay?: 'morning' | 'afternoon') => {
+    const updates: Partial<Task> = { scheduledDate: date, timeOfDay };
+    if (date) {
+      // Set deadline to the end of the scheduled day
+      const d = new Date(date);
+      d.setHours(23, 59, 59, 999);
+      updates.deadline = d.getTime();
+      updates.quadrant = 'Q2';
+    }
+    timeManagementStore.updateTask(taskId, updates);
     setData(timeManagementStore.load());
   };
 
@@ -156,6 +166,7 @@ export function TimeManagementPanel() {
 
         {/* Time Management Content Area */}
         <div className="tm-content-area" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          {activeTab === 'weekly' && (
           <aside className="tm-roles-sidebar" style={{ width: '280px', flex: 'none', display: 'flex', flexDirection: 'column' }}>
             <div className="tm-sidebar-header" style={{ paddingTop: '16px' }}>
               <h3>待办分类 / 角色</h3>
@@ -222,7 +233,8 @@ export function TimeManagementPanel() {
               onKeyDown={handleAddRole}
             />
           </div>
-        </aside>
+          </aside>
+          )}
 
         <main className="tm-main-dashboard" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div className="tm-workspace" style={{ overflowX: activeTab === 'weekly' ? 'auto' : 'hidden', overflowY: 'auto' }}>

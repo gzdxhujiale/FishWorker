@@ -58,7 +58,7 @@
   background: var(--surface-3);
   color: var(--text-strong);
   font-weight: 500;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .time-management-page {
@@ -101,7 +101,8 @@
   box-shadow: 0 4px 12px rgba(23, 27, 33, 0.02);
   overflow: hidden;
   height: 100%;
-  min-height: 220px; /* 固定最小高度，没有任务也能撑起 */
+  min-height: 220px;
+  /* 固定最小高度，没有任务也能撑起 */
 }
 
 .quadrant-header {
@@ -156,7 +157,7 @@
 .tm-task-item:hover {
   background: var(--surface-2);
   border-color: rgba(123, 145, 169, 0.3);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .tm-task-item:active {
@@ -168,6 +169,34 @@
 }
 
 .tm-task-item.completed .tm-task-title {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+.tm-task-item-minimal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  background: transparent;
+  border-bottom: 1px solid rgba(123, 145, 169, 0.12);
+  cursor: grab;
+  transition: all 0.2s;
+}
+
+.tm-task-item-minimal:hover {
+  border-bottom-color: rgba(123, 145, 169, 0.3);
+}
+
+.tm-task-item-minimal:active {
+  cursor: grabbing;
+}
+
+.tm-task-item-minimal.completed {
+  opacity: 0.6;
+}
+
+.tm-task-item-minimal.completed .tm-task-title {
   text-decoration: line-through;
   color: var(--text-faint);
 }
@@ -222,10 +251,21 @@
   color: var(--text-faint);
 }
 
-.quadrant-q1 { border-top: 3px solid #d32f2f; }
-.quadrant-q2 { border-top: 3px solid #25845a; }
-.quadrant-q3 { border-top: 3px solid #d97706; }
-.quadrant-q4 { border-top: 3px solid #697381; }
+.quadrant-q1 {
+  border-top: 3px solid #d32f2f;
+}
+
+.quadrant-q2 {
+  border-top: 3px solid #25845a;
+}
+
+.quadrant-q3 {
+  border-top: 3px solid #d97706;
+}
+
+.quadrant-q4 {
+  border-top: 3px solid #697381;
+}
 
 /* Weekly Planning */
 .weekly-planning-layout {
@@ -273,7 +313,7 @@
   border-radius: 8px;
   border: 1px solid rgba(123, 145, 169, 0.18);
   border-left-width: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
   overflow: hidden;
 }
 
@@ -452,13 +492,13 @@
   padding: 10px 12px;
   font-size: 13px;
   color: var(--text-primary);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
   cursor: grab;
   border-left-width: 4px;
 }
 
 .tm-scheduled-task:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .tm-scheduled-task.completed {
@@ -510,7 +550,8 @@
   border-radius: 4px;
 }
 
-.tm-meta-item.overdue, .tm-task-deadline.overdue {
+.tm-meta-item.overdue,
+.tm-task-deadline.overdue {
   color: #d32f2f;
   background: #fef2f2;
 }
@@ -536,6 +577,7 @@
 }
 
 .tm-task-item:hover .tm-task-delete-btn,
+.tm-task-item-minimal:hover .tm-task-delete-btn,
 .tm-scheduled-task:hover .tm-task-delete-btn,
 .tm-backlog-task:hover .tm-task-delete-btn {
   opacity: 1;
@@ -569,8 +611,15 @@
 }
 
 @keyframes modal-pop {
-  0% { transform: scale(0.95); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .tm-modal-header {
@@ -611,7 +660,8 @@
   color: var(--text-primary);
 }
 
-.tm-form-group input, .tm-form-group textarea {
+.tm-form-group input,
+.tm-form-group textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid rgba(123, 145, 169, 0.25);
@@ -621,10 +671,12 @@
   background: var(--surface-1);
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box; /* Important for inputs */
+  box-sizing: border-box;
+  /* Important for inputs */
 }
 
-.tm-form-group input:focus, .tm-form-group textarea:focus {
+.tm-form-group input:focus,
+.tm-form-group textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(31, 111, 209, 0.1);
   background: #ffffff;
@@ -681,7 +733,21 @@
   -webkit-user-select: none;
   user-select: none;
 }
+
 .tm-toggle-label input[type="checkbox"] {
   accent-color: var(--accent);
 }
 
+.tm-task-content-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tm-task-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
