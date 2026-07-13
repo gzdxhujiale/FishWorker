@@ -1296,6 +1296,49 @@ export function KnowledgeDocumentWorkspace({
     }
   }, [documentBinding, isExportingDocx, selectedNode.title, snapshot]);
 
+  const exportMd = React.useCallback(async () => {
+    if (!documentBinding || !snapshot || isExportingDocx) return;
+    setIsExportingDocx(true);
+    setExportMessage("");
+    setError("");
+    try {
+      const currentEditor = editorRef.current;
+      const nextSnapshot = currentEditor ? await currentEditor.getSnapshotAsync() : latestSnapshotRef.current ?? snapshot;
+      if (!nextSnapshot) return;
+      latestSnapshotRef.current = nextSnapshot;
+
+      const extractText = (node: any): string => {
+        if (typeof node.value === "string") return node.value;
+        if (typeof node.text === "string") return node.text;
+        if (Array.isArray(node.children)) {
+          const childrenText = node.children.map(extractText).join("");
+          const isBlock = node.type && !["text", "superscript", "subscript"].includes(node.type);
+          return isBlock ? childrenText + "\n\n" : childrenText;
+        }
+        return "";
+      };
+
+      const markdownContent = (nextSnapshot.content.main || []).map(extractText).join("").replace(/\n{3,}/g, "\n\n");
+      const title = selectedNode.title || "未命名";
+      
+      const blob = new Blob([markdownContent], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setExportMessage("已导出 MD");
+    } catch (error) {
+      setError(getErrorMessage(error, "MD 导出失败"));
+    } finally {
+      setIsExportingDocx(false);
+    }
+  }, [documentBinding, isExportingDocx, selectedNode.title, snapshot]);
+
   const storageText = storageMode === "mysql" ? "已连接" : storageMode === "local" ? "本地副本" : "未保存";
 
   const loadDocumentForNavigation = React.useCallback(
@@ -1617,7 +1660,11 @@ export function KnowledgeDocumentWorkspace({
         </button>
         <button type="button" title="导出 Word" onClick={() => void exportDocx()} disabled={!canUseDocument || isSaving || isExportingDocx}>
           {isExportingDocx ? <Loader2 className="spin-icon" size={15} /> : <FileDown size={15} />}
-          <span>{isExportingDocx ? "导出中" : "导出"}</span>
+          <span>{isExportingDocx ? "导出中" : "导出 Word"}</span>
+        </button>
+        <button type="button" title="导出 MD" onClick={() => void exportMd()} disabled={!canUseDocument || isSaving || isExportingDocx}>
+          {isExportingDocx ? <Loader2 className="spin-icon" size={15} /> : <FileDown size={15} />}
+          <span>{isExportingDocx ? "导出中" : "导出 MD"}</span>
         </button>
         <button type="button" title="保存文档" onClick={saveNow} disabled={!canUseDocument || isSaving}>
           <Save size={15} />

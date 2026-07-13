@@ -2,6 +2,8 @@ mod course;
 mod db;
 mod document;
 mod schema;
+mod time_management;
+mod daily_review;
 
 use tauri::Manager;
 
@@ -44,7 +46,12 @@ pub fn run() {
             document::knowledge_documents_load,
             document::knowledge_documents_save,
             db::db_get_config,
-            db::db_save_config
+            db::db_save_config,
+            time_management::time_management_load,
+            time_management::time_management_save,
+            daily_review::daily_review_load_all,
+            daily_review::daily_review_save,
+            daily_review::daily_review_delete
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

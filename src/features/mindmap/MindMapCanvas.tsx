@@ -34,13 +34,14 @@ type MindMapCanvasProps = {
   canvasDragEnabled: boolean;
   onSnapshotChanged: (snapshot: MindMapSnapshot) => void;
   onNodeSelected: (node: MindMapSelectedNode) => void;
+  onNodeContextmenuClicked?: (node: MindMapSelectedNode) => void;
   onReadyChange: (ready: boolean) => void;
   onError: (message: string) => void;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
 };
 
 export const MindMapCanvas = React.forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(function MindMapCanvas(
-  { snapshot, canvasDragEnabled, onSnapshotChanged, onNodeSelected, onReadyChange, onError, onContextMenu },
+  { snapshot, canvasDragEnabled, onSnapshotChanged, onNodeSelected, onNodeContextmenuClicked, onReadyChange, onError, onContextMenu },
   ref
 ) {
   const mountRef = React.useRef<HTMLDivElement | null>(null);
@@ -50,6 +51,7 @@ export const MindMapCanvas = React.forwardRef<MindMapCanvasHandle, MindMapCanvas
   const eventsRef = React.useRef({
     onSnapshotChanged,
     onNodeSelected,
+    onNodeContextmenuClicked,
     onReadyChange,
     onError
   });
@@ -65,10 +67,11 @@ export const MindMapCanvas = React.forwardRef<MindMapCanvasHandle, MindMapCanvas
     eventsRef.current = {
       onSnapshotChanged,
       onNodeSelected,
+      onNodeContextmenuClicked,
       onReadyChange,
       onError
     };
-  }, [onError, onNodeSelected, onReadyChange, onSnapshotChanged]);
+  }, [onError, onNodeSelected, onNodeContextmenuClicked, onReadyChange, onSnapshotChanged]);
 
   React.useEffect(() => {
     latestSnapshotRef.current = snapshot;
@@ -130,6 +133,7 @@ export const MindMapCanvas = React.forwardRef<MindMapCanvasHandle, MindMapCanvas
         createSimpleMindMapEditor(editorSurface, latestSnapshotRef.current, {
           onSnapshotChanged: (nextSnapshot) => eventsRef.current.onSnapshotChanged(nextSnapshot),
           onNodeSelected: (node) => eventsRef.current.onNodeSelected(node),
+          onNodeContextmenuClicked: (node) => eventsRef.current.onNodeContextmenuClicked?.(node),
           onViewportChanged: commitViewportState,
           onReady: () => {
             if (!isDisposed) eventsRef.current.onReadyChange(true);

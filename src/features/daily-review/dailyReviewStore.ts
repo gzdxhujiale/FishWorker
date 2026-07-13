@@ -1,6 +1,11 @@
 import { DailyReview, DailyReviewData, CompoundStats } from './dailyReviewTypes';
+import { dailyReviewApi } from './dailyReviewService';
 
 const STORAGE_KEY = 'aistudy_daily_review_data';
+
+export type SyncStatus = 'saved' | 'saving' | 'error';
+let currentSyncStatus: SyncStatus = 'saved';
+const pendingSaves = new Map<string, number>();
 
 const defaultData: DailyReviewData = {
   reviews: []
@@ -38,6 +43,66 @@ export const dailyReviewStore = {
     }
   },
 
+  getSyncStatus(): SyncStatus {
+    return currentSyncStatus;
+  },
+
+  setSyncStatus(status: SyncStatus) {
+    currentSyncStatus = status;
+    window.dispatchEvent(new Event('daily-review-sync-updated'));
+  },
+
+  async syncAllFromDB() {
+    try {
+      this.setSyncStatus('saving');
+      const dbReviews = await dailyReviewApi.loadAll();
+      const localData = this.load();
+      
+      const mergedMap = new Map<string, DailyReview>();
+      localData.reviews.forEach(r => mergedMap.set(r.date, r));
+      
+      let changed = false;
+      dbReviews.forEach(dbR => {
+        const localR = mergedMap.get(dbR.date);
+        if (!localR || dbR.updatedAt > localR.updatedAt) {
+          mergedMap.set(dbR.date, dbR);
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        localData.reviews = Array.from(mergedMap.values());
+        this.save(localData);
+      }
+      this.setSyncStatus('saved');
+    } catch (e) {
+      console.error('Sync failed', e);
+      this.setSyncStatus('error');
+    }
+  },
+
+  triggerDBSync(review: DailyReview) {
+    this.setSyncStatus('saving');
+    
+    if (pendingSaves.has(review.id)) {
+      window.clearTimeout(pendingSaves.get(review.id));
+    }
+
+    const timeout = window.setTimeout(async () => {
+      try {
+        await dailyReviewApi.save(review);
+        pendingSaves.delete(review.id);
+        if (pendingSaves.size === 0) {
+          this.setSyncStatus('saved');
+        }
+      } catch (e) {
+        this.setSyncStatus('error');
+      }
+    }, 1000);
+    
+    pendingSaves.set(review.id, timeout);
+  },
+
   getReviewByDate(date: string): DailyReview | undefined {
     const data = this.load();
     return data.reviews.find(r => r.date === date);
@@ -73,6 +138,7 @@ export const dailyReviewStore = {
     }
     
     this.save(data);
+    this.triggerDBSync(review);
     return review;
   },
 
@@ -80,6 +146,13 @@ export const dailyReviewStore = {
     const data = this.load();
     data.reviews = data.reviews.filter(r => r.id !== id);
     this.save(data);
+
+    this.setSyncStatus('saving');
+    dailyReviewApi.delete(id).then(() => {
+      this.setSyncStatus('saved');
+    }).catch(() => {
+      this.setSyncStatus('error');
+    });
   },
 
   getCompoundStats(): CompoundStats {
@@ -88,7 +161,6 @@ export const dailyReviewStore = {
       return { currentStreak: 0, longestStreak: 0, totalReviews: 0, compoundValue: 1.00 };
     }
 
-    // Sort dates ascending
     const dates = [...new Set(reviews.map(r => r.date))].sort();
     
     let currentStreak = 1;
@@ -105,7 +177,6 @@ export const dailyReviewStore = {
       }
     }
 
-    // Check if the streak is still active (must include today or yesterday)
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
@@ -121,7 +192,6 @@ export const dailyReviewStore = {
       currentStreak = 0;
     }
 
-    // Base formula for compound interest: 1.01 ^ streak
     const compoundValue = parseFloat(Math.pow(1.01, currentStreak).toFixed(4));
 
     return {

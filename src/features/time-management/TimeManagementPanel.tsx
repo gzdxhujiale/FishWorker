@@ -1,6 +1,7 @@
 import React from 'react';
-import { Calendar, LayoutGrid, CalendarDays, Plus, GripVertical, User, Trash2, X } from 'lucide-react';
+import { LayoutGrid, CalendarDays, Plus, GripVertical, User, Trash2, X } from 'lucide-react';
 import { timeManagementStore, TimeManagementData } from './timeManagementStore';
+import { timeManagementApi, TimeManagementSyncStatus } from './timeManagementService';
 import { QuadrantType, Task } from './timeManagementTypes';
 import { DailyQuadrants } from './DailyQuadrants';
 import { WeeklyPlanning } from './WeeklyPlanning';
@@ -19,10 +20,43 @@ export function TimeManagementPanel() {
 
   const [draftRoleName, setDraftRoleName] = React.useState('');
   const [draftTasks, setDraftTasks] = React.useState<Record<string, string>>({});
-  const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = React.useState<TimeManagementSyncStatus>({ state: 'saved', pendingCount: 0 });
+  const syncTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerSync = React.useCallback((newData: TimeManagementData) => {
+    setData(newData);
+    setSyncStatus((current) => ({ ...current, state: 'saving' }));
+    
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    
+    syncTimeoutRef.current = setTimeout(() => {
+      timeManagementApi.save(newData)
+        .then(() => setSyncStatus({ state: 'saved', pendingCount: 0 }))
+        .catch(() => setSyncStatus({ state: 'attention', pendingCount: 1 }));
+    }, 1000);
+  }, []);
 
   React.useEffect(() => {
-    setData(timeManagementStore.load());
+    let isCancelled = false;
+    timeManagementApi.load()
+      .then((dbData) => {
+        if (isCancelled) return;
+        if (dbData) {
+          setData(dbData);
+          timeManagementStore.save(dbData);
+        } else {
+          setData(timeManagementStore.load());
+        }
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        setSyncStatus({ state: 'attention', pendingCount: 1 });
+        setData(timeManagementStore.load());
+      });
+      
+    return () => { isCancelled = true; };
   }, []);
 
   React.useEffect(() => {
@@ -40,8 +74,9 @@ export function TimeManagementPanel() {
     });
 
     if (needsUpdate) {
-      setData(prev => ({ ...prev, tasks: updatedTasks }));
-      timeManagementStore.save({ ...data, tasks: updatedTasks });
+      const newData = { ...data, tasks: updatedTasks };
+      timeManagementStore.save(newData);
+      triggerSync(newData);
     }
   }, [data.tasks]);
 
@@ -54,12 +89,12 @@ export function TimeManagementPanel() {
       completed: isCompleted,
       completedAt: isCompleted ? Date.now() : undefined
     });
-    setData(timeManagementStore.load());
+    triggerSync(timeManagementStore.load());
   };
 
   const handleMoveTask = (taskId: string, newQuadrant: QuadrantType) => {
     timeManagementStore.updateTask(taskId, { quadrant: newQuadrant });
-    setData(timeManagementStore.load());
+    triggerSync(timeManagementStore.load());
   };
 
   const handleAddTaskToQuadrant = (title: string, quadrant: QuadrantType, deadline?: number) => {
@@ -67,21 +102,21 @@ export function TimeManagementPanel() {
     if (deadline) {
       timeManagementStore.updateTask(task.id, { deadline });
     }
-    setData(timeManagementStore.load());
+    triggerSync(timeManagementStore.load());
   };
 
   const handleAddRole = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && draftRoleName.trim()) {
       const randomColor = PREDEFINED_COLORS[Math.floor(Math.random() * PREDEFINED_COLORS.length)];
       timeManagementStore.addRole(draftRoleName.trim(), randomColor);
-      setData(timeManagementStore.load());
+      triggerSync(timeManagementStore.load());
       setDraftRoleName('');
     }
   };
 
   const handleDeleteRole = (roleId: string) => {
     timeManagementStore.deleteRole(roleId);
-    setData(timeManagementStore.load());
+    triggerSync(timeManagementStore.load());
   };
 
   const handleAddTaskToRole = (e: React.KeyboardEvent<HTMLInputElement>, roleId: string) => {
@@ -89,7 +124,7 @@ export function TimeManagementPanel() {
       const title = draftTasks[roleId]?.trim();
       if (title) {
         timeManagementStore.addTask(title, 'Q2', undefined, roleId);
-        setData(timeManagementStore.load());
+        triggerSync(timeManagementStore.load());
         setDraftTasks(prev => ({ ...prev, [roleId]: '' }));
       }
     }
@@ -105,17 +140,17 @@ export function TimeManagementPanel() {
       updates.quadrant = 'Q2';
     }
     timeManagementStore.updateTask(taskId, updates);
-    setData(timeManagementStore.load());
+    triggerSync(timeManagementStore.load());
   };
 
   const handleDeleteTask = (taskId: string) => {
     timeManagementStore.deleteTask(taskId);
-    setData(timeManagementStore.load());
+    triggerSync(timeManagementStore.load());
   };
 
   const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
     timeManagementStore.updateTask(taskId, updates);
-    setData(timeManagementStore.load());
+    triggerSync(timeManagementStore.load());
   };
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
@@ -161,6 +196,16 @@ export function TimeManagementPanel() {
               />
               隐藏已完成任务
             </label>
+            <div style={{ marginLeft: '16px', fontSize: '13px', color: syncStatus.state === 'attention' ? 'var(--text-danger)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {syncStatus.state === 'saving' && '正在保存...'}
+              {syncStatus.state === 'saved' && '已保存'}
+              {syncStatus.state === 'attention' && (
+                <>
+                  部分内容暂时没同步
+                  <button onClick={() => triggerSync(data)} style={{ cursor: 'pointer', color: 'var(--text-danger)', textDecoration: 'underline', background: 'none', border: 'none', padding: 0 }}>重试</button>
+                </>
+              )}
+            </div>
           </div>
         </header>
 

@@ -766,6 +766,7 @@ export function MindMapWorkspace({
         if (loadSequenceRef.current !== sequence) return;
         setMapId(document.mapId);
         commitSnapshotForUi(document.snapshot, true);
+        canvasRef.current?.setSnapshot(document.snapshot);
         setLoadedCourseId(courseId);
         loadedRootNodeIdRef.current = document.snapshot ? getNodeId(document.snapshot.root) : null;
         setSnapshotLoadRevision((value) => value + 1);
@@ -777,6 +778,7 @@ export function MindMapWorkspace({
         const document = await loadLocalDocument(courseId, courseName);
         setMapId(document.mapId);
         commitSnapshotForUi(document.snapshot, true);
+        canvasRef.current?.setSnapshot(document.snapshot);
         setLoadedCourseId(courseId);
         loadedRootNodeIdRef.current = document.snapshot ? getNodeId(document.snapshot.root) : null;
         setSnapshotLoadRevision((value) => value + 1);
@@ -1211,21 +1213,21 @@ export function MindMapWorkspace({
     [outline, publishSelectedNode]
   );
 
-  if (!courseId || !isLoadedCourseSnapshot || !snapshot || !focusedSnapshot) {
-    const placeholderText = courseId && !isLoadedCourseSnapshot ? "正在载入导图" : isLoading ? "正在载入导图" : "请选择课程";
-    return (
-      <div className="mindmap-placeholder">
-        <GitBranch size={30} strokeWidth={1.7} />
-        <div>
-          <strong>{placeholderText}</strong>
-        </div>
-      </div>
-    );
-  }
+  const isPlaceholderVisible = !courseId || !isLoadedCourseSnapshot || !snapshot || !focusedSnapshot;
+  const placeholderText = courseId && !isLoadedCourseSnapshot ? "正在载入导图" : isLoading ? "正在载入导图" : "请选择课程";
 
-  const nodeCount = focusedNodeId ? countNodes(focusedSnapshot.root) : outlineNodeCount;
+  const fallbackSnapshot = React.useMemo(() => ({
+    schemaVersion: 1,
+    editor: "mind-map",
+    editorVersion: "1.0",
+    root: { data: { text: "Loading..." }, children: [] },
+    layout: "logicalStructure",
+    theme: { template: "default", config: {} }
+  }), []) as MindMapSnapshot;
+
+  const nodeCount = focusedNodeId && focusedSnapshot ? countNodes(focusedSnapshot.root) : outlineNodeCount;
   const storageText = storageMode === "mysql" ? "已连接" : storageMode === "local" ? "本地副本" : "未连接";
-  const currentLayout = normalizeLayout(focusedSnapshot.layout);
+  const currentLayout = normalizeLayout(focusedSnapshot?.layout ?? fallbackSnapshot.layout);
   const canvasKey = `${loadedCourseId}:${mapId ?? "pending"}:${focusedNodeId ?? "full"}:${snapshotLoadRevision}`;
   const topicElements = selectedNode.topicElements ?? EMPTY_TOPIC_ELEMENTS;
   const topicElementDisabled = !canUseEditor || !selectedNode.id;
@@ -1233,139 +1235,143 @@ export function MindMapWorkspace({
   return (
     <div ref={workspaceRef} className="mindmap-workspace" data-editor-mode={editorMode}>
       {editorMode === "mindmap" ? (
-      <div className="mindmap-local-toolbar" aria-label="导图编辑工具栏">
-        <button
-          className={topicElements.note ? "active" : ""}
-          type="button"
-          title="备注"
-          onClick={() => setTopicPanel((value) => value === "note" ? null : "note")}
-          disabled={topicElementDisabled}
-        >
-          <StickyNote size={15} />
-        </button>
-        <button
-          className={topicElements.tags.length > 0 ? "active" : ""}
-          type="button"
-          title="标签"
-          onClick={() => setTopicPanel((value) => value === "tags" ? null : "tags")}
-          disabled={topicElementDisabled}
-        >
-          <Tags size={15} />
-        </button>
-        <button
-          className={topicElements.hyperlink ? "active" : ""}
-          type="button"
-          title="链接"
-          onClick={() => setTopicPanel((value) => value === "link" ? null : "link")}
-          disabled={topicElementDisabled}
-        >
-          <Link2 size={15} />
-        </button>
-        <button
-          className={topicElements.imageUrl ? "active" : ""}
-          type="button"
-          title="图片"
-          onClick={() => setTopicPanel((value) => value === "image" ? null : "image")}
-          disabled={topicElementDisabled}
-        >
-          <Image size={15} />
-        </button>
-        <button
-          className={topicElements.priority || topicElements.progress ? "active" : ""}
-          type="button"
-          title="标记"
-          onClick={() => setTopicPanel((value) => value === "marker" ? null : "marker")}
-          disabled={topicElementDisabled}
-        >
-          <CircleCheck size={15} />
-        </button>
-        <button type="button" title={topicElements.expanded ? "折叠主题" : "展开主题"} onClick={() => canvasRef.current?.exec("toggle-expand")} disabled={topicElementDisabled}>
-          <Rows3 size={15} />
-        </button>
-        <button type="button" title="删除选中主题" onClick={() => selectedNode.id && void deleteMindMapBranch(selectedNode.id)} disabled={!canUseEditor || !selectedNode.id}>
-          <Trash2 size={15} />
-        </button>
-        <span className="mindmap-toolbar-separator" />
-        <button type="button" title="撤销" onClick={() => canvasRef.current?.exec("undo")} disabled={!canUseEditor}>
-          <Undo2 size={15} />
-        </button>
-        <button type="button" title="重做" onClick={() => canvasRef.current?.exec("redo")} disabled={!canUseEditor}>
-          <Redo2 size={15} />
-        </button>
-        <span className="mindmap-toolbar-separator" />
-        <button type="button" title="缩小" onClick={() => canvasRef.current?.exec("zoom-out")} disabled={!canUseEditor}>
-          <Minus size={15} />
-        </button>
-        <button type="button" title="适应画布" onClick={() => canvasRef.current?.exec("fit")} disabled={!canUseEditor}>
-          <Maximize2 size={15} />
-        </button>
-        <button type="button" title="放大" onClick={() => canvasRef.current?.exec("zoom-in")} disabled={!canUseEditor}>
-          <Plus size={15} />
-        </button>
-        <button
-          className={canvasDragEnabled ? "interaction-mode-button active" : "interaction-mode-button"}
-          type="button"
-          title={canvasDragEnabled ? "关闭空白画布拖拽" : "开启空白画布拖拽"}
-          aria-label={canvasDragEnabled ? "关闭空白画布拖拽" : "开启空白画布拖拽"}
-          aria-pressed={canvasDragEnabled}
-          onClick={() => setCanvasDragEnabled((value) => !value)}
-          disabled={!canUseEditor}
-        >
-          <Move size={15} />
-          <span>画布拖拽</span>
-        </button>
-        <span className="mindmap-toolbar-spacer" />
-        <button
-          className={isFormatPanelOpen ? "active" : ""}
-          type="button"
-          title="排版"
-          aria-label="排版"
-          aria-pressed={isFormatPanelOpen}
-          onClick={() => setIsFormatPanelOpen((value) => !value)}
-          disabled={!canUseEditor}
-        >
-          <SlidersHorizontal size={15} />
-          <span>排版</span>
-        </button>
-        <div className="mindmap-select-control">
-          <span>布局</span>
-          <select
-            value={currentLayout}
-            title="画布布局"
-            aria-label="画布布局"
-            onChange={(event) => changeLayout(event.target.value as MindMapLayoutType)}
+      <div className="mindmap-toolbars-container">
+        <div className="mindmap-local-toolbar" aria-label="导图内容工具栏">
+          <button
+            className={topicElements.note ? "active" : ""}
+            type="button"
+            title="备注"
+            onClick={() => setTopicPanel((value) => value === "note" ? null : "note")}
+            disabled={topicElementDisabled}
+          >
+            <StickyNote size={15} />
+          </button>
+          <button
+            className={topicElements.tags.length > 0 ? "active" : ""}
+            type="button"
+            title="标签"
+            onClick={() => setTopicPanel((value) => value === "tags" ? null : "tags")}
+            disabled={topicElementDisabled}
+          >
+            <Tags size={15} />
+          </button>
+          <button
+            className={topicElements.hyperlink ? "active" : ""}
+            type="button"
+            title="链接"
+            onClick={() => setTopicPanel((value) => value === "link" ? null : "link")}
+            disabled={topicElementDisabled}
+          >
+            <Link2 size={15} />
+          </button>
+          <button
+            className={topicElements.imageUrl ? "active" : ""}
+            type="button"
+            title="图片"
+            onClick={() => setTopicPanel((value) => value === "image" ? null : "image")}
+            disabled={topicElementDisabled}
+          >
+            <Image size={15} />
+          </button>
+          <button
+            className={topicElements.priority || topicElements.progress ? "active" : ""}
+            type="button"
+            title="标记"
+            onClick={() => setTopicPanel((value) => value === "marker" ? null : "marker")}
+            disabled={topicElementDisabled}
+          >
+            <CircleCheck size={15} />
+          </button>
+          <button type="button" title={topicElements.expanded ? "折叠主题" : "展开主题"} onClick={() => canvasRef.current?.exec("toggle-expand")} disabled={topicElementDisabled}>
+            <Rows3 size={15} />
+          </button>
+          <button type="button" title="删除选中主题" onClick={() => selectedNode.id && void deleteMindMapBranch(selectedNode.id)} disabled={!canUseEditor || !selectedNode.id}>
+            <Trash2 size={15} />
+          </button>
+          <span className="mindmap-toolbar-separator" />
+          <button type="button" title="撤销" onClick={() => canvasRef.current?.exec("undo")} disabled={!canUseEditor}>
+            <Undo2 size={15} />
+          </button>
+          <button type="button" title="重做" onClick={() => canvasRef.current?.exec("redo")} disabled={!canUseEditor}>
+            <Redo2 size={15} />
+          </button>
+          <span className="mindmap-toolbar-separator" />
+          <button
+            className={isFormatPanelOpen ? "active" : ""}
+            type="button"
+            title="排版"
+            aria-label="排版"
+            aria-pressed={isFormatPanelOpen}
+            onClick={() => setIsFormatPanelOpen((value) => !value)}
             disabled={!canUseEditor}
           >
-            {MIND_MAP_LAYOUT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mindmap-export-control">
-          <select
-            value={exportType}
-            title="导出格式"
-            aria-label="导出格式"
-            onChange={(event) => setExportType(event.target.value as MindMapExportType)}
-            disabled={!canUseEditor || isExporting}
-          >
-            {EXPORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <button type="button" title="导出导图" onClick={exportMap} disabled={!canUseEditor || isExporting}>
-            <Download size={15} />
-            <span>{isExporting ? "导出中" : "导出"}</span>
+            <SlidersHorizontal size={15} />
+            <span>排版</span>
           </button>
         </div>
-        <button type="button" title="立即保存" onClick={saveNow} disabled={!canUseEditor || isSaving}>
-          <Save size={15} />
-          <span>{isSaving ? "保存中" : "保存"}</span>
-        </button>
+        <div className="mindmap-local-toolbar" aria-label="导图视图与导出工具栏">
+          <button type="button" title="缩小" onClick={() => canvasRef.current?.exec("zoom-out")} disabled={!canUseEditor}>
+            <Minus size={15} />
+          </button>
+          <button type="button" title="适应画布" onClick={() => canvasRef.current?.exec("fit")} disabled={!canUseEditor}>
+            <Maximize2 size={15} />
+          </button>
+          <button type="button" title="放大" onClick={() => canvasRef.current?.exec("zoom-in")} disabled={!canUseEditor}>
+            <Plus size={15} />
+          </button>
+          <button
+            className={canvasDragEnabled ? "interaction-mode-button active" : "interaction-mode-button"}
+            type="button"
+            title={canvasDragEnabled ? "关闭空白画布拖拽" : "开启空白画布拖拽"}
+            aria-label={canvasDragEnabled ? "关闭空白画布拖拽" : "开启空白画布拖拽"}
+            aria-pressed={canvasDragEnabled}
+            onClick={() => setCanvasDragEnabled((value) => !value)}
+            disabled={!canUseEditor}
+          >
+            <Move size={15} />
+            <span>画布拖拽</span>
+          </button>
+          <span className="mindmap-toolbar-spacer" />
+          <div className="mindmap-select-control">
+            <span>布局</span>
+            <select
+              value={currentLayout}
+              title="画布布局"
+              aria-label="画布布局"
+              onChange={(event) => changeLayout(event.target.value as MindMapLayoutType)}
+              disabled={!canUseEditor}
+            >
+              {MIND_MAP_LAYOUT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mindmap-export-control">
+            <select
+              value={exportType}
+              title="导出格式"
+              aria-label="导出格式"
+              onChange={(event) => setExportType(event.target.value as MindMapExportType)}
+              disabled={!canUseEditor || isExporting}
+            >
+              {EXPORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <button type="button" title="导出导图" onClick={exportMap} disabled={!canUseEditor || isExporting}>
+              <Download size={15} />
+              <span>{isExporting ? "导出中" : "导出"}</span>
+            </button>
+          </div>
+          <button type="button" title="立即保存" onClick={saveNow} disabled={!canUseEditor || isSaving}>
+            <Save size={15} />
+            <span>{isSaving ? "保存中" : "保存"}</span>
+          </button>
+        </div>
       </div>
       ) : null}
 
@@ -1407,13 +1413,24 @@ export function MindMapWorkspace({
       ) : null}
 
       <div className="mindmap-canvas-retained" aria-hidden={editorMode !== "mindmap" ? "true" : undefined}>
+        {isPlaceholderVisible && (
+          <div className="mindmap-placeholder" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 10 }}>
+            <GitBranch size={30} strokeWidth={1.7} />
+            <div>
+              <strong>{placeholderText}</strong>
+            </div>
+          </div>
+        )}
         <MindMapCanvas
-          key={canvasKey}
           ref={canvasRef}
-          snapshot={focusedSnapshot}
+          snapshot={focusedSnapshot || fallbackSnapshot}
           canvasDragEnabled={canvasDragEnabled}
           onSnapshotChanged={queueCanvasSnapshotSave}
           onNodeSelected={handleNodeSelected}
+          onNodeContextmenuClicked={(node) => {
+            publishSelectedNode(node);
+            onEditorModeChange("word");
+          }}
           onReadyChange={setIsReady}
           onError={setError}
           onContextMenu={openTextFormatMenu}

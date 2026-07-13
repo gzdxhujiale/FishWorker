@@ -151,6 +151,7 @@ export type MindMapViewportAxis = "vertical" | "horizontal";
 export type MindMapEditorEvents = {
   onSnapshotChanged?: (snapshot: MindMapSnapshot) => void;
   onNodeSelected?: (node: MindMapSelectedNode) => void;
+  onNodeContextmenuClicked?: (node: MindMapSelectedNode) => void;
   onViewportChanged?: (state: MindMapViewportState) => void;
   onReady?: () => void;
   onError?: (message: string) => void;

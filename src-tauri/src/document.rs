@@ -158,12 +158,20 @@ pub async fn knowledge_documents_save(
     .await
     .map_err(|e| e.to_string())?;
 
+    let max_seq_result: Option<i32> = sqlx::query_scalar("SELECT MAX(sequence_no) FROM knowledge_document_snapshots WHERE document_id = ?")
+        .bind(&document_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .unwrap_or(None);
+    let next_seq = max_seq_result.unwrap_or(0) + 1;
+
     sqlx::query(
         "INSERT INTO knowledge_document_snapshots (id, document_id, sequence_no, schema_version, editor, editor_version, payload_json, payload_hash, byte_size, created_at)
-         VALUES (?, ?, 1, 1, 'canvas-editor', '1.0', ?, 'hash', ?, ?)"
+         VALUES (?, ?, ?, 1, 'canvas-editor', '1.0', ?, 'hash', ?, ?)"
     )
     .bind(&snap_id)
     .bind(&document_id)
+    .bind(next_seq)
     .bind(&payload_str)
     .bind(byte_size)
     .bind(now)

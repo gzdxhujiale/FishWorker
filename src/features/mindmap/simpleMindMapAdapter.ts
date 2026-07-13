@@ -1268,6 +1268,16 @@ export async function createSimpleMindMapEditor(
     emitSelection(activeNode);
     scheduleNodeResizeHandleSync();
   };
+  const emitNodeContextMenu = (event: Event, node: unknown, activeNodeList?: unknown) => {
+    event.preventDefault();
+    event.stopPropagation();
+    installRuntimeNodeExtensions();
+    ensureStableRenderTreeNodeIds(editor);
+    const activeNode = readActiveNodeFromEvent(editor, node, activeNodeList);
+    if (activeNode) {
+      events.onNodeContextmenuClicked?.(toSelectedNode(activeNode));
+    }
+  };
   const syncSelectionFromActiveList = () => {
     installRuntimeNodeExtensions();
     ensureStableRenderTreeNodeIds(editor);
@@ -1303,6 +1313,7 @@ export async function createSimpleMindMapEditor(
   document.addEventListener("input", syncTextEditBeforeImeEvent, true);
   document.addEventListener("keydown", syncTextEditBeforeImeEvent, true);
   editor.on("node_active", emitSelectionWithCache);
+  editor.on("node_contextmenu", emitNodeContextMenu);
   editor.on("node_tree_render_end", syncSelectionFromActiveList);
   editor.on("before_show_text_edit", hideEditingNodeText);
   editor.on("hide_text_edit", syncAfterTextEdit);
@@ -1426,6 +1437,7 @@ export async function createSimpleMindMapEditor(
       editor.off("layout_change", emitSnapshot);
       editor.off("scrollbar_change", emitPluginViewportState);
       editor.off("node_active", emitSelectionWithCache);
+      editor.off("node_contextmenu", emitNodeContextMenu);
       editor.off("node_tree_render_end", syncSelectionFromActiveList);
       if (textEditPositionSyncFrame !== null) {
         window.cancelAnimationFrame(textEditPositionSyncFrame);

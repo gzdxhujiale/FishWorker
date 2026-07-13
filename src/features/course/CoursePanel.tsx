@@ -261,7 +261,8 @@ export function CoursePanel() {
   }
 
   function selectCourse(courseId: string) {
-    void runCourseStoreCommand(() => courseApi.selectCourse(courseId));
+    void courseApi.selectCourse(courseId);
+    setActiveCourseId(courseId);
   }
 
   function requestWorkspaceMode(mode: WorkspaceEditorMode) {

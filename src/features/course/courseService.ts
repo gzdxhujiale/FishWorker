@@ -18,7 +18,7 @@ declare global {
       move: (input: CourseMoveInput) => Promise<CourseStore>;
       reorder: (input: CourseReorderInput) => Promise<CourseStore>;
       delete: (courseId: string) => Promise<CourseStore>;
-      select: (courseId: string | null) => Promise<CourseStore>;
+      select: (courseId: string | null) => Promise<void>;
       syncStatus: () => Promise<CourseSyncStatus>;
     };
     aistudyCourseSections?: {
@@ -69,14 +69,12 @@ function requireCourseApi() {
     delete: async (courseId: string): Promise<CourseStore> => {
       return await invoke<CourseStore>("course_delete", { id: courseId });
     },
-    select: async (courseId: string | null): Promise<CourseStore> => {
+    select: async (courseId: string | null): Promise<void> => {
       if (courseId) {
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_COURSE_KEY, courseId);
       } else {
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_COURSE_KEY);
       }
-      const store = await requireCourseApi().load();
-      return { ...store, activeCourseId: courseId };
     },
     syncStatus: async (): Promise<CourseSyncStatus> => ({ state: "saved", pendingCount: 0 })
   };
