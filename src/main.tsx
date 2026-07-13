@@ -4,13 +4,15 @@ import {
   Bot,
   Folder,
   Clock,
-  Lightbulb
+  Lightbulb,
+  CalendarDays
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";
 import { CoursePanel } from "./features/course/CoursePanel";
 import { AiAssistantPanel } from "./features/assistant/AiAssistantPanel";
 import { TimeManagementPanel } from "./features/time-management/TimeManagementPanel";
 import { UnlearningPanel } from "./features/unlearning-loop/UnlearningPanel";
+import { DailyReviewPanel } from "./features/daily-review/DailyReviewPanel";
 import { SettingsModal } from "./features/settings/SettingsModal";
 
 import { startCoreFeatureWarmup } from "./lib/performanceWarmup";
@@ -64,7 +66,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   }
 }
 
-type AppSection = "knowledge" | "assistant" | "time-management" | "unlearning";
+type AppSection = "knowledge" | "assistant" | "time-management" | "unlearning" | "daily-review";
 
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("knowledge");
@@ -86,6 +88,7 @@ function App() {
               { id: "knowledge", name: "知识库", icon: Folder, component: () => <></> },
               { id: "assistant", name: "AI 聊天助手", icon: Bot, component: () => <></> },
               { id: "time-management", name: "时间管理", icon: Clock, component: () => <></> },
+              { id: "daily-review", name: "每日复盘", icon: CalendarDays, component: () => <></> },
               { id: "unlearning", name: "反学习回路", icon: Lightbulb, component: () => <></> },
             ]}
             activeToolId={activeSection}
@@ -101,6 +104,8 @@ function App() {
               <AiAssistantPanel storageKey="workspace-assistant" />
             ) : activeSection === "time-management" ? (
               <TimeManagementPanel />
+            ) : activeSection === "daily-review" ? (
+              <DailyReviewPanel />
             ) : activeSection === "unlearning" ? (
               <UnlearningPanel />
             ) : null}
