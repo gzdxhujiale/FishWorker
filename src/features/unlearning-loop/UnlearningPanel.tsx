@@ -142,7 +142,7 @@ export function UnlearningPanel() {
   };
 
   return (
-    <section className="exam-page unlearning-page">
+    <section className="unlearning-page">
       <div className="unlearning-header">
         <h2>
           <Lightbulb size={20} />

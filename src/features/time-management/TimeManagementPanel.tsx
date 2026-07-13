@@ -97,14 +97,14 @@ export function TimeManagementPanel() {
   };
 
   return (
-    <section className="exam-page time-management-page">
-      <div className="exam-shell">
-        <header className="exam-header">
+    <section className="time-management-page">
+      <div className="tm-shell">
+        <header className="tm-header">
           <div>
             <h1>高效能时间管理</h1>
             <span>基于要事第一原则</span>
           </div>
-          <div className="exam-tabs" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="tm-tabs" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <label className="tm-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-muted)' }}>
               <input 
                 type="checkbox" 
