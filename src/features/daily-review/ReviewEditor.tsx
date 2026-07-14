@@ -5,7 +5,7 @@ import { Save, Trash2, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 interface Props {
   date: string;
   review?: DailyReview;
-  onSave: (date: string, content: string, rating: number) => void;
+  onSave: (date: string, content: string, rating: number, isHighFreq?: boolean) => void;
   onDelete: (id: string) => void;
   onPrevDay: () => void;
   onNextDay: () => void;
@@ -49,12 +49,9 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onDelete, 
         <div className="editor-actions">
           {review && (
             <button className="btn-danger" onClick={() => onDelete(review.id)}>
-              <Trash2 size={16} /> 删除
+              <Trash2 size={16} /> 删除复盘
             </button>
           )}
-          <button className="btn-primary" onClick={handleSave}>
-            <Save size={16} /> 保存复盘
-          </button>
         </div>
       </div>
 
@@ -63,7 +60,11 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onDelete, 
           className="editor-textarea"
           placeholder="今天学到了什么？什么可以改进？明天最重要的一件事？..."
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            const newContent = e.target.value;
+            setContent(newContent);
+            onSave(date, newContent, rating, true); // true = isHighFreq
+          }}
         />
         
         <div className="rating-selector">
@@ -75,7 +76,10 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onDelete, 
                 size={24}
                 className={`rating-star ${star <= rating ? 'active' : ''}`}
                 fill={star <= rating ? 'currentColor' : 'none'}
-                onClick={() => setRating(star)}
+                onClick={() => {
+                  setRating(star);
+                  onSave(date, content, star, false); // false = not high freq
+                }}
               />
             ))}
           </div>

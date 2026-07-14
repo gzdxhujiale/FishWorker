@@ -1,6 +1,7 @@
 mod course;
 mod db;
 mod document;
+mod list;
 mod schema;
 mod time_management;
 mod daily_review;
@@ -54,7 +55,24 @@ pub fn run() {
             time_management::tm_delete_task,
             daily_review::daily_review_load_all,
             daily_review::daily_review_save,
-            daily_review::daily_review_delete
+            daily_review::daily_review_delete,
+            list::list_load_all,
+            list::list_upsert_folder,
+            list::list_delete_folder,
+            list::list_upsert_list,
+            list::list_delete_list,
+            list::list_reorder_lists,
+            list::list_move_list,
+            list::list_duplicate_list,
+            list::list_upsert_note,
+            list::list_delete_note,
+            list::list_move_note,
+            list::list_reorder_notes,
+            list::list_upsert_group,
+            list::list_delete_group,
+            list::list_upsert_template,
+            list::list_delete_template,
+            list::list_migrate_from_local
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

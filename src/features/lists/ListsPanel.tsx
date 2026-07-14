@@ -55,16 +55,18 @@ export function ListsPanel() {
   };
 
   useEffect(() => {
-    const loadedLists = listsStore.getLists();
-    setLists(loadedLists);
-    setFolders(listsStore.getFolders());
-    setTemplates(listsStore.getTemplates());
-    
-    if (loadedLists.length > 0 && !activeListId) {
-      setActiveListId(loadedLists[0].id);
-      setNotes(listsStore.getNotesByListId(loadedLists[0].id));
-      setNoteGroups(listsStore.getNoteGroups(loadedLists[0].id));
-    }
+    listsStore.init().then(() => {
+      const loadedLists = listsStore.getLists();
+      setLists(loadedLists);
+      setFolders(listsStore.getFolders());
+      setTemplates(listsStore.getTemplates());
+      
+      if (loadedLists.length > 0 && !activeListId) {
+        setActiveListId(loadedLists[0].id);
+        setNotes(listsStore.getNotesByListId(loadedLists[0].id));
+        setNoteGroups(listsStore.getNoteGroups(loadedLists[0].id));
+      }
+    });
   }, []);
 
   useEffect(() => {

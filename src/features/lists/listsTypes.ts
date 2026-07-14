@@ -32,6 +32,7 @@ export interface Note {
   title: string;
   content: string;
   isPinned?: boolean;
+  sortOrder?: number;
   createdAt: number;
   updatedAt: number;
 }

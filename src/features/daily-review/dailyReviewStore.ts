@@ -81,12 +81,14 @@ export const dailyReviewStore = {
     }
   },
 
-  triggerDBSync(review: DailyReview) {
+  triggerDBSync(review: DailyReview, isHighFreq: boolean = true) {
     this.setSyncStatus('saving');
     
     if (pendingSaves.has(review.id)) {
       window.clearTimeout(pendingSaves.get(review.id));
     }
+
+    const delay = isHighFreq ? 500 : 300;
 
     const timeout = window.setTimeout(async () => {
       try {
@@ -98,7 +100,7 @@ export const dailyReviewStore = {
       } catch (e) {
         this.setSyncStatus('error');
       }
-    }, 1000);
+    }, delay);
     
     pendingSaves.set(review.id, timeout);
   },
@@ -112,7 +114,7 @@ export const dailyReviewStore = {
     return this.load().reviews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   },
 
-  saveReview(date: string, content: string, rating?: number): DailyReview {
+  saveReview(date: string, content: string, rating?: number, isHighFreq?: boolean): DailyReview {
     const data = this.load();
     const existingIndex = data.reviews.findIndex(r => r.date === date);
     
@@ -138,7 +140,7 @@ export const dailyReviewStore = {
     }
     
     this.save(data);
-    this.triggerDBSync(review);
+    this.triggerDBSync(review, isHighFreq ?? true);
     return review;
   },
 

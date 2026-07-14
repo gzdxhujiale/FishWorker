@@ -37,8 +37,8 @@ export const DailyReviewPanel: React.FC = () => {
     };
   }, []);
 
-  const handleSave = (date: string, content: string, rating: number) => {
-    dailyReviewStore.saveReview(date, content, rating);
+  const handleSave = (date: string, content: string, rating: number, isHighFreq?: boolean) => {
+    dailyReviewStore.saveReview(date, content, rating, isHighFreq);
     // Data reload is handled by the event listener in store.save()
   };
 

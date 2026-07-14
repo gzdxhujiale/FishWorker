@@ -21,94 +21,55 @@ export function TimeManagementPanel() {
   const [draftRoleName, setDraftRoleName] = React.useState('');
   const [draftTasks, setDraftTasks] = React.useState<Record<string, string>>({});
   const [syncStatus, setSyncStatus] = React.useState<TimeManagementSyncStatus>({ state: 'saved', pendingCount: 0 });
-  const pushTaskSync = React.useCallback((taskId: string) => {
-    const currentData = timeManagementStore.load();
-    setData(currentData);
-    const task = currentData.tasks.find(t => t.id === taskId);
-    if (task) {
-      setSyncStatus((current) => ({ ...current, state: 'saving' }));
-      timeManagementApi.upsertTask(task)
-        .then(() => setSyncStatus({ state: 'saved', pendingCount: 0 }))
-        .catch(() => setSyncStatus({ state: 'attention', pendingCount: 1 }));
-    }
-  }, []);
-
-  const pushRoleSync = React.useCallback((roleId: string) => {
-    const currentData = timeManagementStore.load();
-    setData(currentData);
-    const role = currentData.roles.find(r => r.id === roleId);
-    if (role) {
-      setSyncStatus((current) => ({ ...current, state: 'saving' }));
-      timeManagementApi.upsertRole(role)
-        .then(() => setSyncStatus({ state: 'saved', pendingCount: 0 }))
-        .catch(() => setSyncStatus({ state: 'attention', pendingCount: 1 }));
-    }
-  }, []);
-
-  const pushTaskDeleteSync = React.useCallback((taskId: string) => {
-    setData(timeManagementStore.load());
-    setSyncStatus((current) => ({ ...current, state: 'saving' }));
-    timeManagementApi.deleteTask(taskId)
-      .then(() => setSyncStatus({ state: 'saved', pendingCount: 0 }))
-      .catch(() => setSyncStatus({ state: 'attention', pendingCount: 1 }));
-  }, []);
-
-  const pushRoleDeleteSync = React.useCallback((roleId: string) => {
-    setData(timeManagementStore.load());
-    setSyncStatus((current) => ({ ...current, state: 'saving' }));
-    timeManagementApi.deleteRole(roleId)
-      .then(() => setSyncStatus({ state: 'saved', pendingCount: 0 }))
-      .catch(() => setSyncStatus({ state: 'attention', pendingCount: 1 }));
-  }, []);
 
   React.useEffect(() => {
     let isCancelled = false;
-    timeManagementApi.loadAll()
-      .then((dbData) => {
-        if (isCancelled) return;
-        if (dbData) {
-          setData(dbData);
-          timeManagementStore.save(dbData);
-        } else {
-          setData(timeManagementStore.load());
-        }
-      })
-      .catch(() => {
-        if (isCancelled) return;
-        setSyncStatus({ state: 'attention', pendingCount: 1 });
+    
+    // Initial Load & Sync
+    timeManagementStore.syncAllFromDB().then(() => {
+      if (!isCancelled) {
         setData(timeManagementStore.load());
-      });
-      
-    return () => { isCancelled = true; };
+      }
+    });
+
+    const handleUpdate = () => {
+      if (!isCancelled) setData(timeManagementStore.load());
+    };
+    
+    const handleSyncUpdate = () => {
+      if (!isCancelled) setSyncStatus(timeManagementStore.getSyncStatus());
+    };
+
+    window.addEventListener('time-management-updated', handleUpdate);
+    window.addEventListener('time-management-sync-updated', handleSyncUpdate);
+
+    return () => {
+      isCancelled = true;
+      window.removeEventListener('time-management-updated', handleUpdate);
+      window.removeEventListener('time-management-sync-updated', handleSyncUpdate);
+    };
   }, []);
 
   React.useEffect(() => {
     if (data.tasks.length === 0) return;
     
     const todayStr = new Date().toISOString().split('T')[0];
-    let updatedTaskIds: string[] = [];
+    let hasUpdates = false;
     
     const updatedTasks = data.tasks.map(task => {
       if (task.scheduledDate === todayStr && !task.completed && task.quadrant !== 'Q2' && task.quadrant !== 'Q1') {
-        updatedTaskIds.push(task.id);
+        hasUpdates = true;
         return { ...task, quadrant: 'Q2' as QuadrantType };
       }
       return task;
     });
 
-    if (updatedTaskIds.length > 0) {
-      const newData = { ...data, tasks: updatedTasks };
-      timeManagementStore.save(newData);
-      setData(newData);
-      
-      // Sync each updated task
-      updatedTaskIds.forEach(id => {
-        const task = newData.tasks.find(t => t.id === id);
-        if (task) {
-          setSyncStatus((current) => ({ ...current, state: 'saving' }));
-          timeManagementApi.upsertTask(task)
-            .then(() => setSyncStatus({ state: 'saved', pendingCount: 0 }))
-            .catch(() => setSyncStatus({ state: 'attention', pendingCount: 1 }));
+    if (hasUpdates) {
+      // Find which tasks were updated and trigger individual syncs
+      data.tasks.forEach((oldTask, i) => {
+        const newTask = updatedTasks[i];
+        if (oldTask.quadrant !== newTask.quadrant) {
+          timeManagementStore.updateTask(oldTask.id, { quadrant: newTask.quadrant }, false);
         }
       });
     }
@@ -122,43 +83,37 @@ export function TimeManagementPanel() {
     timeManagementStore.updateTask(taskId, { 
       completed: isCompleted,
       completedAt: isCompleted ? Date.now() : undefined
-    });
-    pushTaskSync(taskId);
+    }, false); // false = not high freq
   };
 
   const handleMoveTask = (taskId: string, newQuadrant: QuadrantType) => {
-    timeManagementStore.updateTask(taskId, { quadrant: newQuadrant });
-    pushTaskSync(taskId);
+    timeManagementStore.updateTask(taskId, { quadrant: newQuadrant }, false);
   };
 
   const handleAddTaskToQuadrant = (title: string, quadrant: QuadrantType, deadline?: number) => {
     const task = timeManagementStore.addTask(title, quadrant, undefined);
     if (deadline) {
-      timeManagementStore.updateTask(task.id, { deadline });
+      timeManagementStore.updateTask(task.id, { deadline }, false);
     }
-    pushTaskSync(task.id);
   };
 
   const handleAddRole = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && draftRoleName.trim()) {
       const randomColor = PREDEFINED_COLORS[Math.floor(Math.random() * PREDEFINED_COLORS.length)];
-      const role = timeManagementStore.addRole(draftRoleName.trim(), randomColor);
-      pushRoleSync(role.id);
+      timeManagementStore.addRole(draftRoleName.trim(), randomColor);
       setDraftRoleName('');
     }
   };
 
   const handleDeleteRole = (roleId: string) => {
     timeManagementStore.deleteRole(roleId);
-    pushRoleDeleteSync(roleId);
   };
 
   const handleAddTaskToRole = (e: React.KeyboardEvent<HTMLInputElement>, roleId: string) => {
     if (e.key === 'Enter') {
       const title = draftTasks[roleId]?.trim();
       if (title) {
-        const task = timeManagementStore.addTask(title, 'Q2', undefined, roleId);
-        pushTaskSync(task.id);
+        timeManagementStore.addTask(title, 'Q2', undefined, roleId);
         setDraftTasks(prev => ({ ...prev, [roleId]: '' }));
       }
     }
@@ -173,18 +128,16 @@ export function TimeManagementPanel() {
       updates.deadline = d.getTime();
       updates.quadrant = 'Q2';
     }
-    timeManagementStore.updateTask(taskId, updates);
-    pushTaskSync(taskId);
+    timeManagementStore.updateTask(taskId, updates, false);
   };
 
   const handleDeleteTask = (taskId: string) => {
     timeManagementStore.deleteTask(taskId);
-    pushTaskDeleteSync(taskId);
   };
 
   const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
+    // updates from generic text edits will be true by default
     timeManagementStore.updateTask(taskId, updates);
-    pushTaskSync(taskId);
   };
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {

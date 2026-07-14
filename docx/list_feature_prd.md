@@ -137,3 +137,13 @@
   - `id`: string
   - `name`: string
   - `content`: string
+
+### 6.3 数据持久化架构 (v1.6 新增)
+清单模块的数据采用 **Rust + TiDB 直连** 的方案进行持久化同步。
+- **架构**: 
+  - 前端采用 React `useState` 进行内存状态管理，确保所有的 CRUD 操作具有 `0ms` 的 UI 响应极速体验（乐观更新）。
+  - 后端采用 Rust `sqlx` 搭配 MySQL 协议直连远端 TiDB，提供稳定的结构化存储。
+- **前后端通信**: 使用 Tauri 进程间通信机制 (IPC Invoke)。每次修改都会触发异步 API 进行数据持久化。
+- **高频输入防抖 (Debouncing)**: 对高频次的编辑引入 `500ms` 的延迟防抖，对低频次的编辑引入 `300ms` 的防抖，避免极短时间内触发过多的 IPC 调用和数据库写入操作。
+- **数据表设计**: 所有数据分为 `list_folders`、`list_lists`、`list_note_groups`、`list_notes`、`list_templates` 5张关系表进行管理，完全贴合数据实体。
+- **兼容与迁移**: 保留了对原有 `localStorage` 数据的向下兼容与自动数据迁移功能。

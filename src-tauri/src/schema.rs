@@ -158,5 +158,80 @@ pub async fn ensure_tables(pool: &MySqlPool) -> Result<(), sqlx::Error> {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ).execute(pool).await?;
 
+    // ── List module tables ──
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS list_folders (
+            id VARCHAR(64) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME(3) NOT NULL,
+            updated_at DATETIME(3) NOT NULL,
+            deleted_at DATETIME(3) NULL,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS list_lists (
+            id VARCHAR(64) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            icon VARCHAR(64) NOT NULL DEFAULT '',
+            color VARCHAR(32) NOT NULL DEFAULT '#000000',
+            view_type VARCHAR(16) NOT NULL DEFAULT 'list',
+            folder_id VARCHAR(64) NULL,
+            is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME(3) NOT NULL,
+            updated_at DATETIME(3) NOT NULL,
+            deleted_at DATETIME(3) NULL,
+            PRIMARY KEY (id),
+            KEY idx_folder_order (folder_id, sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS list_note_groups (
+            id VARCHAR(64) NOT NULL,
+            list_id VARCHAR(64) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME(3) NOT NULL,
+            updated_at DATETIME(3) NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_list_order (list_id, sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS list_notes (
+            id VARCHAR(64) NOT NULL,
+            list_id VARCHAR(64) NOT NULL,
+            group_id VARCHAR(64) NULL,
+            title VARCHAR(255) NOT NULL DEFAULT '',
+            content LONGTEXT NOT NULL,
+            is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME(3) NOT NULL,
+            updated_at DATETIME(3) NOT NULL,
+            deleted_at DATETIME(3) NULL,
+            PRIMARY KEY (id),
+            KEY idx_list_group_order (list_id, group_id, sort_order),
+            KEY idx_list_pinned (list_id, is_pinned)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS list_templates (
+            id VARCHAR(64) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            content LONGTEXT NOT NULL,
+            created_at DATETIME(3) NOT NULL,
+            updated_at DATETIME(3) NOT NULL,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
     Ok(())
 }
