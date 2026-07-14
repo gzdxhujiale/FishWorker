@@ -28,6 +28,7 @@ interface ListsSidebarProps {
   onDuplicateList: (list: List) => void;
   onDeleteList: (list: List) => void;
   onDataChange: () => void;
+  isCollapsed?: boolean;
 }
 
 const ICON_MAP: Record<string, ReactNode> = {
@@ -51,7 +52,8 @@ export function ListsSidebar({
   onPinList,
   onDuplicateList,
   onDeleteList,
-  onDataChange
+  onDataChange,
+  isCollapsed
 }: ListsSidebarProps) {
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   
@@ -171,7 +173,7 @@ export function ListsSidebar({
   });
 
   return (
-    <aside className="lists-sidebar">
+    <aside className={`lists-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="lists-sidebar-header">
         <span>清单</span>
         <div className="lists-add-btn" onClick={() => onAddClick()}>

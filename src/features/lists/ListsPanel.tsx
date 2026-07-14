@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowDownUp, MoreHorizontal, Plus, FileText } from 'lucide-react';
+import { ArrowDownUp, MoreHorizontal, Plus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { listsStore } from './listsStore';
 import { List, Folder, ViewType, Note, Template, NoteGroup } from './listsTypes';
 import { ListsSidebar } from './ListsSidebar';
@@ -18,15 +18,27 @@ export function ListsPanel() {
   const [lists, setLists] = useState<List[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [activeListId, setActiveListId] = useState<string | null>(null);
-  
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('lists-sidebar-collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('lists-sidebar-collapsed', String(next));
+      return next;
+    });
+  };
+
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalInitialFolderId, setAddModalInitialFolderId] = useState<string | undefined>();
   const [editListTarget, setEditListTarget] = useState<List | undefined>();
-  
+
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editFolderTarget, setEditFolderTarget] = useState<Folder | undefined>();
-  
+
   // Note state
   const [notes, setNotes] = useState<Note[]>([]);
   const [noteGroups, setNoteGroups] = useState<NoteGroup[]>([]);
@@ -36,10 +48,10 @@ export function ListsPanel() {
   const [listMenuOpen, setListMenuOpen] = useState(false);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
-  
+
   const [activeDragNoteId, setActiveDragNoteId] = useState<string | null>(null);
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
-  
+
   // Template state
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -60,7 +72,7 @@ export function ListsPanel() {
       setLists(loadedLists);
       setFolders(listsStore.getFolders());
       setTemplates(listsStore.getTemplates());
-      
+
       if (loadedLists.length > 0 && !activeListId) {
         setActiveListId(loadedLists[0].id);
         setNotes(listsStore.getNotesByListId(loadedLists[0].id));
@@ -114,12 +126,12 @@ export function ListsPanel() {
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragNoteId(null);
     setDragOverGroupId(null);
-    
+
     const { active, over } = event;
     if (active.id !== over?.id && over) {
       const activeNoteId = String(active.id);
       const overId = String(over.id);
-      
+
       let targetGroupId: string | null = null;
       let targetIndex: number | undefined = undefined;
 
@@ -131,7 +143,7 @@ export function ListsPanel() {
         const overNote = notes.find(n => n.id === overId);
         if (overNote) {
           targetGroupId = overNote.groupId || null;
-          
+
           const activeNoteData = notes.find(n => n.id === activeNoteId);
           if (activeNoteData && (activeNoteData.groupId || null) === targetGroupId) {
             // Same group reordering
@@ -145,7 +157,7 @@ export function ListsPanel() {
               return;
             }
           }
-          
+
           const siblingNotes = notes.filter(n => (n.groupId || null) === targetGroupId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
           targetIndex = siblingNotes.findIndex(n => n.id === overId);
         }
@@ -344,10 +356,10 @@ export function ListsPanel() {
 
   return (
     <section className="lists-page">
-      <ListsSidebar 
-        lists={lists} 
-        folders={folders} 
-        activeListId={activeListId} 
+      <ListsSidebar
+        lists={lists}
+        folders={folders}
+        activeListId={activeListId}
         onSelectList={setActiveListId}
         onAddClick={handleAddListClick}
         onEditFolder={handleEditFolder}
@@ -357,39 +369,42 @@ export function ListsPanel() {
         onDuplicateList={handleDuplicateList}
         onDeleteList={handleDeleteList}
         onDataChange={refreshData}
+        isCollapsed={isSidebarCollapsed}
       />
-      
+
       <main className="lists-main-content" onClick={() => setListMenuOpen(false)}>
         {activeList ? (
           <>
             <div className="lists-content-header">
               <div className="lists-content-title">
-                <MenuIcon />
+                <div className="lists-menu-icon" onClick={toggleSidebar} title={isSidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}>
+                  <MenuIcon isCollapsed={isSidebarCollapsed} />
+                </div>
                 <span>{activeList.name}</span>
               </div>
               <div className="lists-content-actions">
                 <ArrowDownUp size={18} style={{ cursor: 'pointer' }} />
                 <div style={{ position: 'relative' }}>
-                  <MoreHorizontal 
-                    size={18} 
-                    style={{ cursor: 'pointer' }} 
-                    onClick={(e) => { e.stopPropagation(); setListMenuOpen(!listMenuOpen); }} 
+                  <MoreHorizontal
+                    size={18}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(e) => { e.stopPropagation(); setListMenuOpen(!listMenuOpen); }}
                   />
                   {listMenuOpen && (
                     <div className="lists-dropdown-menu" style={{ right: 0, top: '100%', marginTop: '4px', zIndex: 10 }}>
-                       <div className="lists-dropdown-item" onClick={() => { handleAddGroupClick(); setListMenuOpen(false); }}>新建分组</div>
+                      <div className="lists-dropdown-item" onClick={() => { handleAddGroupClick(); setListMenuOpen(false); }}>新建分组</div>
                     </div>
                   )}
                 </div>
               </div>
             </div>
-            
+
             <div style={{ padding: '0 32px', display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
-              <div 
+              <div
                 style={{ display: 'flex', alignItems: 'center', background: '#ffffff', border: '1px solid var(--line-soft)', borderRadius: '8px', padding: '12px 16px', marginBottom: '24px' }}
               >
                 <Plus size={16} style={{ marginRight: '8px', color: 'var(--text-muted)' }} />
-                <input 
+                <input
                   type="text"
                   placeholder="添加笔记..."
                   value={newNoteTitle}
@@ -400,7 +415,7 @@ export function ListsPanel() {
                   style={{ border: 'none', outline: 'none', flex: 1, fontSize: '14px', background: 'transparent' }}
                 />
               </div>
-              
+
               {notes.length === 0 && !isAddingGroup ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-faint)' }}>
                   暂无笔记
@@ -427,63 +442,40 @@ export function ListsPanel() {
                     </div>
                   )}
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-                  {noteGroups.length === 0 && !isAddingGroup ? (
-                    // Flat list if no groups
-                    <SortableContext items={notes.map(n => n.id)} strategy={verticalListSortingStrategy}>
-                      {notes.map(note => (
-                        <SortableItem key={note.id} id={note.id}>
-                          <NoteItem 
-                            key={note.id}
-                            note={note}
-                            allLists={lists}
-                            onClick={() => { setActiveNote(note); setIsDrawerOpen(true); }}
-                            onPin={handlePinNote}
-                            onDuplicate={handleDuplicateNote}
-                            onDelete={handleDeleteNote}
-                            onMove={handleMoveNote}
-                          />
-                        </SortableItem>
-                      ))}
-                    </SortableContext>
-                  ) : (
-                    // Grouped view
-                    <>
-                      {noteGroups.map(group => {
-                        const groupNotes = notes.filter(n => n.groupId === group.id);
-                        const activeNoteItem = notes.find(n => n.id === activeDragNoteId);
-                        const isDragOverTarget = dragOverGroupId === group.id && activeNoteItem && activeNoteItem.groupId !== group.id;
-                        return (
-                          <NoteGroupView
-                            key={group.id}
-                            group={group}
-                            notes={groupNotes}
-                            allLists={lists}
-                            isDragOverTarget={!!isDragOverTarget}
-                            onRenameGroup={handleRenameGroup}
-                            onDeleteGroup={handleDeleteGroup}
-                            onNoteClick={(note) => { setActiveNote(note); setIsDrawerOpen(true); }}
-                            onPinNote={handlePinNote}
-                            onDuplicateNote={handleDuplicateNote}
-                            onDeleteNote={handleDeleteNote}
-                            onMoveNote={handleMoveNote}
-                          />
-                        );
-                      })}
-                      {/* Ungrouped notes */}
-                      {notes.filter(n => !n.groupId).length > 0 && (
-                        (() => {
+                    {noteGroups.length === 0 && !isAddingGroup ? (
+                      // Flat list if no groups
+                      <SortableContext items={notes.map(n => n.id)} strategy={verticalListSortingStrategy}>
+                        {notes.map(note => (
+                          <SortableItem key={note.id} id={note.id}>
+                            <NoteItem
+                              key={note.id}
+                              note={note}
+                              allLists={lists}
+                              onClick={() => { setActiveNote(note); setIsDrawerOpen(true); }}
+                              onPin={handlePinNote}
+                              onDuplicate={handleDuplicateNote}
+                              onDelete={handleDeleteNote}
+                              onMove={handleMoveNote}
+                            />
+                          </SortableItem>
+                        ))}
+                      </SortableContext>
+                    ) : (
+                      // Grouped view
+                      <>
+                        {noteGroups.map(group => {
+                          const groupNotes = notes.filter(n => n.groupId === group.id);
                           const activeNoteItem = notes.find(n => n.id === activeDragNoteId);
-                          const isDragOverTarget = dragOverGroupId === 'ungrouped' && activeNoteItem && activeNoteItem.groupId !== null;
+                          const isDragOverTarget = dragOverGroupId === group.id && activeNoteItem && activeNoteItem.groupId !== group.id;
                           return (
                             <NoteGroupView
-                              key="ungrouped"
-                              group={{ id: 'ungrouped', listId: activeListId!, name: '未分组' }}
-                              notes={notes.filter(n => !n.groupId)}
+                              key={group.id}
+                              group={group}
+                              notes={groupNotes}
                               allLists={lists}
-                              isUngrouped={true}
                               isDragOverTarget={!!isDragOverTarget}
-                              onRenameGroup={() => {}}
-                              onDeleteGroup={() => {}}
+                              onRenameGroup={handleRenameGroup}
+                              onDeleteGroup={handleDeleteGroup}
                               onNoteClick={(note) => { setActiveNote(note); setIsDrawerOpen(true); }}
                               onPinNote={handlePinNote}
                               onDuplicateNote={handleDuplicateNote}
@@ -491,16 +483,39 @@ export function ListsPanel() {
                               onMoveNote={handleMoveNote}
                             />
                           );
-                        })()
-                      )}
-                    </>
-                  )}
+                        })}
+                        {/* Ungrouped notes */}
+                        {notes.filter(n => !n.groupId).length > 0 && (
+                          (() => {
+                            const activeNoteItem = notes.find(n => n.id === activeDragNoteId);
+                            const isDragOverTarget = dragOverGroupId === 'ungrouped' && activeNoteItem && activeNoteItem.groupId !== null;
+                            return (
+                              <NoteGroupView
+                                key="ungrouped"
+                                group={{ id: 'ungrouped', listId: activeListId!, name: '未分组' }}
+                                notes={notes.filter(n => !n.groupId)}
+                                allLists={lists}
+                                isUngrouped={true}
+                                isDragOverTarget={!!isDragOverTarget}
+                                onRenameGroup={() => { }}
+                                onDeleteGroup={() => { }}
+                                onNoteClick={(note) => { setActiveNote(note); setIsDrawerOpen(true); }}
+                                onPinNote={handlePinNote}
+                                onDuplicateNote={handleDuplicateNote}
+                                onDeleteNote={handleDeleteNote}
+                                onMoveNote={handleMoveNote}
+                              />
+                            );
+                          })()
+                        )}
+                      </>
+                    )}
                   </DndContext>
                 </div>
               )}
             </div>
 
-            <NoteDrawer 
+            <NoteDrawer
               note={activeNote}
               isOpen={isDrawerOpen}
               onClose={() => setIsDrawerOpen(false)}
@@ -520,11 +535,11 @@ export function ListsPanel() {
       </main>
 
       {isAddModalOpen && (
-        <AddListModal 
+        <AddListModal
           folders={folders}
           initialFolderId={addModalInitialFolderId}
           initialData={editListTarget}
-          onClose={() => { setIsAddModalOpen(false); setEditListTarget(undefined); }} 
+          onClose={() => { setIsAddModalOpen(false); setEditListTarget(undefined); }}
           onAdd={handleAddList}
         />
       )}
@@ -538,7 +553,7 @@ export function ListsPanel() {
       )}
 
       {isTemplateModalOpen && (
-        <TemplateModal 
+        <TemplateModal
           templates={templates}
           onSelect={handleSelectTemplate}
           onClose={() => setIsTemplateModalOpen(false)}
@@ -550,13 +565,6 @@ export function ListsPanel() {
   );
 }
 
-function MenuIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="4" y1="6" x2="20" y2="6"></line>
-      <line x1="4" y1="12" x2="20" y2="12"></line>
-      <line x1="4" y1="18" x2="20" y2="18"></line>
-      <path d="M12 4l-8 8 8 8" opacity="0.3"></path>
-    </svg>
-  );
+function MenuIcon({ isCollapsed }: { isCollapsed: boolean }) {
+  return isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />;
 }

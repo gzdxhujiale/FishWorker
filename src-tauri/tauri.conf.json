@@ -13,10 +13,12 @@
     "windows": [
       {
         "title": "fishworker",
-        "width": 1024,
-        "height": 768,
+        "width": 1100,
+        "height": 660,
+        "minWidth": 680,
+        "minHeight": 460,
         "decorations": false,
-        "resizable": false,
+        "resizable": true,
         "dragDropEnabled": false
       }
     ],

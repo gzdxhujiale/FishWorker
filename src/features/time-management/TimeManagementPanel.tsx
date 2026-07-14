@@ -197,7 +197,7 @@ export function TimeManagementPanel() {
         {/* Time Management Content Area */}
         <div className="tm-content-area" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {activeTab === 'weekly' && (
-          <aside className="tm-roles-sidebar" style={{ width: '280px', flex: 'none', display: 'flex', flexDirection: 'column' }}>
+          <aside className="tm-roles-sidebar" style={{ width: '240px', flex: 'none', display: 'flex', flexDirection: 'column' }}>
             <div className="tm-sidebar-header" style={{ paddingTop: '16px' }}>
               <h3>待办分类 / 角色</h3>
               <span className="text-muted">为每个角色设定 Q2 要事</span>
