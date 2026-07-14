@@ -49,6 +49,17 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea to fit content and avoid inner scrollbar
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [content, isOpen]);
+
   if (!note) return null;
 
   return (
@@ -83,10 +94,11 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
             </div>
           )}
           <textarea 
+            ref={textareaRef}
             className="note-drawer-textarea"
             value={content}
             onChange={e => setContent(e.target.value)}
-            style={{ background: 'transparent', position: 'relative', zIndex: 1 }}
+            style={{ background: 'transparent', position: 'relative', zIndex: 1, overflowY: 'hidden', resize: 'none' }}
           />
         </div>
         

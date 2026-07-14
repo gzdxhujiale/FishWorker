@@ -63,27 +63,33 @@ fn read_config() -> MysqlConfigJson {
 pub async fn establish_connection() -> Result<MySqlPool, sqlx::Error> {
     let config = read_config();
 
-    let host = config.host.unwrap_or_else(|| "127.0.0.1".to_string());
-    let port = config.port.unwrap_or(3306);
-    let user = config.user.unwrap_or_else(|| "root".to_string());
-    let password = config.password.unwrap_or_else(|| "".to_string());
+    let host = config.host.unwrap_or_else(|| "gateway01.ap-southeast-1.prod.aws.tidbcloud.com".to_string());
+    let port = config.port.unwrap_or(4000);
+    let user = config.user.unwrap_or_else(|| "24LcgDNkgTvCTPz.root".to_string());
+    let password = config.password.unwrap_or_else(|| "4DpLYsXL6brv1phl".to_string());
     let database = config
         .database
         .unwrap_or_else(|| "aistudy_public".to_string());
 
     let url = format!(
-        "mysql://{}:{}@{}:{}/{}",
+        "mysql://{}:{}@{}:{}/{}?ssl-mode=required",
         user, password, host, port, database
     );
 
     let pool = MySqlPoolOptions::new()
         .max_connections(5)
-        .connect(&url)
-        .await?;
+        .acquire_timeout(std::time::Duration::from_secs(10))
+        .connect_lazy(&url)?;
 
-    if !config.skip_schema_creation.unwrap_or(false) {
-        crate::schema::ensure_tables(&pool).await?;
-    }
+    let pool_clone = pool.clone();
+    let skip_schema_creation = config.skip_schema_creation.unwrap_or(false);
+    tokio::spawn(async move {
+        if !skip_schema_creation {
+            if let Err(e) = crate::schema::ensure_tables(&pool_clone).await {
+                eprintln!("Failed to ensure tables in background: {}", e);
+            }
+        }
+    });
 
     Ok(pool)
 }
