@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowDownUp, MoreHorizontal, Plus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ArrowDownUp, MoreHorizontal, Plus, PanelLeftClose, PanelLeftOpen, CheckCircle, AlertCircle } from 'lucide-react';
 import { listsStore } from './listsStore';
 import { List, Folder, ViewType, Note, Template, NoteGroup } from './listsTypes';
 import { ListsSidebar } from './ListsSidebar';
@@ -12,6 +12,8 @@ import { NoteGroupView } from './NoteGroupView';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates, SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';
+import { invoke } from '@tauri-apps/api/core';
+import { BatchExportModal } from './BatchExportModal';
 import './lists.css';
 
 export function ListsPanel() {
@@ -55,6 +57,29 @@ export function ListsPanel() {
   // Template state
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [batchExportModalOpen, setBatchExportModalOpen] = useState(false);
+
+  // Toast state
+  interface ToastMessage {
+    id: string;
+    message: string;
+    type: 'success' | 'error';
+    isFadingOut?: boolean;
+  }
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev =>
+        prev.map(t => (t.id === id ? { ...t, isFadingOut: true } : t))
+      );
+    }, 2700);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
 
   const refreshData = () => {
     setLists(listsStore.getLists());
@@ -274,6 +299,66 @@ export function ListsPanel() {
     setIsDrawerOpen(true);
   };
 
+  const handleBatchImport = async () => {
+    if (!activeListId) return;
+    try {
+      const importedFiles = await invoke<Array<{ title: string; content: string }>>('pick_multiple_markdown_files');
+      for (const file of importedFiles) {
+        let htmlContent = file.content;
+        if (!htmlContent.trim().startsWith('<')) {
+          htmlContent = htmlContent
+            .split('\n\n')
+            .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
+            .join('');
+        }
+        listsStore.addNote({
+          listId: activeListId,
+          title: file.title,
+          content: htmlContent,
+        });
+      }
+      refreshData();
+      showToast(`已成功导入 ${importedFiles.length} 条笔记！`);
+    } catch (err) {
+      console.warn('Batch import cancelled or failed:', err);
+    }
+  };
+
+  const handleBatchExport = async (selectedNoteIds: string[]) => {
+    const notesToExport = notes.filter(n => selectedNoteIds.includes(n.id));
+    if (notesToExport.length === 0) return;
+
+    const convertHtmlToMarkdown = (html: string) => {
+      let text = html;
+      text = text.replace(/<p>/g, '').replace(/<\/p>/g, '\n\n');
+      text = text.replace(/<br\s*\/?>/g, '\n');
+      text = text.replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n');
+      text = text.replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n');
+      text = text.replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n');
+      text = text.replace(/<strong>(.*?)<\/strong>/g, '**$1**');
+      text = text.replace(/<em>(.*?)<\/em>/g, '*$1*');
+      text = text.replace(/<code>(.*?)<\/code>/g, '`$1`');
+      text = text.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/g, '> $1\n\n');
+      text = text.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/g, '```\n$1\n```\n\n');
+      text = text.replace(/<[^>]+>/g, '');
+      text = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+      return text.trim();
+    };
+
+    const files = notesToExport.map(n => ({
+      title: n.title,
+      content: convertHtmlToMarkdown(n.content || ''),
+    }));
+
+    try {
+      await invoke('save_multiple_markdown_files', { files });
+      setBatchExportModalOpen(false);
+      showToast(`已成功导出 ${files.length} 条笔记！`);
+    } catch (err) {
+      console.warn('Batch export cancelled or failed:', err);
+    }
+  };
+
   const handleNoteUpdate = (id: string, title: string, content: string) => {
     listsStore.updateNote(id, { title, content });
     if (activeListId) setNotes(listsStore.getNotesByListId(activeListId));
@@ -299,7 +384,7 @@ export function ListsPanel() {
   const handleSaveAsTemplate = (note: Note) => {
     listsStore.addTemplate(note.title || '自定义模板', note.content);
     refreshData();
-    alert('已保存为模板！');
+    showToast('已保存为模板！');
   };
 
   const handleDeleteNote = (note: Note) => {
@@ -311,12 +396,24 @@ export function ListsPanel() {
     }
   };
 
+  const ensureHtmlFormat = (text: string) => {
+    if (!text) return '';
+    if (text.trim().startsWith('<') && text.trim().endsWith('>')) {
+      return text;
+    }
+    return text
+      .split('\n')
+      .map(line => line.trim() === '' ? '<p></p>' : `<p>${line}</p>`)
+      .join('');
+  };
+
   const handleSelectTemplate = (template: Template) => {
     if (!activeNote) return;
-    listsStore.updateNote(activeNote.id, { content: template.content });
+    const htmlContent = ensureHtmlFormat(template.content);
+    listsStore.updateNote(activeNote.id, { content: htmlContent });
     refreshData();
     setIsTemplateModalOpen(false);
-    setActiveNote({ ...activeNote, content: template.content });
+    setActiveNote({ ...activeNote, content: htmlContent });
   };
 
   const handleEditTemplate = (id: string, name: string, content: string) => {
@@ -403,8 +500,10 @@ export function ListsPanel() {
                     onClick={(e) => { e.stopPropagation(); setListMenuOpen(!listMenuOpen); }}
                   />
                   {listMenuOpen && (
-                    <div className="lists-dropdown-menu" style={{ right: 0, top: '100%', marginTop: '4px', zIndex: 10 }}>
+                    <div className="lists-dropdown-menu" style={{ right: 0, top: '100%', marginTop: '4px', zIndex: 10, width: '130px' }}>
                       <div className="lists-dropdown-item" onClick={() => { handleAddGroupClick(); setListMenuOpen(false); }}>新建分组</div>
+                      <div className="lists-dropdown-item" onClick={() => { handleBatchImport(); setListMenuOpen(false); }}>批量导入MD</div>
+                      <div className="lists-dropdown-item" onClick={() => { setBatchExportModalOpen(true); setListMenuOpen(false); }}>批量导出MD</div>
                     </div>
                   )}
                 </div>
@@ -537,6 +636,7 @@ export function ListsPanel() {
               onSaveAsTemplate={handleSaveAsTemplate}
               onDelete={handleDeleteNote}
               onOpenTemplate={() => setIsTemplateModalOpen(true)}
+              showToast={showToast}
             />
           </>
         ) : (
@@ -574,6 +674,28 @@ export function ListsPanel() {
           onDelete={handleDeleteTemplate}
         />
       )}
+
+      {batchExportModalOpen && (
+        <BatchExportModal
+          notes={notes}
+          onExport={handleBatchExport}
+          onClose={() => setBatchExportModalOpen(false)}
+        />
+      )}
+
+      {/* Global Toast Container */}
+      <div className="lists-toast-container">
+        {toasts.map(t => (
+          <div key={t.id} className={`lists-toast-item ${t.type} ${t.isFadingOut ? 'fade-out' : ''}`}>
+            {t.type === 'success' ? (
+              <CheckCircle size={18} className="lists-toast-icon success" />
+            ) : (
+              <AlertCircle size={18} className="lists-toast-icon error" />
+            )}
+            <span>{t.message}</span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
 import { Template } from './listsTypes';
 import { X, Edit2, Trash2 } from 'lucide-react';
 import { ConfirmBubble } from './ConfirmBubble';
@@ -17,11 +19,22 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
   const [editContent, setEditContent] = useState('');
   const [deleteConfirmTemplateId, setDeleteConfirmTemplateId] = useState<string | null>(null);
 
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: editContent,
+    onUpdate: ({ editor }) => {
+      setEditContent(editor.getHTML());
+    },
+  });
+
   const startEdit = (e: React.MouseEvent, tpl: Template) => {
     e.stopPropagation();
     setEditingTemplate(tpl);
     setEditName(tpl.name);
     setEditContent(tpl.content);
+    if (editor) {
+      editor.commands.setContent(tpl.content || '');
+    }
   };
 
   const saveEdit = () => {
@@ -53,12 +66,12 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
                 placeholder="模板名称" 
                 style={{ fontSize: '16px', fontWeight: 'bold', padding: '8px', border: '1px solid var(--line-soft)', borderRadius: '4px' }}
               />
-              <textarea 
-                value={editContent} 
-                onChange={e => setEditContent(e.target.value)} 
-                placeholder="模板内容"
-                style={{ height: '200px', padding: '8px', border: '1px solid var(--line-soft)', borderRadius: '4px', resize: 'none' }}
-              />
+              <div className="template-editor-wrapper" style={{ border: '1px solid var(--line-soft)', borderRadius: '4px', padding: '12px', minHeight: '200px' }}>
+                <EditorContent 
+                  editor={editor} 
+                  className="template-editor-container"
+                />
+              </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button className="list-modal-btn" onClick={() => setEditingTemplate(null)}>取消</button>
                 <button className="list-modal-btn primary" onClick={saveEdit}>保存</button>
@@ -93,7 +106,7 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
                       </ConfirmBubble>
                     </div>
                   </div>
-                  <div className="template-card-preview">{tpl.content}</div>
+                  <div className="template-card-preview" dangerouslySetInnerHTML={{ __html: tpl.content }} />
                 </div>
               ))}
             </div>

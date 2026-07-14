@@ -14,6 +14,89 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+fn pick_markdown_file() -> Result<String, String> {
+    let file_path = rfd::FileDialog::new()
+        .add_filter("Markdown", &["md"])
+        .pick_file();
+
+    if let Some(path) = file_path {
+        std::fs::read_to_string(path).map_err(|e| e.to_string())
+    } else {
+        Err("No file selected".to_string())
+    }
+}
+
+#[tauri::command]
+fn save_markdown_file(default_name: String, content: String) -> Result<(), String> {
+    let file_path = rfd::FileDialog::new()
+        .set_file_name(&default_name)
+        .add_filter("Markdown", &["md"])
+        .save_file();
+
+    if let Some(path) = file_path {
+        std::fs::write(path, content).map_err(|e| e.to_string())
+    } else {
+        Err("Save cancelled".to_string())
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct MarkdownFile {
+    title: String,
+    content: String,
+}
+
+#[tauri::command]
+fn pick_multiple_markdown_files() -> Result<Vec<MarkdownFile>, String> {
+    let files = rfd::FileDialog::new()
+        .add_filter("Markdown", &["md"])
+        .pick_files();
+
+    if let Some(paths) = files {
+        let mut result = Vec::new();
+        for path in paths {
+            if let Some(filename) = path.file_stem().and_then(|s| s.to_str()) {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    result.push(MarkdownFile {
+                        title: filename.to_string(),
+                        content,
+                    });
+                }
+            }
+        }
+        Ok(result)
+    } else {
+        Err("No files selected".to_string())
+    }
+}
+
+#[tauri::command]
+fn save_multiple_markdown_files(files: Vec<MarkdownFile>) -> Result<(), String> {
+    let folder = rfd::FileDialog::new().pick_folder();
+    if let Some(dir) = folder {
+        for file in files {
+            // Sanitize filename to avoid invalid characters
+            let sanitized_title: String = file.title
+                .chars()
+                .map(|c| if c.is_alphanumeric() || c == ' ' || c == '_' || c == '-' { c } else { '_' })
+                .collect();
+            
+            let mut target_path = dir.join(format!("{}.md", sanitized_title));
+            let mut counter = 1;
+            while target_path.exists() {
+                target_path = dir.join(format!("{}_{}.md", sanitized_title, counter));
+                counter += 1;
+            }
+
+            std::fs::write(&target_path, file.content).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    } else {
+        Err("Save cancelled".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -31,6 +114,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            pick_markdown_file,
+            save_markdown_file,
+            pick_multiple_markdown_files,
+            save_multiple_markdown_files,
             course::courses_load,
             course::course_create,
             course::course_rename,

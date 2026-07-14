@@ -1,6 +1,6 @@
 # 清单模块前端接口与数据模型文档 (Lists Frontend API)
 
-本文档描述了“清单”功能模块（v1.1）的前端数据模型定义，以及本地 Store (`listsStore.ts`) 提供的数据操作接口。当前数据存储**基于 Rust 后端直连 TiDB** 实现，前端通过 Tauri IPC (Invoke) 与后端同步数据，并采用内存乐观更新策略以保证极速响应。
+本文档描述了“清单”功能模块（v1.4）的前端数据模型定义，以及本地 Store (`listsStore.ts`) 提供的数据操作接口与 Tauri 后端 API。当前数据存储**基于 Rust 后端直连 TiDB** 实现，前端通过 Tauri IPC (Invoke) 与后端同步数据，并采用内存乐观更新策略以保证极速响应。
 
 ## 1. 数据模型定义 (Models)
 
@@ -43,7 +43,7 @@ export interface Note {
   listId: string;           // 归属的清单 ID
   groupId: string | null;   // 归属的分组 ID，null 为未分组
   title: string;            // 笔记标题
-  content: string;          // 笔记正文内容
+  content: string;          // 笔记正文内容 (HTML 富文本格式)
   isPinned?: boolean;       // 是否置顶
   sortOrder?: number;       // 用于拖拽排序的连续型整数
   createdAt: number;        // 创建时间 (时间戳)
@@ -70,7 +70,7 @@ export interface NoteGroup {
 export interface Template {
   id: string;               // 唯一标识符
   name: string;             // 模板名称
-  content: string;          // 模板正文内容
+  content: string;          // 模板正文内容 (HTML 富文本格式)
 }
 ```
 
@@ -86,7 +86,7 @@ export interface Template {
 - `updateList(id: string, updates: Partial<List>): void`
   更新指定清单的属性（如：重命名、置顶状态等）。
 - `duplicateList(id: string): void`
-  复制指定清单，并深拷贝该清单下的所有分组和笔记。
+  复制指定清单，并深拷贝该清单下的所有分组 and 笔记。
 - `deleteList(id: string): void`
   删除指定清单，并级联删除该清单下的所有分组和笔记。
 - `reorderLists(orderedIds: string[]): void`
@@ -116,7 +116,7 @@ export interface Template {
 - `deleteNote(id: string): void`
   删除指定笔记。
 - `moveNoteAndReorder(noteId: string, groupId: string | null, targetIndex?: number): void`
-  将笔记移动到指定分组下，并可选地插入到该分组的指定位置进行排序。
+  将笔记移动 to 指定分组下，并可选地插入到该分组的指定位置进行排序。
 
 ### 2.4 分组 (NoteGroup) 操作
 - `addGroup(listId: string, name: string): NoteGroup`
@@ -141,3 +141,52 @@ export interface Template {
 - **乐观更新 (Optimistic UI)**: 前端的所有 CRUD 操作都会**同步**更新本地内存状态，以实现极速响应（例如即时新建、拖拽即时生效），然后以“触发后不管 (fire-and-forget)”的方式异步调用 Tauri IPC 命令将变更写入 TiDB 数据库。
 - **写入防抖 (Debouncing)**: 针对笔记内容的编辑这种极高频操作，使用 `500ms` 的防抖拦截，减少向后端和数据库发送的 IO 频率。
 - **数据回退 (Fallback)**: 若 Tauri 后端 IPC 调用失败（例如未在 Tauri 环境下运行或数据库离线），Store 具备后备处理，可降级从 `localStorage` 获取数据以确保本地调试依然可用。
+
+## 3. 后端 Native API 与集成优化
+
+### 3.1 跨平台系统文件对话框 API
+为规避 WebView2 对前端 `Blob` 文件下载的沙箱限制，使用 Rust 后端原生系统文件对话框完成 Markdown 文件读写。
+
+- **导入 Markdown 文件**
+  * **命令**: `pick_markdown_file`
+  * **输入**: 无
+  * **输出**: `Promise<string>`
+  * **说明**: 触发系统原生文件打开选择器，限制选择 `.md` 格式文件。确认后返回选中文件的全部 Markdown 字符串。
+- **导出 Markdown 文件**
+  * **命令**: `save_markdown_file`
+  * **输入**: `{ defaultName: string, content: string }`
+  * **输出**: `Promise<void>`
+  * **说明**: 触发系统原生文件保存选择器，默认指定初始保存名称。确认后由后端直接将 Markdown 字符串内容写入指定磁盘路径。
+- **批量导入 Markdown 文件**
+  * **命令**: `pick_multiple_markdown_files`
+  * **输入**: 无
+  * **输出**: `Promise<Array<{ title: string, content: string }>>`
+  * **说明**: 触发系统原生的文件打开选择器（支持多选），限制选择 `.md` 格式。确认后，由后端批量读取选中文件，以文件名（不含扩展名）作为 `title`，文件正文内容作为 `content` 返回给前端数组。
+- **批量导出 Markdown 文件**
+  * **命令**: `save_multiple_markdown_files`
+  * **输入**: `{ files: Array<{ title: string, content: string }> }`
+  * **说明**: 触发系统原生的文件夹选择器（`pick_folder`）。用户确认保存的目录路径后，后端自动循环将文件数组中的 `content` 转换为 Markdown 文件内容，并在该目录下以 `{title}.md` 进行批量保存，并处理好同名冲突和非法字符过滤。
+
+### 3.2 数据库连接初始化性能优化
+- **延迟/异步初始化**: 更改 `establish_connection` 流程，通过 `connect_lazy` 毫秒级建立句柄并不阻塞 Tauri 程序 `.setup` 的主线程（修复冷启动白屏白字现象），并将 `ensure_tables` 表结构迁移放置在后台 Tokio 异步进程中执行。
+- **SSL 安全连接**: 后端连接选项显式添加了 `ssl-mode=required` 参数以对接远端 TiDB 加密通信审计，并设置连接超时限制为 `10s`。
+
+## 4. 全局提示组件接口 (Toast API)
+
+为提供非阻塞式的操作状态反馈，前端通过统一的 Toast 提示状态对各种文件与操作行为进行全局通知。
+
+### 4.1 Toast 属性与类型定义
+```typescript
+export type ToastType = 'success' | 'error';
+
+export interface Toast {
+  id: string;
+  message: string;
+  type: ToastType;
+}
+```
+
+### 4.2 提示函数定义
+- `showToast(message: string, type?: ToastType): void`
+  在主视图中心顶部拉起一条浮动提示消息。成功时提示“导入成功”、“导出成功”等；发生错误或被取消时进行静默或显著的错误提示。提示消息显示 3 秒后将自动渐隐销毁。
+

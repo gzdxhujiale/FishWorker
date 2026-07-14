@@ -8,17 +8,17 @@ const DEFAULT_TEMPLATES: Template[] = [
   {
     id: 'tpl-1',
     name: '会议纪要',
-    content: '主题：\n时间：\n与会人：\n\n会议目标：\n\n预期成果与关键节点：\n'
+    content: '<p><strong>主题：</strong></p><p><strong>时间：</strong></p><p><strong>与会人：</strong></p><p></p><p><strong>会议目标：</strong></p><p></p><p><strong>预期成果与关键节点：</strong></p>'
   },
   {
     id: 'tpl-2',
     name: '阅读笔记',
-    content: '书名：\n作者：\n\n灵感摘要：\n\n读后感悟：\n'
+    content: '<p><strong>书名：</strong></p><p><strong>作者：</strong></p><p></p><p><strong>灵感摘要：</strong></p><p></p><p><strong>读后感悟：</strong></p>'
   },
   {
     id: 'tpl-3',
     name: '每周工作总结',
-    content: '本周工作目标及完成度：\n\n本周最有成就感的事情：\n\n本周遇到的工作上的阻碍：\n\n总结与反思：\n'
+    content: '<p><strong>本周工作目标及完成度：</strong></p><p></p><p><strong>本周最有成就感的事情：</strong></p><p></p><p><strong>本周遇到的工作上的阻碍：</strong></p><p></p><p><strong>总结与反思：</strong></p>'
   }
 ];
 
