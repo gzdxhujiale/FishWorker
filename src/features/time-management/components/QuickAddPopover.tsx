@@ -6,7 +6,7 @@ interface QuickAddPopoverProps {
   quadrant: QuadrantType;
   onAdd: (title: string, quadrant: QuadrantType, deadline?: number) => void;
   onClose: () => void;
-  triggerRef: React.RefObject<HTMLElement>;
+  triggerRef: React.RefObject<any>;
 }
 
 export function QuickAddPopover({ quadrant, onAdd, onClose, triggerRef }: QuickAddPopoverProps) {

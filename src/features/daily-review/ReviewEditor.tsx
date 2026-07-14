@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DailyReview } from './dailyReviewTypes';
-import { Save, Trash2, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Trash2, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 
 interface Props {
   date: string;
@@ -25,9 +25,6 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onDelete, 
     }
   }, [review, date]);
 
-  const handleSave = () => {
-    onSave(date, content, rating);
-  };
 
   const isToday = () => {
     const today = new Date();

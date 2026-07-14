@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Calendar, AlignLeft, Type } from 'lucide-react';
 import { Task } from './timeManagementTypes';
 

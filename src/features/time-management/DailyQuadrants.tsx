@@ -25,10 +25,10 @@ export function DailyQuadrants({ tasks, onToggleComplete, onMoveTask, onAddTask,
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [activePopover, setActivePopover] = useState<QuadrantType | null>(null);
   
-  const q1Ref = useRef<HTMLElement>(null);
-  const q2Ref = useRef<HTMLElement>(null);
-  const q3Ref = useRef<HTMLElement>(null);
-  const q4Ref = useRef<HTMLElement>(null);
+  const q1Ref = useRef<HTMLButtonElement>(null);
+  const q2Ref = useRef<HTMLButtonElement>(null);
+  const q3Ref = useRef<HTMLButtonElement>(null);
+  const q4Ref = useRef<HTMLButtonElement>(null);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     setDraggedTaskId(taskId);

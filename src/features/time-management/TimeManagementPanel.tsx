@@ -1,7 +1,7 @@
 import React from 'react';
 import { LayoutGrid, CalendarDays, Plus, GripVertical, User, Trash2, X } from 'lucide-react';
 import { timeManagementStore, TimeManagementData } from './timeManagementStore';
-import { timeManagementApi, TimeManagementSyncStatus } from './timeManagementService';
+import { TimeManagementSyncStatus } from './timeManagementService';
 import { QuadrantType, Task } from './timeManagementTypes';
 import { DailyQuadrants } from './DailyQuadrants';
 import { WeeklyPlanning } from './WeeklyPlanning';

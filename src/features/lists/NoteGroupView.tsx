@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, MoreHorizontal, FileText, Trash2 } from 'lucide-react';
-import { NoteGroup, Note, List } from './listsTypes';
+import { ChevronDown, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Note, List } from './listsTypes';
 import { NoteItem } from './NoteItem';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';

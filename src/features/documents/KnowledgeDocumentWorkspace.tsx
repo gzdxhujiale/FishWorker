@@ -6,7 +6,6 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
-  Bot,
   ChevronLeft,
   ChevronRight,
   Columns,
@@ -81,16 +80,7 @@ type StatusRequest = {
   mindMapId: string;
 };
 
-type AiContextMenuState = {
-  x: number;
-  y: number;
-  text?: string;
-};
 
-type AiPanelSize = {
-  width: number;
-  height: number;
-};
 
 type DocumentFormatBrushState = {
   reusable: boolean;
@@ -128,16 +118,7 @@ const TITLE_LEVEL_OPTIONS = [
   { value: "third", label: "标题 3" },
   { value: "fourth", label: "标题 4" }
 ] as const;
-const AI_CONTEXT_PANEL_WIDTH = 430;
-const AI_CONTEXT_PANEL_HEIGHT = 560;
-const AI_CONTEXT_PANEL_MIN_WIDTH = 360;
-const AI_CONTEXT_PANEL_MIN_HEIGHT = 420;
-const AI_CONTEXT_PANEL_MARGIN = 12;
 
-const DEFAULT_AI_PANEL_SIZE: AiPanelSize = {
-  width: AI_CONTEXT_PANEL_WIDTH,
-  height: AI_CONTEXT_PANEL_HEIGHT
-};
 
 declare global {
   interface Window {
@@ -234,23 +215,7 @@ function resetScrollTarget(element: HTMLElement | null | undefined) {
   if (element.scrollLeft !== 0) element.scrollLeft = 0;
 }
 
-function readDomSelectedText(container: HTMLElement | null) {
-  const selectionText = window.getSelection()?.toString().trim() ?? "";
-  if (selectionText) return selectionText;
 
-  const activeElement = document.activeElement;
-  if (
-    activeElement instanceof HTMLTextAreaElement ||
-    activeElement instanceof HTMLInputElement
-  ) {
-    if (container && !container.contains(activeElement)) return "";
-    const start = activeElement.selectionStart ?? 0;
-    const end = activeElement.selectionEnd ?? 0;
-    if (end > start) return activeElement.value.slice(start, end).trim();
-  }
-
-  return "";
-}
 
 function flattenOutlineItems(items: MindMapOutlineItem[]) {
   const flat: MindMapOutlineItem[] = [];
@@ -303,34 +268,7 @@ function isBlankDocumentSnapshot(snapshot: KnowledgeDocumentSnapshot | null | un
     !hasDocumentContent(snapshot.content.graffiti);
 }
 
-function clampAiPanelSize(size: AiPanelSize): AiPanelSize {
-  const maxWidth = Math.max(AI_CONTEXT_PANEL_MIN_WIDTH, window.innerWidth - AI_CONTEXT_PANEL_MARGIN * 2);
-  const maxHeight = Math.max(AI_CONTEXT_PANEL_MIN_HEIGHT, window.innerHeight - AI_CONTEXT_PANEL_MARGIN * 2);
-  return {
-    width: Math.min(Math.max(AI_CONTEXT_PANEL_MIN_WIDTH, size.width), maxWidth),
-    height: Math.min(Math.max(AI_CONTEXT_PANEL_MIN_HEIGHT, size.height), maxHeight)
-  };
-}
 
-function clampAiPanelPoint(point: { x: number; y: number }, size: AiPanelSize = DEFAULT_AI_PANEL_SIZE) {
-  const nextSize = clampAiPanelSize(size);
-  const maxX = Math.max(AI_CONTEXT_PANEL_MARGIN, window.innerWidth - nextSize.width - AI_CONTEXT_PANEL_MARGIN);
-  const maxY = Math.max(AI_CONTEXT_PANEL_MARGIN, window.innerHeight - nextSize.height - AI_CONTEXT_PANEL_MARGIN);
-  return {
-    x: Math.min(Math.max(AI_CONTEXT_PANEL_MARGIN, point.x), maxX),
-    y: Math.min(Math.max(AI_CONTEXT_PANEL_MARGIN, point.y), maxY)
-  };
-}
-
-function getAiPanelAnchorPoint(anchor: HTMLElement | null, fallback: { x: number; y: number }, size: AiPanelSize = DEFAULT_AI_PANEL_SIZE) {
-  const rect = anchor?.getBoundingClientRect();
-  if (!rect) return fallback;
-
-  return {
-    x: rect.right - size.width,
-    y: rect.bottom + 8
-  };
-}
 
 type DocumentFormatPanelProps = {
   disabled: boolean;
@@ -569,10 +507,7 @@ export function KnowledgeDocumentWorkspace({
   onCloseFormatPane
 }: KnowledgeDocumentWorkspaceProps) {
   const mountRef = React.useRef<HTMLDivElement | null>(null);
-  const toolbarAiButtonRef = React.useRef<HTMLButtonElement | null>(null);
-  const aiPanelRef = React.useRef<HTMLDivElement | null>(null);
   const latestContextMenuPointRef = React.useRef({ x: 0, y: 0 });
-  const lastSelectedTextRef = React.useRef("");
   const editorRef = React.useRef<KnowledgeDocumentEditorHandle | null>(null);
   const saveTimerRef = React.useRef<number | null>(null);
   const pendingSaveRef = React.useRef<PendingDocumentSave | null>(null);
@@ -632,7 +567,6 @@ export function KnowledgeDocumentWorkspace({
   );
   const documentKeyRef = React.useRef(documentKey);
   documentKeyRef.current = documentKey;
-  aiPanelSizeRef.current = aiPanelSize;
   const currentNavigationIndex = React.useMemo(
     () => navigationItems.findIndex((item) => item.nodeId === selectedNode.id),
     [navigationItems, selectedNode.id]
@@ -1427,13 +1361,7 @@ export function KnowledgeDocumentWorkspace({
     [documentViewportState.horizontal, documentViewportState.vertical, updateDocumentViewportState]
   );
 
-  const readSelectedText = React.useCallback(() => {
-    const selectedText = editorRef.current?.getSelectedText() || readDomSelectedText(mountRef.current);
-    if (selectedText) {
-      lastSelectedTextRef.current = selectedText;
-    }
-    return selectedText;
-  }, []);
+
 
   const rememberContextMenuPoint = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     latestContextMenuPointRef.current = {

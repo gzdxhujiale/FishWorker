@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, GripVertical, Calendar, User, Trash2, Clock, X } from 'lucide-react';
+import { Clock, X } from 'lucide-react';
 import { Role, Task } from './timeManagementTypes';
 
 interface WeeklyPlanningProps {
@@ -32,15 +32,10 @@ function getWeekDates() {
   return dates;
 }
 
-const PREDEFINED_COLORS = ['#1f6fd1', '#25845a', '#d97706', '#7657d6', '#d32f2f', '#0ea5e9'];
-
 export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, onDeleteTask, onEditTask }: WeeklyPlanningProps) {
   const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
   
   const weekDates = React.useMemo(() => getWeekDates(), []);
-  
-  // Backlog tasks are those that have a role but aren't scheduled or completed
-  const backlogTasks = tasks.filter(t => !t.scheduledDate && !t.completed);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     setDraggedTaskId(taskId);
@@ -77,7 +72,7 @@ export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, on
         </div>
         
         <div className="tm-kanban-grid">
-          {weekDates.map((dayInfo, index) => {
+          {weekDates.map((dayInfo) => {
             let dayTasks = tasks.filter(t => t.scheduledDate === dayInfo.dateStr);
             if (hideCompleted) {
               dayTasks = dayTasks.filter(t => !t.completed);

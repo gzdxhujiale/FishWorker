@@ -766,7 +766,9 @@ export function MindMapWorkspace({
         if (loadSequenceRef.current !== sequence) return;
         setMapId(document.mapId);
         commitSnapshotForUi(document.snapshot, true);
-        canvasRef.current?.setSnapshot(document.snapshot);
+        if (document.snapshot) {
+          canvasRef.current?.setSnapshot(document.snapshot);
+        }
         setLoadedCourseId(courseId);
         loadedRootNodeIdRef.current = document.snapshot ? getNodeId(document.snapshot.root) : null;
         setSnapshotLoadRevision((value) => value + 1);
@@ -778,7 +780,9 @@ export function MindMapWorkspace({
         const document = await loadLocalDocument(courseId, courseName);
         setMapId(document.mapId);
         commitSnapshotForUi(document.snapshot, true);
-        canvasRef.current?.setSnapshot(document.snapshot);
+        if (document.snapshot) {
+          canvasRef.current?.setSnapshot(document.snapshot);
+        }
         setLoadedCourseId(courseId);
         loadedRootNodeIdRef.current = document.snapshot ? getNodeId(document.snapshot.root) : null;
         setSnapshotLoadRevision((value) => value + 1);
@@ -1218,11 +1222,12 @@ export function MindMapWorkspace({
 
   const fallbackSnapshot = React.useMemo(() => ({
     schemaVersion: 1,
-    editor: "mind-map",
+    editor: "simple-mind-map",
     editorVersion: "1.0",
     root: { data: { text: "Loading..." }, children: [] },
     layout: "logicalStructure",
-    theme: { template: "default", config: {} }
+    theme: { template: "default", config: {} },
+    updatedAt: ""
   }), []) as MindMapSnapshot;
 
   const nodeCount = focusedNodeId && focusedSnapshot ? countNodes(focusedSnapshot.root) : outlineNodeCount;
@@ -1422,6 +1427,7 @@ export function MindMapWorkspace({
           </div>
         )}
         <MindMapCanvas
+          key={canvasKey}
           ref={canvasRef}
           snapshot={focusedSnapshot || fallbackSnapshot}
           canvasDragEnabled={canvasDragEnabled}
