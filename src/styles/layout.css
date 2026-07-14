@@ -201,7 +201,7 @@
 }
 
 .pane-collapse-button.library-toggle {
-  left: calc(var(--library-pane-width) - 4px);
+  left: calc(var(--library-pane-width) - 14px);
 }
 
 .study-layout.library-collapsed .pane-collapse-button.library-toggle {
@@ -210,7 +210,7 @@
 }
 
 .pane-collapse-button.catalog-toggle-button {
-  right: calc(var(--catalog-pane-width) - 14px);
+  right: calc(var(--catalog-pane-width) - 55px);
 }
 
 .study-layout.catalog-collapsed .pane-collapse-button.catalog-toggle-button {

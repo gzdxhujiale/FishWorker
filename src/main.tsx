@@ -5,7 +5,8 @@ import {
   Folder,
   Clock,
   Lightbulb,
-  CalendarDays
+  CalendarDays,
+  ClipboardList
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";
 import { CoursePanel } from "./features/course/CoursePanel";
@@ -14,6 +15,7 @@ import { TimeManagementPanel } from "./features/time-management/TimeManagementPa
 import { UnlearningPanel } from "./features/unlearning-loop/UnlearningPanel";
 import { DailyReviewPanel } from "./features/daily-review/DailyReviewPanel";
 import { SettingsModal } from "./features/settings/SettingsModal";
+import { ListsPanel } from "./features/lists/ListsPanel";
 
 import { startCoreFeatureWarmup } from "./lib/performanceWarmup";
 import { drainBeforeCloseSaves } from "./lib/saveDrain";
@@ -66,7 +68,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   }
 }
 
-type AppSection = "knowledge" | "assistant" | "time-management" | "unlearning" | "daily-review";
+type AppSection = "knowledge" | "assistant" | "time-management" | "unlearning" | "daily-review" | "lists";
 
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("knowledge");
@@ -88,6 +90,7 @@ function App() {
               { id: "knowledge", name: "知识库", icon: Folder, component: () => <></> },
               { id: "assistant", name: "AI 聊天助手", icon: Bot, component: () => <></> },
               { id: "time-management", name: "时间管理", icon: Clock, component: () => <></> },
+              { id: "lists", name: "清单", icon: ClipboardList, component: () => <></> },
               { id: "daily-review", name: "每日复盘", icon: CalendarDays, component: () => <></> },
               { id: "unlearning", name: "反学习回路", icon: Lightbulb, component: () => <></> },
             ]}
@@ -106,6 +109,8 @@ function App() {
               <TimeManagementPanel />
             ) : activeSection === "daily-review" ? (
               <DailyReviewPanel />
+            ) : activeSection === "lists" ? (
+              <ListsPanel />
             ) : activeSection === "unlearning" ? (
               <UnlearningPanel />
             ) : null}
