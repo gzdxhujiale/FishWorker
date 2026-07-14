@@ -1,13 +1,36 @@
+import { useState } from 'react';
 import { Template } from './listsTypes';
-import { X } from 'lucide-react';
+import { X, Edit2, Trash2 } from 'lucide-react';
+import { ConfirmBubble } from './ConfirmBubble';
 
 interface TemplateModalProps {
   templates: Template[];
   onSelect: (template: Template) => void;
   onClose: () => void;
+  onEdit?: (id: string, name: string, content: string) => void;
+  onDelete?: (id: string) => void;
 }
 
-export function TemplateModal({ templates, onSelect, onClose }: TemplateModalProps) {
+export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }: TemplateModalProps) {
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [deleteConfirmTemplateId, setDeleteConfirmTemplateId] = useState<string | null>(null);
+
+  const startEdit = (e: React.MouseEvent, tpl: Template) => {
+    e.stopPropagation();
+    setEditingTemplate(tpl);
+    setEditName(tpl.name);
+    setEditContent(tpl.content);
+  };
+
+  const saveEdit = () => {
+    if (editingTemplate && onEdit) {
+      onEdit(editingTemplate.id, editName, editContent);
+    }
+    setEditingTemplate(null);
+  };
+
   return (
     <div className="list-modal-overlay">
       <div className="list-modal-content" style={{ width: '700px', maxWidth: '95vw' }}>
@@ -22,18 +45,59 @@ export function TemplateModal({ templates, onSelect, onClose }: TemplateModalPro
         </div>
         
         <div className="list-modal-body" style={{ padding: '0 32px 24px', overflowY: 'auto', maxHeight: '60vh' }}>
-          <div className="template-grid">
-            {templates.map(tpl => (
-              <div key={tpl.id} className="template-card" onClick={() => onSelect(tpl)}>
-                <div className="template-card-title">{tpl.name}</div>
-                <div className="template-card-preview">{tpl.content}</div>
+          {editingTemplate ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <input 
+                value={editName} 
+                onChange={e => setEditName(e.target.value)} 
+                placeholder="模板名称" 
+                style={{ fontSize: '16px', fontWeight: 'bold', padding: '8px', border: '1px solid var(--line-soft)', borderRadius: '4px' }}
+              />
+              <textarea 
+                value={editContent} 
+                onChange={e => setEditContent(e.target.value)} 
+                placeholder="模板内容"
+                style={{ height: '200px', padding: '8px', border: '1px solid var(--line-soft)', borderRadius: '4px', resize: 'none' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button className="list-modal-btn" onClick={() => setEditingTemplate(null)}>取消</button>
+                <button className="list-modal-btn primary" onClick={saveEdit}>保存</button>
               </div>
-            ))}
-          </div>
-        </div>
-        
-        <div className="list-modal-footer" style={{ justifyContent: 'center', borderTop: '1px solid var(--line-soft)', padding: '16px', marginTop: 'auto' }}>
-          <span style={{ color: '#6366f1', fontSize: '14px', cursor: 'pointer', textDecoration: 'underline' }}>管理模板</span>
+            </div>
+          ) : (
+            <div className="template-grid">
+              {templates.map(tpl => (
+                <div key={tpl.id} className="template-card" onClick={() => onSelect(tpl)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div className="template-card-title">{tpl.name}</div>
+                    <div className="template-card-actions" onClick={e => e.stopPropagation()}>
+                      <div className="template-action-btn" onClick={(e) => startEdit(e, tpl)}>
+                        <Edit2 size={14} />
+                      </div>
+                      <ConfirmBubble
+                        isOpen={deleteConfirmTemplateId === tpl.id}
+                        message="确定要删除这个模板吗？"
+                        position="bottom"
+                        onConfirm={() => {
+                          if (onDelete) onDelete(tpl.id);
+                          setDeleteConfirmTemplateId(null);
+                        }}
+                        onCancel={() => setDeleteConfirmTemplateId(null)}
+                      >
+                        <div className="template-action-btn danger" onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmTemplateId(tpl.id);
+                        }}>
+                          <Trash2 size={14} />
+                        </div>
+                      </ConfirmBubble>
+                    </div>
+                  </div>
+                  <div className="template-card-preview">{tpl.content}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

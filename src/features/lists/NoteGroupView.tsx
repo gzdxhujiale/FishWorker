@@ -11,6 +11,7 @@ interface NoteGroupViewProps {
   notes: Note[];
   allLists: List[];
   isUngrouped?: boolean;
+  isDragOverTarget?: boolean;
   onRenameGroup: (id: string, newName: string) => void;
   onDeleteGroup: (id: string) => void;
   onNoteClick: (note: Note) => void;
@@ -20,7 +21,7 @@ interface NoteGroupViewProps {
   onMoveNote: (note: Note, targetListId: string) => void;
 }
 
-export function NoteGroupView({ group, notes, allLists, isUngrouped, onRenameGroup, onDeleteGroup, onNoteClick, onPinNote, onDuplicateNote, onDeleteNote, onMoveNote }: NoteGroupViewProps) {
+export function NoteGroupView({ group, notes, allLists, isUngrouped, isDragOverTarget, onRenameGroup, onDeleteGroup, onNoteClick, onPinNote, onDuplicateNote, onDeleteNote, onMoveNote }: NoteGroupViewProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(group.name);
@@ -59,7 +60,7 @@ export function NoteGroupView({ group, notes, allLists, isUngrouped, onRenameGro
   };
 
   return (
-    <div className="note-group">
+    <div ref={setNodeRef} className={`note-group ${isDragOverTarget ? 'droppable-over-target' : ''}`}>
       <div className="note-group-header" onClick={() => setIsCollapsed(!isCollapsed)}>
         <ChevronDown size={14} style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s', marginRight: '4px' }} />
         
@@ -118,7 +119,7 @@ export function NoteGroupView({ group, notes, allLists, isUngrouped, onRenameGro
       </div>
 
       {!isCollapsed && (
-        <div ref={setNodeRef} className="note-group-content" style={{ minHeight: '10px' }}>
+        <div className="note-group-content" style={{ minHeight: '10px' }}>
           {notes.length === 0 ? (
             <div style={{ padding: '8px 24px', fontSize: '13px', color: 'var(--text-faint)' }}>暂无笔记</div>
           ) : (

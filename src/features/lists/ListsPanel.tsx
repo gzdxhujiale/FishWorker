@@ -10,7 +10,7 @@ import { TemplateModal } from './TemplateModal';
 import { NoteItem } from './NoteItem';
 import { NoteGroupView } from './NoteGroupView';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { sortableKeyboardCoordinates, SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';
 import './lists.css';
 
@@ -36,6 +36,9 @@ export function ListsPanel() {
   const [listMenuOpen, setListMenuOpen] = useState(false);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  
+  const [activeDragNoteId, setActiveDragNoteId] = useState<string | null>(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
   
   // Template state
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -87,7 +90,29 @@ export function ListsPanel() {
     })
   );
 
+  const handleDragStart = (event: any) => {
+    setActiveDragNoteId(String(event.active.id));
+  };
+
+  const handleDragOver = (event: any) => {
+    const { over } = event;
+    if (!over) {
+      setDragOverGroupId(null);
+      return;
+    }
+    const overId = String(over.id);
+    if (over.data?.current?.type === 'group') {
+      setDragOverGroupId(overId === 'ungrouped' ? 'ungrouped' : overId);
+    } else {
+      const overNote = notes.find(n => n.id === overId);
+      if (overNote) setDragOverGroupId(overNote.groupId || 'ungrouped');
+    }
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragNoteId(null);
+    setDragOverGroupId(null);
+    
     const { active, over } = event;
     if (active.id !== over?.id && over) {
       const activeNoteId = String(active.id);
@@ -104,6 +129,21 @@ export function ListsPanel() {
         const overNote = notes.find(n => n.id === overId);
         if (overNote) {
           targetGroupId = overNote.groupId || null;
+          
+          const activeNoteData = notes.find(n => n.id === activeNoteId);
+          if (activeNoteData && (activeNoteData.groupId || null) === targetGroupId) {
+            // Same group reordering
+            const siblingNotes = notes.filter(n => (n.groupId || null) === targetGroupId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+            const oldIndex = siblingNotes.findIndex(n => n.id === activeNoteId);
+            const newIndex = siblingNotes.findIndex(n => n.id === overId);
+            if (oldIndex !== -1 && newIndex !== -1) {
+              const newSiblingNotes = arrayMove(siblingNotes, oldIndex, newIndex);
+              listsStore.reorderNotes(newSiblingNotes.map(n => n.id));
+              refreshData();
+              return;
+            }
+          }
+          
           const siblingNotes = notes.filter(n => (n.groupId || null) === targetGroupId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
           targetIndex = siblingNotes.findIndex(n => n.id === overId);
         }
@@ -247,16 +287,21 @@ export function ListsPanel() {
   };
 
   const handleSelectTemplate = (template: Template) => {
-    if (!activeListId) return;
-    const newNote = listsStore.addNote({
-      listId: activeListId,
-      title: template.name,
-      content: template.content,
-    });
+    if (!activeNote) return;
+    listsStore.updateNote(activeNote.id, { content: template.content });
     refreshData();
     setIsTemplateModalOpen(false);
-    setActiveNote(newNote);
-    setIsDrawerOpen(true);
+    setActiveNote({ ...activeNote, content: template.content });
+  };
+
+  const handleEditTemplate = (id: string, name: string, content: string) => {
+    listsStore.updateTemplate(id, { name, content });
+    refreshData();
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    listsStore.deleteTemplate(id);
+    refreshData();
   };
 
   // --- Group Actions ---
@@ -379,7 +424,7 @@ export function ListsPanel() {
                       </div>
                     </div>
                   )}
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
                   {noteGroups.length === 0 && !isAddingGroup ? (
                     // Flat list if no groups
                     <SortableContext items={notes.map(n => n.id)} strategy={verticalListSortingStrategy}>
@@ -403,12 +448,15 @@ export function ListsPanel() {
                     <>
                       {noteGroups.map(group => {
                         const groupNotes = notes.filter(n => n.groupId === group.id);
+                        const activeNoteItem = notes.find(n => n.id === activeDragNoteId);
+                        const isDragOverTarget = dragOverGroupId === group.id && activeNoteItem && activeNoteItem.groupId !== group.id;
                         return (
                           <NoteGroupView
                             key={group.id}
                             group={group}
                             notes={groupNotes}
                             allLists={lists}
+                            isDragOverTarget={!!isDragOverTarget}
                             onRenameGroup={handleRenameGroup}
                             onDeleteGroup={handleDeleteGroup}
                             onNoteClick={(note) => { setActiveNote(note); setIsDrawerOpen(true); }}
@@ -421,20 +469,27 @@ export function ListsPanel() {
                       })}
                       {/* Ungrouped notes */}
                       {notes.filter(n => !n.groupId).length > 0 && (
-                        <NoteGroupView
-                          key="ungrouped"
-                          group={{ id: 'ungrouped', listId: activeListId!, name: '未分组' }}
-                          notes={notes.filter(n => !n.groupId)}
-                          allLists={lists}
-                          isUngrouped={true}
-                          onRenameGroup={() => {}}
-                          onDeleteGroup={() => {}}
-                          onNoteClick={(note) => { setActiveNote(note); setIsDrawerOpen(true); }}
-                          onPinNote={handlePinNote}
-                          onDuplicateNote={handleDuplicateNote}
-                          onDeleteNote={handleDeleteNote}
-                          onMoveNote={handleMoveNote}
-                        />
+                        (() => {
+                          const activeNoteItem = notes.find(n => n.id === activeDragNoteId);
+                          const isDragOverTarget = dragOverGroupId === 'ungrouped' && activeNoteItem && activeNoteItem.groupId !== null;
+                          return (
+                            <NoteGroupView
+                              key="ungrouped"
+                              group={{ id: 'ungrouped', listId: activeListId!, name: '未分组' }}
+                              notes={notes.filter(n => !n.groupId)}
+                              allLists={lists}
+                              isUngrouped={true}
+                              isDragOverTarget={!!isDragOverTarget}
+                              onRenameGroup={() => {}}
+                              onDeleteGroup={() => {}}
+                              onNoteClick={(note) => { setActiveNote(note); setIsDrawerOpen(true); }}
+                              onPinNote={handlePinNote}
+                              onDuplicateNote={handleDuplicateNote}
+                              onDeleteNote={handleDeleteNote}
+                              onMoveNote={handleMoveNote}
+                            />
+                          );
+                        })()
                       )}
                     </>
                   )}
@@ -485,6 +540,8 @@ export function ListsPanel() {
           templates={templates}
           onSelect={handleSelectTemplate}
           onClose={() => setIsTemplateModalOpen(false)}
+          onEdit={handleEditTemplate}
+          onDelete={handleDeleteTemplate}
         />
       )}
     </section>

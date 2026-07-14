@@ -196,6 +196,17 @@
   padding-left: 28px;
 }
 
+.lists-item.note-group-content { padding-left: 20px; }
+
+.lists-item.note-group-content { padding-left: 20px; }
+
+.droppable-over-target {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+  box-shadow: inset 0 0 0 2px #6366f1 !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+}
+
 /* Modal Styling */
 .list-modal-overlay {
   position: fixed;
@@ -579,6 +590,28 @@
   display: -webkit-box;
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
+}
+
+.template-card-actions {
+  display: none;
+  gap: 8px;
+}
+.template-card:hover .template-card-actions {
+  display: flex;
+}
+.template-action-btn {
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.template-action-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.template-action-btn.danger:hover {
+  background: #fee2e2;
+  color: #ef4444;
 }
   
 /* Note Group Styles */  

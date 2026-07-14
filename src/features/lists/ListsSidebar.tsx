@@ -8,8 +8,9 @@ import { SortableItem } from './SortableItem';
 import { listsStore } from './listsStore';
 
 function DroppableArea({ id, data, children, className, style, onClick }: any) {
-  const { setNodeRef } = useDroppable({ id, data });
-  return <div ref={setNodeRef} className={className} style={style} onClick={onClick}>{children}</div>;
+  const { setNodeRef, isOver } = useDroppable({ id, data });
+  const dynamicClassName = `${className || ''} ${isOver ? 'droppable-over' : ''}`.trim();
+  return <div ref={setNodeRef} className={dynamicClassName} style={style} onClick={onClick}>{children}</div>;
 }
 
 interface ListsSidebarProps {
@@ -57,6 +58,8 @@ export function ListsSidebar({
   // Dropdown state
   const [activeDropdown, setActiveDropdown] = useState<{type: 'folder' | 'list', id: string} | null>(null);
   const [deleteConfirmListId, setDeleteConfirmListId] = useState<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,7 +88,31 @@ export function ListsSidebar({
     })
   );
 
+  const handleDragStart = (event: any) => {
+    setActiveDragId(String(event.active.id));
+  };
+
+  const handleDragOver = (event: any) => {
+    const { over } = event;
+    if (!over) {
+      setDragOverFolderId(null);
+      return;
+    }
+    const overId = String(over.id);
+    if (overId === 'standalone-area') {
+      setDragOverFolderId('standalone-area');
+    } else if (over.data?.current?.type === 'folder' || folders.some(f => f.id === overId)) {
+      setDragOverFolderId(overId);
+    } else {
+      const overList = lists.find(l => l.id === overId);
+      if (overList) setDragOverFolderId(overList.folderId || 'standalone-area');
+    }
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragId(null);
+    setDragOverFolderId(null);
+    
     const { active, over } = event;
     if (active.id !== over?.id && over) {
       const activeList = lists.find(l => l.id === active.id);
@@ -153,18 +180,21 @@ export function ListsSidebar({
       </div>
 
       <div className="lists-tree">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
           {/* Render folders and their nested lists */}
           {folders.map(folder => {
             const isCollapsed = collapsedFolders[folder.id];
             const folderLists = listsByFolder[folder.id] || [];
+            
+            const activeList = lists.find(l => l.id === activeDragId);
+            const isTarget = dragOverFolderId === folder.id && activeList?.folderId !== folder.id;
             
             return (
               <div key={folder.id} className="lists-folder-group">
                 <DroppableArea 
                   id={folder.id} 
                   data={{ type: 'folder' }}
-                  className={`lists-folder-header ${isCollapsed ? 'collapsed' : ''}`}
+                  className={`lists-folder-header ${isCollapsed ? 'collapsed' : ''} ${isTarget ? 'droppable-over-target' : ''}`}
                   onClick={() => toggleFolder(folder.id)}
                 >
                   <ChevronDown size={14} className="chevron-icon" />
@@ -260,8 +290,12 @@ export function ListsSidebar({
           {folders.length > 0 && standaloneLists.length > 0 && <div style={{ height: '12px' }} />}
 
           {/* Render standalone lists */}
-          <DroppableArea id="standalone-area" data={{ type: 'folder' }} style={{ flex: 1, minHeight: '50px', paddingBottom: '20px' }}>
-            <SortableContext items={standaloneLists.map(l => l.id)} strategy={verticalListSortingStrategy}>
+          {(() => {
+            const activeList = lists.find(l => l.id === activeDragId);
+            const isTargetStandalone = dragOverFolderId === 'standalone-area' && activeList && activeList.folderId !== null;
+            return (
+              <DroppableArea id="standalone-area" data={{ type: 'folder' }} className={isTargetStandalone ? 'droppable-over-target' : ''} style={{ flex: 1, minHeight: '50px', paddingBottom: '20px', borderRadius: '6px' }}>
+                <SortableContext items={standaloneLists.map(l => l.id)} strategy={verticalListSortingStrategy}>
               {standaloneLists.map(list => (
                 <SortableItem key={list.id} id={list.id}>
                   <div 
@@ -322,6 +356,8 @@ export function ListsSidebar({
         ))}
             </SortableContext>
           </DroppableArea>
+        );
+        })()}
         </DndContext>
       </div>
     </aside>

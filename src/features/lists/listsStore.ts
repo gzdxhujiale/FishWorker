@@ -327,6 +327,16 @@ class ListsStore {
     this.save(this.data);
   }
 
+  reorderNotes(orderedIds: string[]): void {
+    const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
+    this.data.notes.forEach(n => {
+      if (orderMap.has(n.id)) {
+        n.sortOrder = orderMap.get(n.id);
+      }
+    });
+    this.save(this.data);
+  }
+
   // --- Note Groups ---
   getNoteGroups(listId: string): import('./listsTypes').NoteGroup[] {
     return this.data.noteGroups
@@ -379,6 +389,19 @@ class ListsStore {
     this.data.templates.push(newTemplate);
     this.save(this.data);
     return newTemplate;
+  }
+
+  updateTemplate(id: string, updates: Partial<Template>): void {
+    const tpl = this.data.templates.find(t => t.id === id);
+    if (tpl) {
+      Object.assign(tpl, updates);
+      this.save(this.data);
+    }
+  }
+
+  deleteTemplate(id: string): void {
+    this.data.templates = this.data.templates.filter(t => t.id !== id);
+    this.save(this.data);
   }
 }
 

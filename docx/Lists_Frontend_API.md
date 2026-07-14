@@ -131,3 +131,7 @@ export interface Template {
   获取所有可用的笔记模板。系统应内置几套默认模板（如：会议纪要、阅读笔记、每周工作总结）。
 - `addTemplate(name: string, content: string): Template`
   用户从笔记中保存或新建的模板。
+- `updateTemplate(id: string, updates: Partial<Template>): void`
+  更新模板的名称或内容。
+- `deleteTemplate(id: string): void`
+  删除指定的模板。
