@@ -1,3 +1,15 @@
+:root {
+  --color-bg: var(--surface-0);
+  --color-bg-elevated: var(--surface-2);
+  --color-bg-subtle: var(--surface-3);
+  --color-bg-hover: var(--surface-1);
+  --color-border: var(--line-strong);
+  --color-text: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-primary: var(--accent);
+  --color-primary-hover: #185bab;
+}
+
 .daily-review-panel {
   display: flex;
   flex-direction: row;
@@ -66,43 +78,43 @@
   font-size: 2rem;
 }
 
-/* Heatmap */
+/* Monthly Calendar (react-day-picker overrides) */
 .heatmap-container {
   background-color: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
 }
 
-.heatmap-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  margin-top: 12px;
+.monthly-calendar-wrapper .rdp {
+  --rdp-cell-size: 38px;
+  --rdp-accent-color: var(--color-primary);
+  margin: 0;
+  display: flex;
+  justify-content: center;
 }
 
-.heatmap-cell {
-  aspect-ratio: 1;
-  border-radius: 4px;
-  background-color: var(--color-bg-subtle);
-  cursor: pointer;
-  transition: transform 0.1s ease, background-color 0.2s;
-  position: relative;
+.monthly-calendar-wrapper .rdp-day {
+  border-radius: 6px;
+  font-weight: 500;
+  color: var(--color-text);
 }
 
-.heatmap-cell:hover {
-  transform: scale(1.1);
-  z-index: 1;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+.monthly-calendar-wrapper .rdp-day:hover:not(.rdp-day_selected) {
+  background-color: var(--color-bg-hover);
 }
 
-.heatmap-cell.active {
-  background-color: #10b981; /* Base green for completed */
+/* Modifiers */
+.monthly-calendar-wrapper .active-level-1:not(.rdp-day_selected) { background-color: #d1fae5; color: #047857; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-2:not(.rdp-day_selected) { background-color: #6ee7b7; color: #064e3b; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-3:not(.rdp-day_selected) { background-color: #10b981; color: white; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-4:not(.rdp-day_selected) { background-color: #047857; color: white; font-weight: 600; }
+
+.monthly-calendar-wrapper .rdp-day_selected {
+  background-color: var(--color-primary) !important;
+  color: white !important;
+  font-weight: bold;
 }
-.heatmap-cell.active-level-1 { background-color: #d1fae5; }
-.heatmap-cell.active-level-2 { background-color: #6ee7b7; }
-.heatmap-cell.active-level-3 { background-color: #10b981; }
-.heatmap-cell.active-level-4 { background-color: #047857; }
 
 /* Editor (Right Column) */
 .review-editor-container {

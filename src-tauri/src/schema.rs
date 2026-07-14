@@ -117,10 +117,30 @@ pub async fn ensure_tables(pool: &MySqlPool) -> Result<(), sqlx::Error> {
     ).execute(pool).await?;
 
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS time_management_data (
-            id VARCHAR(64) NOT NULL,
-            payload_json LONGTEXT NOT NULL,
-            updated_at DATETIME(3) NOT NULL,
+        "CREATE TABLE IF NOT EXISTS time_management_roles (
+            id VARCHAR(36) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            color VARCHAR(50),
+            created_at BIGINT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS time_management_tasks (
+            id VARCHAR(36) NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            role_id VARCHAR(36) NULL,
+            quadrant VARCHAR(10) NOT NULL,
+            scheduled_date VARCHAR(20) NULL,
+            time_of_day VARCHAR(20) NULL,
+            completed TINYINT(1) NOT NULL DEFAULT 0,
+            created_at BIGINT NOT NULL,
+            completed_at BIGINT NULL,
+            description TEXT NULL,
+            deadline BIGINT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ).execute(pool).await?;

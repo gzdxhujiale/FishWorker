@@ -71,14 +71,12 @@ export function DailyQuadrants({ tasks, onToggleComplete, onMoveTask, onAddTask,
         >
           {task.completed ? <CheckCircle2 size={16} color={color} /> : <Circle size={16} />}
         </button>
-        <div className="tm-task-content-wrapper">
-          <span className="tm-task-title">{task.title}</span>
+        <div className="tm-task-content-wrapper" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '4px', minWidth: 0 }}>
+          <span className="tm-task-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
           {task.description && (
-            <div className="tm-task-meta">
-              <span className="tm-meta-item">
-                <AlignLeft size={10} />
-              </span>
-            </div>
+            <span className="tm-task-meta" style={{ display: 'flex', alignItems: 'center', flexShrink: 0, color: 'var(--text-muted)' }}>
+              <AlignLeft size={12} />
+            </span>
           )}
         </div>
         <button 

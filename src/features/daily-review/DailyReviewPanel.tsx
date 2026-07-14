@@ -49,7 +49,8 @@ export const DailyReviewPanel: React.FC = () => {
   };
 
   const changeDate = (days: number) => {
-    const d = new Date(selectedDate);
+    const [y, m, d_val] = selectedDate.split('-').map(Number);
+    const d = new Date(y, m - 1, d_val);
     d.setDate(d.getDate() + days);
     
     // Don't allow going into the future

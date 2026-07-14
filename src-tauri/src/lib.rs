@@ -47,8 +47,11 @@ pub fn run() {
             document::knowledge_documents_save,
             db::db_get_config,
             db::db_save_config,
-            time_management::time_management_load,
-            time_management::time_management_save,
+            time_management::tm_load_all,
+            time_management::tm_upsert_role,
+            time_management::tm_delete_role,
+            time_management::tm_upsert_task,
+            time_management::tm_delete_task,
             daily_review::daily_review_load_all,
             daily_review::daily_review_save,
             daily_review::daily_review_delete

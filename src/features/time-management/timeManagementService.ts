@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { TimeManagementData } from "./timeManagementStore";
+import type { Role, Task } from "./timeManagementTypes";
 
 export type TimeManagementSyncStatus = {
   state: "saved" | "saving" | "waiting" | "attention";
@@ -7,9 +8,9 @@ export type TimeManagementSyncStatus = {
 };
 
 export const timeManagementApi = {
-  load: async (): Promise<TimeManagementData | null> => {
+  loadAll: async (): Promise<TimeManagementData | null> => {
     try {
-      const data = await invoke<any>("time_management_load");
+      const data = await invoke<any>("tm_load_all");
       return data as TimeManagementData | null;
     } catch (e) {
       console.error("Failed to load time management data from DB:", e);
@@ -17,11 +18,38 @@ export const timeManagementApi = {
     }
   },
   
-  save: async (payload: TimeManagementData): Promise<void> => {
+  upsertRole: async (role: Role): Promise<void> => {
     try {
-      await invoke("time_management_save", { payload });
+      await invoke("tm_upsert_role", { role });
     } catch (e) {
-      console.error("Failed to save time management data to DB:", e);
+      console.error("Failed to upsert role:", e);
+      throw e;
+    }
+  },
+
+  deleteRole: async (id: string): Promise<void> => {
+    try {
+      await invoke("tm_delete_role", { id });
+    } catch (e) {
+      console.error("Failed to delete role:", e);
+      throw e;
+    }
+  },
+
+  upsertTask: async (task: Task): Promise<void> => {
+    try {
+      await invoke("tm_upsert_task", { task });
+    } catch (e) {
+      console.error("Failed to upsert task:", e);
+      throw e;
+    }
+  },
+
+  deleteTask: async (id: string): Promise<void> => {
+    try {
+      await invoke("tm_delete_task", { id });
+    } catch (e) {
+      console.error("Failed to delete task:", e);
       throw e;
     }
   }
