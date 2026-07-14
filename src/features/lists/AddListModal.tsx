@@ -8,18 +8,18 @@ interface AddListModalProps {
   initialData?: List;
   onClose: () => void;
   onAdd: (data: { name: string; color: string; viewType: ViewType; folderId: string | null; icon: string }, newFolderName?: string) => void;
+  onAddFolder: (name: string) => Folder;
 }
 
 const COLORS = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#3b82f6', '#6366f1', '#a855f7'];
 
-export function AddListModal({ folders, initialFolderId, initialData, onClose, onAdd }: AddListModalProps) {
+export function AddListModal({ folders, initialFolderId, initialData, onClose, onAdd, onAddFolder }: AddListModalProps) {
   const [name, setName] = useState(initialData?.name || '');
   const [color, setColor] = useState(initialData?.color || COLORS[6]);
   const [viewType, setViewType] = useState<ViewType>(initialData?.viewType || 'list');
   const [folderId, setFolderId] = useState<string | null>(initialData?.folderId !== undefined ? initialData.folderId : (initialFolderId || null));
   
   const [isFolderDropdownOpen, setIsFolderDropdownOpen] = useState(false);
-  const [isAddingFolder, setIsAddingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -28,7 +28,6 @@ export function AddListModal({ folders, initialFolderId, initialData, onClose, o
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsFolderDropdownOpen(false);
-        setIsAddingFolder(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -37,18 +36,10 @@ export function AddListModal({ folders, initialFolderId, initialData, onClose, o
 
   const handleAdd = () => {
     if (!name.trim()) return;
-    
-    // Pass the selected data. If we are adding a new folder, we pass the newFolderName 
-    // and let the parent handle folder creation and linking.
-    if (isAddingFolder && newFolderName.trim()) {
-      onAdd({ name, color, viewType, folderId: null, icon: 'BookOpen' }, newFolderName.trim());
-    } else {
-      onAdd({ name, color, viewType, folderId, icon: 'BookOpen' });
-    }
+    onAdd({ name, color, viewType, folderId, icon: 'BookOpen' });
   };
 
   const getFolderDisplay = () => {
-    if (isAddingFolder) return newFolderName || '新文件夹...';
     if (!folderId) return '无';
     const folder = folders.find(f => f.id === folderId);
     return folder ? folder.name : '无';
@@ -125,50 +116,47 @@ export function AddListModal({ folders, initialFolderId, initialData, onClose, o
               
               {isFolderDropdownOpen && (
                 <div className="folder-dropdown-menu">
-                  {!isAddingFolder ? (
-                    <>
-                      <div 
-                        className="folder-dropdown-item"
-                        onClick={() => { setFolderId(null); setIsFolderDropdownOpen(false); }}
-                      >
-                        无 {folderId === null && <Check size={16} className="check-icon" />}
-                      </div>
-                      {folders.map(f => (
-                        <div 
-                          key={f.id}
-                          className="folder-dropdown-item"
-                          onClick={() => { setFolderId(f.id); setIsFolderDropdownOpen(false); }}
-                        >
-                          {f.name} {folderId === f.id && <Check size={16} className="check-icon" />}
-                        </div>
-                      ))}
-                      <div 
-                        className="folder-dropdown-item action"
-                        onClick={(e) => {
+                  <div 
+                    className="folder-dropdown-item"
+                    onClick={() => { setFolderId(null); setIsFolderDropdownOpen(false); }}
+                  >
+                    无 {folderId === null && <Check size={16} className="check-icon" />}
+                  </div>
+                  {folders.map(f => (
+                    <div 
+                      key={f.id}
+                      className="folder-dropdown-item"
+                      onClick={() => { setFolderId(f.id); setIsFolderDropdownOpen(false); }}
+                    >
+                      {f.name} {folderId === f.id && <Check size={16} className="check-icon" />}
+                    </div>
+                  ))}
+                  <div 
+                    className="folder-dropdown-item action"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ borderTop: '1px solid var(--line-soft)', padding: '8px 12px' }}
+                  >
+                    <Plus size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                    <input 
+                      type="text" 
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      placeholder="新建文件夹..."
+                      style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', background: 'transparent', marginLeft: '4px' }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
                           e.stopPropagation();
-                          setIsAddingFolder(true);
-                        }}
-                      >
-                        <Plus size={16} /> 添加文件夹
-                      </div>
-                    </>
-                  ) : (
-                    <div className="folder-dropdown-item" style={{ padding: '8px 12px' }}>
-                      <input 
-                        type="text" 
-                        value={newFolderName}
-                        onChange={(e) => setNewFolderName(e.target.value)}
-                        placeholder="输入文件夹名称"
-                        style={{ border: 'none', outline: 'none', width: '100%' }}
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (newFolderName.trim()) {
+                            const newFolder = onAddFolder(newFolderName.trim());
+                            setFolderId(newFolder.id);
+                            setNewFolderName('');
                             setIsFolderDropdownOpen(false);
                           }
-                        }}
-                      />
-                    </div>
-                  )}
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               )}
             </div>

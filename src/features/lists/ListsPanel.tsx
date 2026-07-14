@@ -178,6 +178,12 @@ export function ListsPanel() {
     setIsAddModalOpen(true);
   };
 
+  const handleAddFolder = (name: string) => {
+    const newFolder = listsStore.addFolder(name);
+    refreshData();
+    return newFolder;
+  };
+
   const handleAddList = (data: { name: string; color: string; viewType: ViewType; folderId: string | null; icon: string }, newFolderName?: string) => {
     let finalFolderId = data.folderId;
     if (newFolderName) {
@@ -224,6 +230,11 @@ export function ListsPanel() {
 
   const handlePinFolder = (folder: Folder) => {
     listsStore.updateFolder(folder.id, { isPinned: !folder.isPinned });
+    refreshData();
+  };
+
+  const handleDissolveFolder = (folder: Folder) => {
+    listsStore.deleteFolder(folder.id);
     refreshData();
   };
 
@@ -364,6 +375,7 @@ export function ListsPanel() {
         onAddClick={handleAddListClick}
         onEditFolder={handleEditFolder}
         onPinFolder={handlePinFolder}
+        onDissolveFolder={handleDissolveFolder}
         onEditList={handleEditList}
         onPinList={handlePinList}
         onDuplicateList={handleDuplicateList}
@@ -541,6 +553,7 @@ export function ListsPanel() {
           initialData={editListTarget}
           onClose={() => { setIsAddModalOpen(false); setEditListTarget(undefined); }}
           onAdd={handleAddList}
+          onAddFolder={handleAddFolder}
         />
       )}
 

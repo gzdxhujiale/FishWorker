@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, cloneElement, ReactElement, ReactNode } from 'react';
-import { Plus, Folder as FolderIcon, ChevronDown, MoreHorizontal, BookOpen, Briefcase, Home, Package, Activity, Star, Trash2 } from 'lucide-react';
+import { Plus, Folder as FolderIcon, ChevronDown, MoreHorizontal, BookOpen, Briefcase, Home, Package, Activity, Star } from 'lucide-react';
 import { List, Folder } from './listsTypes';
 import { ConfirmBubble } from './ConfirmBubble';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable } from '@dnd-kit/core';
@@ -22,6 +22,7 @@ interface ListsSidebarProps {
   
   onEditFolder: (folder: Folder) => void;
   onPinFolder: (folder: Folder) => void;
+  onDissolveFolder: (folder: Folder) => void;
   
   onEditList: (list: List) => void;
   onPinList: (list: List) => void;
@@ -48,6 +49,7 @@ export function ListsSidebar({
   onAddClick,
   onEditFolder,
   onPinFolder,
+  onDissolveFolder,
   onEditList,
   onPinList,
   onDuplicateList,
@@ -60,6 +62,7 @@ export function ListsSidebar({
   // Dropdown state
   const [activeDropdown, setActiveDropdown] = useState<{type: 'folder' | 'list', id: string} | null>(null);
   const [deleteConfirmListId, setDeleteConfirmListId] = useState<string | null>(null);
+  const [deleteConfirmFolderId, setDeleteConfirmFolderId] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -73,6 +76,7 @@ export function ListsSidebar({
       if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setActiveDropdown(null);
         setDeleteConfirmListId(null);
+        setDeleteConfirmFolderId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -218,6 +222,27 @@ export function ListsSidebar({
                         <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onAddClick(folder.id); }}>添加清单</div>
                         <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditFolder(folder); }}>编辑</div>
                         <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinFolder(folder); }}>{folder.isPinned ? '取消置顶' : '置顶'}</div>
+                        <ConfirmBubble
+                          isOpen={deleteConfirmFolderId === folder.id}
+                          message={`确定要解散文件夹 "${folder.name}" 吗？（其中的清单不会被删除）`}
+                          position="right"
+                          onConfirm={() => {
+                            onDissolveFolder(folder);
+                            setDeleteConfirmFolderId(null);
+                            setActiveDropdown(null);
+                          }}
+                          onCancel={() => setDeleteConfirmFolderId(null)}
+                        >
+                          <div 
+                            className="lists-dropdown-item text-danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmFolderId(folder.id);
+                            }}
+                          >
+                            解散
+                          </div>
+                        </ConfirmBubble>
                       </div>
                     )}
                   </div>
@@ -273,7 +298,7 @@ export function ListsSidebar({
                                 setDeleteConfirmListId(list.id);
                               }}
                             >
-                              <Trash2 size={14} /> 删除
+                              删除
                             </div>
                           </ConfirmBubble>
                         </div>
@@ -346,7 +371,7 @@ export function ListsSidebar({
                             setDeleteConfirmListId(list.id);
                           }}
                         >
-                          <Trash2 size={14} /> 删除
+                          删除
                         </div>
                       </ConfirmBubble>
                     </div>
