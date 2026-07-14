@@ -1,7 +1,6 @@
 import React from 'react';
 import { Clock, X } from 'lucide-react';
 import { Role, Task } from './timeManagementTypes';
-import { TimeManagementSyncStatus } from './timeManagementService';
 
 interface WeeklyPlanningProps {
   roles: Role[];
@@ -10,7 +9,6 @@ interface WeeklyPlanningProps {
   hideCompleted: boolean;
   onDeleteTask: (taskId: string) => void;
   onEditTask: (task: Task) => void;
-  syncStatus?: TimeManagementSyncStatus;
 }
 
 const DAYS_OF_WEEK = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -34,7 +32,7 @@ function getWeekDates() {
   return dates;
 }
 
-export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, onDeleteTask, onEditTask, syncStatus }: WeeklyPlanningProps) {
+export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, onDeleteTask, onEditTask }: WeeklyPlanningProps) {
   const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
   
   const weekDates = React.useMemo(() => getWeekDates(), []);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutGrid, CalendarDays, Plus, GripVertical, User, Trash2, X } from 'lucide-react';
+import { Plus, GripVertical, User, Trash2, X } from 'lucide-react';
 import { timeManagementStore, TimeManagementData } from './timeManagementStore';
 import { TimeManagementSyncStatus } from './timeManagementService';
 import { QuadrantType, Task } from './timeManagementTypes';
@@ -8,7 +8,6 @@ import { WeeklyPlanning } from './WeeklyPlanning';
 import { TaskDetailModal } from './TaskDetailModal';
 import './timeManagement.css';
 
-type TabType = 'daily' | 'weekly';
 
 const PREDEFINED_COLORS = ['#1f6fd1', '#25845a', '#d97706', '#7657d6', '#d32f2f', '#0ea5e9'];
 
@@ -265,7 +264,6 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
                 hideCompleted={hideCompleted}
                 onDeleteTask={handleDeleteTask}
                 onEditTask={(task) => setEditingTask(task)}
-                syncStatus={syncStatus}
               />
             ) : (
               <DailyQuadrants 
