@@ -283,19 +283,19 @@
 }
 
 .tm-sidebar-header {
-  padding: 16px;
+  padding: 16px 24px;
   border-bottom: 1px solid rgba(123, 145, 169, 0.12);
+  background: #ffffff;
+  height: 58px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
 }
 
 .tm-sidebar-header h3 {
-  margin: 0 0 4px 0;
+  margin: 0;
   font-size: 15px;
   color: var(--text-strong);
-}
-
-.tm-sidebar-header span {
-  font-size: 12px;
-  color: var(--text-faint);
 }
 
 .tm-roles-list {
@@ -418,10 +418,15 @@
   padding: 16px 24px;
   border-bottom: 1px solid rgba(123, 145, 169, 0.12);
   background: #ffffff;
+  height: 58px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .tm-board-header h3 {
-  margin: 0 0 4px 0;
+  margin: 0;
   font-size: 16px;
   color: var(--text-strong);
 }
@@ -434,6 +439,8 @@
 .tm-kanban-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  flex: 1;
+  min-height: 0;
 }
 
 .tm-kanban-column {
@@ -485,6 +492,10 @@
 }
 
 .tm-scheduled-task {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   background: #ffffff;
   border: 1px solid rgba(123, 145, 169, 0.18);
   border-radius: 6px;

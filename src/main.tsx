@@ -4,7 +4,8 @@ import {
   Folder,
   Clock,
   CalendarDays,
-  ClipboardList
+  ClipboardList,
+  LayoutGrid
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";
 import { CoursePanel } from "./features/course/CoursePanel";
@@ -64,7 +65,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   }
 }
 
-type AppSection = "knowledge" | "time-management" | "daily-review" | "lists";
+type AppSection = "knowledge" | "weekly-planning" | "four-quadrants" | "daily-review" | "lists";
 
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("lists");
@@ -84,8 +85,9 @@ function App() {
           <Toolbar
             tools={[
               { id: "lists", name: "清单", icon: ClipboardList, component: () => <></> },
-              { id: "time-management", name: "时间管理", icon: Clock, component: () => <></> },
-              { id: "daily-review", name: "每日复盘", icon: CalendarDays, component: () => <></> },
+              { id: "weekly-planning", name: "周计划", icon: CalendarDays, component: () => <></> },
+              { id: "four-quadrants", name: "四象限工作台", icon: LayoutGrid, component: () => <></> },
+              { id: "daily-review", name: "每日复盘", icon: Clock, component: () => <></> },
               { id: "knowledge", name: "知识库", icon: Folder, component: () => <></> },
             ]}
             activeToolId={activeSection}
@@ -97,8 +99,10 @@ function App() {
           <MainContent>
             {activeSection === "knowledge" ? (
               <CoursePanel />
-            ) : activeSection === "time-management" ? (
-              <TimeManagementPanel />
+            ) : activeSection === "weekly-planning" ? (
+              <TimeManagementPanel mode="weekly" />
+            ) : activeSection === "four-quadrants" ? (
+              <TimeManagementPanel mode="daily" />
             ) : activeSection === "daily-review" ? (
               <DailyReviewPanel />
             ) : activeSection === "lists" ? (

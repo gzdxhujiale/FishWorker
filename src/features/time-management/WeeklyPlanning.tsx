@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, X } from 'lucide-react';
 import { Role, Task } from './timeManagementTypes';
+import { TimeManagementSyncStatus } from './timeManagementService';
 
 interface WeeklyPlanningProps {
   roles: Role[];
@@ -9,6 +10,7 @@ interface WeeklyPlanningProps {
   hideCompleted: boolean;
   onDeleteTask: (taskId: string) => void;
   onEditTask: (task: Task) => void;
+  syncStatus?: TimeManagementSyncStatus;
 }
 
 const DAYS_OF_WEEK = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -32,7 +34,7 @@ function getWeekDates() {
   return dates;
 }
 
-export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, onDeleteTask, onEditTask }: WeeklyPlanningProps) {
+export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, onDeleteTask, onEditTask, syncStatus }: WeeklyPlanningProps) {
   const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
   
   const weekDates = React.useMemo(() => getWeekDates(), []);
@@ -66,11 +68,6 @@ export function WeeklyPlanning({ roles, tasks, onScheduleTask, hideCompleted, on
     <div className="weekly-planning-layout" style={{ flex: 1 }}>
       {/* Main Area: Weekly Schedule Board */}
       <div className="tm-weekly-board">
-        <div className="tm-board-header">
-          <h3>本周计划看板</h3>
-          <span className="text-muted">将左侧目标拖拽到具体日期中安排执行</span>
-        </div>
-        
         <div className="tm-kanban-grid">
           {weekDates.map((dayInfo) => {
             let dayTasks = tasks.filter(t => t.scheduledDate === dayInfo.dateStr);

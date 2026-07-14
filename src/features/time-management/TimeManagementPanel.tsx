@@ -12,8 +12,12 @@ type TabType = 'daily' | 'weekly';
 
 const PREDEFINED_COLORS = ['#1f6fd1', '#25845a', '#d97706', '#7657d6', '#d32f2f', '#0ea5e9'];
 
-export function TimeManagementPanel() {
-  const [activeTab, setActiveTab] = React.useState<TabType>('weekly');
+interface TimeManagementPanelProps {
+  mode?: 'weekly' | 'daily';
+}
+
+export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProps) {
+  const activeTab = mode;
   const [data, setData] = React.useState<TimeManagementData>({ roles: [], tasks: [] });
   const [hideCompleted, setHideCompleted] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
@@ -150,57 +154,42 @@ export function TimeManagementPanel() {
   return (
     <section className="time-management-page">
       <div className="tm-shell" style={{ flexDirection: 'column', display: 'flex', height: '100%', width: '100%' }}>
-        {/* Time Management Menu Bar */}
-        <header className="tm-top-menubar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: '1px solid var(--line-soft)', background: '#fff', flex: 'none' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>时间管理</h3>
-            <div className="tm-tabs" style={{ display: 'flex', gap: '4px', background: 'var(--surface-2)', padding: '2px', borderRadius: '6px' }}>
-              <button
-                type="button"
-                className={activeTab === 'weekly' ? 'active' : ''}
-                onClick={() => setActiveTab('weekly')}
-              >
-                <CalendarDays size={14} />
-                <span>周计划</span>
-              </button>
-              <button
-                type="button"
-                className={activeTab === 'daily' ? 'active' : ''}
-                onClick={() => setActiveTab('daily')}
-              >
-                <LayoutGrid size={14} />
-                <span>四象限工作台</span>
-              </button>
+        {/* Time Management Menu Bar (rendered only in daily mode) */}
+        {mode === 'daily' && (
+          <header className="tm-top-menubar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: '1px solid var(--line-soft)', background: '#fff', flex: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+                四象限工作台
+              </h3>
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <label className="tm-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-muted)' }}>
-              <input 
-                type="checkbox" 
-                checked={hideCompleted} 
-                onChange={(e) => setHideCompleted(e.target.checked)} 
-              />
-              隐藏已完成任务
-            </label>
-            <div style={{ marginLeft: '16px', fontSize: '13px', color: syncStatus.state === 'attention' ? 'var(--text-danger)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {syncStatus.state === 'saving' && '正在保存...'}
-              {syncStatus.state === 'saved' && '已保存'}
-              {syncStatus.state === 'attention' && (
-                <>
-                  部分内容暂时没同步
-                </>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <label className="tm-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-muted)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={hideCompleted} 
+                  onChange={(e) => setHideCompleted(e.target.checked)} 
+                />
+                隐藏已完成任务
+              </label>
+              <div style={{ marginLeft: '16px', fontSize: '13px', color: syncStatus.state === 'attention' ? 'var(--text-danger)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {syncStatus.state === 'saving' && '正在保存...'}
+                {syncStatus.state === 'saved' && '已保存'}
+                {syncStatus.state === 'attention' && (
+                  <>
+                    部分内容暂时没同步
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
+        )}
 
         {/* Time Management Content Area */}
         <div className="tm-content-area" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {activeTab === 'weekly' && (
           <aside className="tm-roles-sidebar" style={{ width: '240px', flex: 'none', display: 'flex', flexDirection: 'column' }}>
-            <div className="tm-sidebar-header" style={{ paddingTop: '16px' }}>
-              <h3>待办分类 / 角色</h3>
-              <span className="text-muted">为每个角色设定 Q2 要事</span>
+            <div className="tm-sidebar-header">
+              <h3>本周计划看板</h3>
             </div>
           
           <div className="tm-roles-list">
@@ -276,6 +265,7 @@ export function TimeManagementPanel() {
                 hideCompleted={hideCompleted}
                 onDeleteTask={handleDeleteTask}
                 onEditTask={(task) => setEditingTask(task)}
+                syncStatus={syncStatus}
               />
             ) : (
               <DailyQuadrants 
