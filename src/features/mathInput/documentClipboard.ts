@@ -310,8 +310,7 @@ function parseHtmlDocumentBlocks(html: string) {
   if (typeof DOMParser === "undefined") return [];
   const parsed = new DOMParser().parseFromString(html, "text/html");
   const root =
-    parsed.body.querySelector('[data-message-author-role="assistant"] .markdown')
-    ?? parsed.body.querySelector(".markdown")
+    parsed.body.querySelector(".markdown")
     ?? parsed.body;
   return normalizeBlocks(Array.from(root.childNodes).flatMap((child) => parseNodeAsBlocks(child)));
 }

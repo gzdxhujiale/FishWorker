@@ -7,9 +7,7 @@
 @import "./features/mindmap/catalog.css";
 @import "./styles/settings.css";
 @import "./styles/dialog.css";
-@import "./features/assistant/assistant.css";
 @import "./features/time-management/timeManagement.css";
-@import "./features/unlearning-loop/unlearning.css";
 
 :root {
   color: #20242a;

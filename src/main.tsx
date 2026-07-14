@@ -1,18 +1,14 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import {
-  Bot,
   Folder,
   Clock,
-  Lightbulb,
   CalendarDays,
   ClipboardList
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";
 import { CoursePanel } from "./features/course/CoursePanel";
-import { AiAssistantPanel } from "./features/assistant/AiAssistantPanel";
 import { TimeManagementPanel } from "./features/time-management/TimeManagementPanel";
-import { UnlearningPanel } from "./features/unlearning-loop/UnlearningPanel";
 import { DailyReviewPanel } from "./features/daily-review/DailyReviewPanel";
 import { SettingsModal } from "./features/settings/SettingsModal";
 import { ListsPanel } from "./features/lists/ListsPanel";
@@ -68,10 +64,10 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   }
 }
 
-type AppSection = "knowledge" | "assistant" | "time-management" | "unlearning" | "daily-review" | "lists";
+type AppSection = "knowledge" | "time-management" | "daily-review" | "lists";
 
 function App() {
-  const [activeSection, setActiveSection] = React.useState<AppSection>("knowledge");
+  const [activeSection, setActiveSection] = React.useState<AppSection>("lists");
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -87,12 +83,10 @@ function App() {
         toolbar={
           <Toolbar
             tools={[
-              { id: "knowledge", name: "知识库", icon: Folder, component: () => <></> },
-              { id: "assistant", name: "AI 聊天助手", icon: Bot, component: () => <></> },
-              { id: "time-management", name: "时间管理", icon: Clock, component: () => <></> },
               { id: "lists", name: "清单", icon: ClipboardList, component: () => <></> },
+              { id: "time-management", name: "时间管理", icon: Clock, component: () => <></> },
               { id: "daily-review", name: "每日复盘", icon: CalendarDays, component: () => <></> },
-              { id: "unlearning", name: "反学习回路", icon: Lightbulb, component: () => <></> },
+              { id: "knowledge", name: "知识库", icon: Folder, component: () => <></> },
             ]}
             activeToolId={activeSection}
             onToolSelect={(id) => setActiveSection(id as AppSection)}
@@ -103,21 +97,17 @@ function App() {
           <MainContent>
             {activeSection === "knowledge" ? (
               <CoursePanel />
-            ) : activeSection === "assistant" ? (
-              <AiAssistantPanel storageKey="workspace-assistant" />
             ) : activeSection === "time-management" ? (
               <TimeManagementPanel />
             ) : activeSection === "daily-review" ? (
               <DailyReviewPanel />
             ) : activeSection === "lists" ? (
               <ListsPanel />
-            ) : activeSection === "unlearning" ? (
-              <UnlearningPanel />
             ) : null}
           </MainContent>
         }
       />
-      
+
       {isSettingsOpen ? <SettingsModal onClose={() => setIsSettingsOpen(false)} /> : null}
     </>
   );

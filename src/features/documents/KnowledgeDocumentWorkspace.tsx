@@ -32,7 +32,6 @@ import {
   X
 } from "lucide-react";
 import { createCanvasDocumentEditor, createEmptyKnowledgeDocumentSnapshot } from "./canvasEditorAdapter";
-import { AiAssistantPanel } from "../assistant/AiAssistantPanel";
 import { ImporterDialog } from "../importer/ImporterDialog";
 import { createKnowledgeDocumentBinding } from "../../domain/coreContracts";
 import { registerBeforeCloseSave } from "../../lib/saveDrain";
@@ -616,10 +615,6 @@ export function KnowledgeDocumentWorkspace({
   const [exportMessage, setExportMessage] = React.useState("");
   const [documentViewportState, setDocumentViewportState] =
     React.useState<ViewportScrollState>(EMPTY_VIEWPORT_SCROLL_STATE);
-  const [assistantDraft, setAssistantDraft] = React.useState("");
-  const [aiPanelSize, setAiPanelSize] = React.useState<AiPanelSize>(DEFAULT_AI_PANEL_SIZE);
-  const aiPanelSizeRef = React.useRef<AiPanelSize>(DEFAULT_AI_PANEL_SIZE);
-  const [aiContextMenu, setAiContextMenu] = React.useState<AiContextMenuState | null>(null);
   const [skipBlankPages, setSkipBlankPages] = React.useState(false);
   const [isNavigatingDocument, setIsNavigatingDocument] = React.useState(false);
   const [isImporterOpen, setIsImporterOpen] = React.useState(false);
@@ -1138,21 +1133,7 @@ export function KnowledgeDocumentWorkspace({
             queueSnapshotSave(nextSnapshot);
             scheduleDocumentViewportStateUpdate();
           },
-          onFormatChanged: updateFormatState,
-          onAskAi: (selectedText) => {
-            const assistantText = selectedText.trim() || lastSelectedTextRef.current;
-            if (assistantText) {
-              lastSelectedTextRef.current = assistantText;
-            }
-            const nextSize = clampAiPanelSize(aiPanelSizeRef.current);
-            const point = getAiPanelAnchorPoint(toolbarAiButtonRef.current, latestContextMenuPointRef.current, nextSize);
-            setAssistantDraft(assistantText);
-            setAiPanelSize(nextSize);
-            setAiContextMenu({
-              ...clampAiPanelPoint(point, nextSize),
-              text: assistantText
-            });
-          }
+          onFormatChanged: updateFormatState
         })
           .then((editor) => {
             if (
@@ -1454,124 +1435,6 @@ export function KnowledgeDocumentWorkspace({
     return selectedText;
   }, []);
 
-  const openAssistantPanel = React.useCallback((point: { x: number; y: number }, text?: string) => {
-    const selectedText = text?.trim() || readSelectedText().trim() || lastSelectedTextRef.current;
-    if (selectedText) {
-      lastSelectedTextRef.current = selectedText;
-    }
-    const nextSize = clampAiPanelSize(aiPanelSize);
-    setAssistantDraft(selectedText);
-    setAiPanelSize(nextSize);
-    setAiContextMenu({
-      ...clampAiPanelPoint(point, nextSize),
-      text: selectedText
-    });
-  }, [aiPanelSize, readSelectedText]);
-
-  const startAssistantPanelDrag = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
-    if (!aiContextMenu || event.button !== 0) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const origin = { x: aiContextMenu.x, y: aiContextMenu.y };
-
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const nextPoint = clampAiPanelPoint({
-        x: origin.x + moveEvent.clientX - startX,
-        y: origin.y + moveEvent.clientY - startY
-      }, aiPanelSize);
-      setAiContextMenu((current) => current ? { ...current, ...nextPoint } : current);
-    };
-    const stopDrag = () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", stopDrag);
-      window.removeEventListener("pointercancel", stopDrag);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", stopDrag, { once: true });
-    window.addEventListener("pointercancel", stopDrag, { once: true });
-  }, [aiContextMenu, aiPanelSize]);
-
-  const startAssistantPanelResize = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (!aiContextMenu || event.button !== 0) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const originSize = aiPanelSize;
-    const originPoint = { x: aiContextMenu.x, y: aiContextMenu.y };
-
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const nextSize = clampAiPanelSize({
-        width: originSize.width + moveEvent.clientX - startX,
-        height: originSize.height + moveEvent.clientY - startY
-      });
-      const nextPoint = clampAiPanelPoint(originPoint, nextSize);
-      setAiPanelSize(nextSize);
-      setAiContextMenu((current) => current ? { ...current, ...nextPoint } : current);
-    };
-    const stopResize = () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", stopResize);
-      window.removeEventListener("pointercancel", stopResize);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", stopResize, { once: true });
-    window.addEventListener("pointercancel", stopResize, { once: true });
-  }, [aiContextMenu, aiPanelSize]);
-
-  React.useEffect(() => {
-    const keepAssistantPanelInViewport = () => {
-      const nextSize = clampAiPanelSize(aiPanelSize);
-      setAiPanelSize(nextSize);
-      setAiContextMenu((current) => current ? { ...current, ...clampAiPanelPoint(current, nextSize) } : current);
-    };
-
-    window.addEventListener("resize", keepAssistantPanelInViewport);
-    return () => {
-      window.removeEventListener("resize", keepAssistantPanelInViewport);
-    };
-  }, [aiPanelSize]);
-
-  React.useEffect(() => {
-    const handleCanvasEditorAskAiMenu = (event: MouseEvent) => {
-      const target = event.target instanceof Element ? event.target : null;
-      const menuItem = target?.closest(".ce-contextmenu-item");
-      const host = mountRef.current;
-      if (!target || !menuItem || !host?.contains(menuItem)) return;
-
-      const menuText = menuItem.textContent?.replace(/\s+/g, "") ?? "";
-      if (!menuText.includes("问AI")) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const selectedText = readSelectedText().trim() || lastSelectedTextRef.current;
-      if (selectedText) {
-        lastSelectedTextRef.current = selectedText;
-      }
-      host.querySelectorAll(".ce-contextmenu-container").forEach((menu) => menu.remove());
-
-      setAssistantDraft(selectedText);
-      const nextSize = clampAiPanelSize(aiPanelSize);
-      setAiPanelSize(nextSize);
-      setAiContextMenu({
-        ...clampAiPanelPoint(getAiPanelAnchorPoint(toolbarAiButtonRef.current, latestContextMenuPointRef.current, nextSize), nextSize),
-        text: selectedText
-      });
-    };
-
-    document.addEventListener("mousedown", handleCanvasEditorAskAiMenu, true);
-    return () => {
-      document.removeEventListener("mousedown", handleCanvasEditorAskAiMenu, true);
-    };
-  }, [aiPanelSize, readSelectedText]);
-
   const rememberContextMenuPoint = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     latestContextMenuPointRef.current = {
       x: event.clientX,
@@ -1636,24 +1499,6 @@ export function KnowledgeDocumentWorkspace({
             <span>{skipBlankPages ? "跳空白" : "含空白"}</span>
           </button>
         </div>
-        <button
-          type="button"
-          title="AI 助手"
-          ref={toolbarAiButtonRef}
-          className={aiContextMenu ? "document-ai-toolbar-button active" : "document-ai-toolbar-button"}
-          onClick={(event) => {
-            event.stopPropagation();
-            const nextSize = clampAiPanelSize(aiPanelSizeRef.current);
-            openAssistantPanel(getAiPanelAnchorPoint(toolbarAiButtonRef.current, {
-              x: window.innerWidth - nextSize.width - AI_CONTEXT_PANEL_MARGIN,
-              y: 96
-            }, nextSize));
-          }}
-          disabled={!canUseDocument}
-        >
-          <Bot size={15} />
-          <span>AI</span>
-        </button>
         <button type="button" title="导入文档" onClick={() => setIsImporterOpen(true)} disabled={!canUseDocument || isSaving}>
           <Upload size={15} />
           <span>导入</span>
@@ -1712,34 +1557,6 @@ export function KnowledgeDocumentWorkspace({
           <strong>{isLoading || canUseDocument ? "正在打开文档" : "请选择目录节点"}</strong>
         </div>
       </div>
-
-      {aiContextMenu ? (
-        <div
-          ref={aiPanelRef}
-          className="document-ai-context-menu is-chat"
-          style={{ left: aiContextMenu.x, top: aiContextMenu.y, width: aiPanelSize.width, height: aiPanelSize.height }}
-          role="dialog"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <AiAssistantPanel
-            compact
-            title="文档 AI 助手"
-            initialInput={assistantDraft}
-            storageKey={`document:${courseId ?? "none"}:${mindMapId ?? "none"}:${selectedNode.id}`}
-            onDragHandlePointerDown={startAssistantPanelDrag}
-            onInitialInputConsumed={() => {
-              setAssistantDraft("");
-            }}
-            onClose={() => setAiContextMenu(null)}
-          />
-          <div
-            className="document-ai-resize-handle"
-            title="拖动调整 AI 小窗大小"
-            aria-hidden="true"
-            onPointerDown={startAssistantPanelResize}
-          />
-        </div>
-      ) : null}
 
       {isImporterOpen && documentBinding ? (
         <ImporterDialog
