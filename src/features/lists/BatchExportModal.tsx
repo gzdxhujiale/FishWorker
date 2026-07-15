@@ -40,7 +40,15 @@ export function BatchExportModal({ notes, onExport, onClose }: BatchExportModalP
   const allSelected = selectedIds.size === notes.length && notes.length > 0;
 
   return (
-    <div className="list-modal-overlay" style={{ zIndex: 100 }}>
+    <div 
+      className="list-modal-overlay" 
+      style={{ zIndex: 100 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="list-modal-content" style={{ width: '500px', maxWidth: '90vw' }}>
         <div className="list-modal-header" style={{ padding: '24px 32px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>批量导出笔记</h2>

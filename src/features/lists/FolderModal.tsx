@@ -18,7 +18,14 @@ export function FolderModal({ initialData, onClose, onSave }: FolderModalProps) 
   };
 
   return (
-    <div className="list-modal-overlay">
+    <div 
+      className="list-modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="list-modal-content" style={{ width: '400px' }}>
         <div className="list-modal-header">
           <h2>{initialData ? '编辑文件夹' : '添加文件夹'}</h2>

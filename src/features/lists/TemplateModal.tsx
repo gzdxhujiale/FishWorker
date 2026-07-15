@@ -45,7 +45,14 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
   };
 
   return (
-    <div className="list-modal-overlay">
+    <div 
+      className="list-modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="list-modal-content" style={{ width: '700px', maxWidth: '95vw' }}>
         <div className="list-modal-header" style={{ padding: '24px 32px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>笔记模板</h2>

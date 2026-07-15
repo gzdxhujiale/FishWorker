@@ -78,3 +78,14 @@
 - **Command Name**: `tm_delete_task`
 - **Request Payload**: `{ id: string }`
 - **Response**: `Promise<void>`
+
+---
+
+## 3. 乐观更新与防抖同步机制 (v1.2)
+
+在 v1.2 的任务编辑交互重构中，`TaskDetailModal` 前端不再需要手动提交确认：
+1. **乐观更新 (Optimistic UI)**：在标题输入、时间变更或 Tiptap 内容改变时，前端会同步且即时地修改本地的 Zustand State，从而实现 UI 视觉上的瞬间更新（无顿挫感）。
+2. **防抖同步 (Debounced Sync)**：
+   - 对于文本类频繁变更字段（如任务标题、富文本详细内容），在值改变后，前端不会立即向 Tauri 发送 `tm_upsert_task` 指令，而是采取 **500ms 的防抖机制**，将多次按键修改合并为单次 `invoke` 请求。
+   - 对于突发关闭（如点击外侧遮罩层、点击右上角关闭按钮），弹窗组件会在卸载瞬间强制执行一次刷盘（Flush），保证最后一次未保存的修改立即写入数据库。
+

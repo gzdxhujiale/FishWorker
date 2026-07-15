@@ -13,6 +13,7 @@ import { SettingsModal } from "./features/settings/SettingsModal";
 import { ListsPanel } from "./features/lists/ListsPanel";
 
 import "./index.css";
+import "@arco-design/web-react/dist/css/arco.css";
 
 declare global {
   interface Window {

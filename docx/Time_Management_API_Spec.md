@@ -106,3 +106,21 @@ interface WeeklyPlanningProps {
   onEditTask: (task: Task) => void;
 }
 ```
+
+---
+
+## 4. 任务详情与自动保存规范 (v1.2.1 更新)
+
+### 4.1 截止日期选择器 (Arco Design `DatePicker`)
+- **位置**：`src/features/time-management/TaskDetailModal.tsx`
+- **核心逻辑**：
+  - 原有的基于 `react-day-picker` 的自定义时间选择器已被重构，现引入了 Arco Design 的 `DatePicker` 组件以统一项目设计语言并提供更健壮的交互体验。
+  - **动态时间控制**：增加了“添加时间/移除时间”的动态切换功能。当只选择日期时，选择器仅显示 `YYYY-MM-DD` 格式；当开启时间选择时，支持 `YYYY-MM-DD HH:mm` 精确到分钟的时间设定。
+
+### 4.2 任务详情弹窗自动保存机制 (`TaskDetailModal`)
+- **即时保存**：移除了手动的“保存/取消”按钮，将全部字段的修改绑定到自动保存逻辑。
+  - **标题 (title)**：采用 500ms 的防抖保存，或在 `onBlur` 失去焦点时进行强制刷盘保存。如果标题为空，则在失去焦点时恢复为原标题。
+  - **截止时间 (deadline)**：当在 Arco Design 的 `DatePicker` 中点选日期或动态切换时间模式时，立即触发同步刷盘保存，确保日历显示及时更新。
+  - **详细内容 (description)**：详细内容区域引入了 Tiptap 富文本编辑器，支持基本的文本格式排版。编辑内容时触发 500ms 防抖保存。
+- **强制刷盘机制 (Flush)**：在点击外部遮罩层关闭弹窗时，会自动清除所有待处理的防抖定时器，并比对最新状态，如有未保存的数据会执行一次同步刷盘，避免数据丢失。
+

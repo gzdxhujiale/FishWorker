@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { CompoundStats as CompoundStatsType, DailyReview } from './dailyReviewTypes';
-import { TrendingUp, Award, Zap, Calendar } from 'lucide-react';
-import { DayPicker } from 'react-day-picker';
-import { format } from 'date-fns';
-import 'react-day-picker/dist/style.css';
+import { TrendingUp, Award, Zap, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@arco-design/web-react';
+import dayjs from 'dayjs';
 
 interface Props {
   stats: CompoundStatsType;
@@ -13,38 +12,6 @@ interface Props {
 }
 
 export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, selectedDate }) => {
-  // Parse selectedDate safely in local timezone
-  const [y, m, d] = selectedDate.split('-').map(Number);
-  const selectedDateObj = new Date(y, m - 1, d);
-
-  const [month, setMonth] = useState<Date>(selectedDateObj);
-
-  // Sync month when selectedDate changes from outside (e.g., arrow buttons)
-  useEffect(() => {
-    setMonth(selectedDateObj);
-  }, [selectedDate]);
-
-  // Group dates by rating level
-  const level4Dates: Date[] = [];
-  const level3Dates: Date[] = [];
-  const level2Dates: Date[] = [];
-  const level1Dates: Date[] = [];
-
-  reviews.forEach(r => {
-    const [ry, rm, rd] = r.date.split('-').map(Number);
-    const dObj = new Date(ry, rm - 1, rd);
-    if (r.rating === 5) level4Dates.push(dObj);
-    else if (r.rating === 4) level3Dates.push(dObj);
-    else if (r.rating && r.rating >= 2) level2Dates.push(dObj);
-    else level1Dates.push(dObj);
-  });
-
-  const handleSelect = (date: Date | undefined) => {
-    if (date) {
-      onSelectDate(format(date, 'yyyy-MM-dd'));
-    }
-  };
-
   return (
     <div className="compound-stats-container">
       <div className="stats-card">
@@ -81,32 +48,31 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
 
       <div className="heatmap-container" style={{ padding: '16px' }}>
         <div className="stats-header" style={{ fontSize: '1rem', marginBottom: '8px' }}>
-          <Calendar size={18} />
+          <CalendarIcon size={18} />
           <span>当月打卡记录</span>
         </div>
-        <div className="monthly-calendar-wrapper">
-          <DayPicker
-            mode="single"
-            selected={selectedDateObj}
-            onSelect={handleSelect}
-            month={month}
-            onMonthChange={setMonth}
-            startMonth={new Date(2026, 0)}
-            hidden={{ before: new Date(2026, 0, 1) }}
-            disabled={{ before: new Date(2026, 0, 1) }}
-            modifiers={{
-              level4: level4Dates,
-              level3: level3Dates,
-              level2: level2Dates,
-              level1: level1Dates,
+        <div className="monthly-calendar-wrapper arco-custom-calendar">
+          <Calendar
+            panel
+            value={dayjs(selectedDate)}
+            onChange={(val) => onSelectDate(val.format('YYYY-MM-DD'))}
+            dateRender={(current) => {
+              const dStr = current.format('YYYY-MM-DD');
+              const review = reviews.find(r => r.date === dStr);
+              let cls = '';
+              if (review) {
+                if (review.rating === 5) cls = 'active-level-4';
+                else if (review.rating === 4) cls = 'active-level-3';
+                else if (review.rating && review.rating >= 2) cls = 'active-level-2';
+                else cls = 'active-level-1';
+              }
+              const isSelected = dStr === selectedDate;
+              return (
+                <div className={`arco-calendar-date ${cls} ${isSelected ? 'arco-calendar-date-selected' : ''}`}>
+                  <div className="arco-calendar-date-value">{current.date()}</div>
+                </div>
+              );
             }}
-            modifiersClassNames={{
-              level4: 'active-level-4',
-              level3: 'active-level-3',
-              level2: 'active-level-2',
-              level1: 'active-level-1',
-            }}
-            showOutsideDays={false}
           />
         </div>
       </div>

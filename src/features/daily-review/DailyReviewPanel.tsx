@@ -60,6 +60,7 @@ export const DailyReviewPanel: React.FC = () => {
         onSave={handleSave}
         onPrevDay={() => changeDate(-1)}
         onNextDay={() => changeDate(1)}
+        onSelectDate={setSelectedDate}
       />
     </div>
   );

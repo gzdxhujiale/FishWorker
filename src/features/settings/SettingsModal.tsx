@@ -3,7 +3,15 @@ import { DatabaseSettingsPanel } from "./components/DatabaseSettingsPanel";
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   return (
-    <div className="settings-backdrop" role="presentation">
+    <div 
+      className="settings-backdrop" 
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <section className="settings-dialog" role="dialog" aria-modal="true" aria-label="设置">
         <aside className="settings-nav">
           <div className="settings-title">

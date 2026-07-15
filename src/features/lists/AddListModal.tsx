@@ -46,7 +46,14 @@ export function AddListModal({ folders, initialFolderId, initialData, onClose, o
   };
 
   return (
-    <div className="list-modal-overlay">
+    <div 
+      className="list-modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="list-modal-content">
         <div className="list-modal-header">
           <h2>{initialData ? '编辑清单' : '添加清单'}</h2>

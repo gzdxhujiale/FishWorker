@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
+import { DatePicker } from '@arco-design/web-react';
 
 interface Props {
   date: string;
@@ -11,9 +12,10 @@ interface Props {
   onSave: (date: string, content: string, rating: number, isHighFreq?: boolean) => void;
   onPrevDay: () => void;
   onNextDay: () => void;
+  onSelectDate: (date: string) => void;
 }
 
-export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay, onNextDay }) => {
+export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay, onNextDay, onSelectDate }) => {
   const [content, setContent] = useState('');
   const [rating, setRating] = useState(0);
 
@@ -102,10 +104,20 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay,
   return (
     <div className="review-editor-container">
       <div className="editor-header">
-        <div className="editor-date-selector">
-          <button onClick={onPrevDay} title="前一天"><ChevronLeft size={20} /></button>
-          <h2>{date} {isToday() && '(今天)'}</h2>
-          <button onClick={onNextDay} title="后一天" disabled={isToday()} style={{ opacity: isToday() ? 0.3 : 1 }}>
+        <div className="editor-date-selector" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={onPrevDay} title="前一天" style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><ChevronLeft size={20} /></button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <DatePicker 
+              value={date} 
+              onChange={(val) => {
+                if (val) onSelectDate(val);
+              }}
+              allowClear={false}
+              style={{ width: 140, fontWeight: 'bold' }}
+            />
+            {isToday() && <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>(今天)</span>}
+          </div>
+          <button onClick={onNextDay} title="后一天" disabled={isToday()} style={{ background: 'transparent', border: 'none', cursor: isToday() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', opacity: isToday() ? 0.3 : 1 }}>
             <ChevronRight size={20} />
           </button>
         </div>
