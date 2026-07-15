@@ -40,7 +40,18 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
   };
 
   return (
-    <div className="tm-modal-overlay">
+    <div 
+      className="tm-modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          if (title.trim()) {
+            handleSave();
+          } else {
+            onClose();
+          }
+        }
+      }}
+    >
       <div className="tm-modal">
         <div className="tm-modal-header">
           <h3>任务详情</h3>

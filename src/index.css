@@ -1,10 +1,6 @@
 /* ── Module CSS imports ────────────────────────────────────────── */
 @import "./styles/layout.css";
-@import "./features/course/course.css";
 @import "./styles/shared.css";
-@import "./features/mindmap/mindmap.css";
-@import "./features/documents/document.css";
-@import "./features/mindmap/catalog.css";
 @import "./styles/settings.css";
 @import "./styles/dialog.css";
 @import "./features/time-management/timeManagement.css";

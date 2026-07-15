@@ -19,7 +19,9 @@ import './lists.css';
 export function ListsPanel() {
   const [lists, setLists] = useState<List[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [activeListId, setActiveListId] = useState<string | null>(null);
+  const [activeListId, setActiveListId] = useState<string | null>(() => {
+    return localStorage.getItem('lists-active-list-id');
+  });
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('lists-sidebar-collapsed') === 'true';
@@ -98,10 +100,37 @@ export function ListsPanel() {
       setFolders(listsStore.getFolders());
       setTemplates(listsStore.getTemplates());
 
-      if (loadedLists.length > 0 && !activeListId) {
-        setActiveListId(loadedLists[0].id);
-        setNotes(listsStore.getNotesByListId(loadedLists[0].id));
-        setNoteGroups(listsStore.getNoteGroups(loadedLists[0].id));
+      if (loadedLists.length > 0) {
+        const savedId = localStorage.getItem('lists-active-list-id');
+        const exists = savedId && loadedLists.some(l => l.id === savedId);
+
+        if (exists) {
+          setActiveListId(savedId);
+          setNotes(listsStore.getNotesByListId(savedId));
+          setNoteGroups(listsStore.getNoteGroups(savedId));
+        } else {
+          const loadedFolders = listsStore.getFolders();
+          let defaultListId = loadedLists[0].id;
+
+          if (loadedFolders.length > 0) {
+            const firstFolder = loadedFolders[0];
+            const folderLists = loadedLists.filter(l => l.folderId === firstFolder.id);
+            if (folderLists.length > 0) {
+              // Sort folderLists to respect pinned state and sortOrder
+              folderLists.sort((a, b) => {
+                if (a.isPinned && !b.isPinned) return -1;
+                if (!a.isPinned && b.isPinned) return 1;
+                return (a.sortOrder || 0) - (b.sortOrder || 0);
+              });
+              defaultListId = folderLists[0].id;
+            }
+          }
+
+          setActiveListId(defaultListId);
+          localStorage.setItem('lists-active-list-id', defaultListId);
+          setNotes(listsStore.getNotesByListId(defaultListId));
+          setNoteGroups(listsStore.getNoteGroups(defaultListId));
+        }
       }
     });
   }, []);
@@ -112,9 +141,11 @@ export function ListsPanel() {
       setNoteGroups(listsStore.getNoteGroups(activeListId));
       setActiveNote(null);
       setIsDrawerOpen(false);
+      localStorage.setItem('lists-active-list-id', activeListId);
     } else {
       setNotes([]);
       setNoteGroups([]);
+      localStorage.removeItem('lists-active-list-id');
     }
   }, [activeListId]);
 

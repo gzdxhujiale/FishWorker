@@ -20,6 +20,10 @@ function getDaysDifference(date1: string, date2: string): number {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
+function isReviewEmpty(content: string): boolean {
+  return !content || content === '<p></p>' || content === '<p></p>\n';
+}
+
 export const dailyReviewStore = {
   load(): DailyReviewData {
     try {
@@ -111,12 +115,29 @@ export const dailyReviewStore = {
   },
 
   getAllReviews(): DailyReview[] {
-    return this.load().reviews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return this.load().reviews
+      .filter(r => !isReviewEmpty(r.content))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   },
 
   saveReview(date: string, content: string, rating?: number, isHighFreq?: boolean): DailyReview {
     const data = this.load();
     const existingIndex = data.reviews.findIndex(r => r.date === date);
+    
+    if (isReviewEmpty(content) && (rating === undefined || rating === 0)) {
+      if (existingIndex !== -1) {
+        const id = data.reviews[existingIndex].id;
+        this.deleteReview(id);
+      }
+      return {
+        id: '',
+        date,
+        content: '',
+        rating: 0,
+        createdAt: 0,
+        updatedAt: 0
+      };
+    }
     
     let review: DailyReview;
     if (existingIndex !== -1) {
@@ -158,7 +179,7 @@ export const dailyReviewStore = {
   },
 
   getCompoundStats(): CompoundStats {
-    const reviews = this.load().reviews;
+    const reviews = this.load().reviews.filter(r => !isReviewEmpty(r.content));
     if (reviews.length === 0) {
       return { currentStreak: 0, longestStreak: 0, totalReviews: 0, compoundValue: 1.00 };
     }

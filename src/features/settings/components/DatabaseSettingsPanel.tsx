@@ -52,15 +52,6 @@ export function DatabaseSettingsPanel() {
 
   return (
     <div className="shortcut-settings-panel database-settings">
-      <section className="settings-section runtime-check-intro">
-        <div className="settings-section-heading">
-          <div>
-            <h3>数据库连接配置</h3>
-            <p>用于修改连接到的本地 MySQL 或远程 TiDB。保存后请重启应用。</p>
-          </div>
-        </div>
-      </section>
-
       <form onSubmit={handleSave} className="shortcut-settings-list">
         <article className="shortcut-settings-row db-connection-row">
           <div className="shortcut-settings-main">

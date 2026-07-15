@@ -1,6 +1,4 @@
-mod course;
 mod db;
-mod document;
 mod list;
 mod schema;
 mod time_management;
@@ -118,21 +116,6 @@ pub fn run() {
             save_markdown_file,
             pick_multiple_markdown_files,
             save_multiple_markdown_files,
-            course::courses_load,
-            course::course_create,
-            course::course_rename,
-            course::course_move,
-            course::course_reorder,
-            course::course_delete,
-            course::section_create,
-            course::section_rename,
-            course::section_toggle,
-            course::section_toggle_all,
-            course::section_reorder,
-            course::section_delete,
-            course::courses_save_store,
-            document::knowledge_documents_load,
-            document::knowledge_documents_save,
             db::db_get_config,
             db::db_save_config,
             time_management::tm_load_all,
@@ -146,6 +129,7 @@ pub fn run() {
             list::list_load_all,
             list::list_upsert_folder,
             list::list_delete_folder,
+            list::list_reorder_folders,
             list::list_upsert_list,
             list::list_delete_list,
             list::list_reorder_lists,

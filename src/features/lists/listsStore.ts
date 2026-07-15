@@ -103,6 +103,7 @@ class ListsStore {
         id: f.id,
         name: f.name,
         isPinned: f.isPinned,
+        sortOrder: f.sortOrder,
       }));
 
       this.data.lists = allData.lists.map(l => ({
@@ -348,7 +349,7 @@ class ListsStore {
     return [...this.data.folders].sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      return 0;
+      return (a.sortOrder || 0) - (b.sortOrder || 0);
     });
   }
 
@@ -356,6 +357,7 @@ class ListsStore {
     const newFolder: Folder = {
       id: genId('folder'),
       name,
+      sortOrder: this.data.folders.length,
     };
     this.data.folders.push(newFolder);
 
@@ -364,7 +366,7 @@ class ListsStore {
         id: newFolder.id,
         name: newFolder.name,
         isPinned: false,
-        sortOrder: this.data.folders.length - 1,
+        sortOrder: newFolder.sortOrder,
       }
     }).catch(e => console.error('Failed to sync addFolder:', e));
 
@@ -381,10 +383,23 @@ class ListsStore {
           id: folder.id,
           name: folder.name,
           isPinned: folder.isPinned || false,
-          sortOrder: 0,
+          sortOrder: folder.sortOrder || 0,
         }
       }).catch(e => console.error('Failed to sync updateFolder:', e));
     }
+  }
+
+  reorderFolders(orderedIds: string[]): void {
+    const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
+    const items: Array<[string, number]> = [];
+    this.data.folders.forEach(f => {
+      if (orderMap.has(f.id)) {
+        f.sortOrder = orderMap.get(f.id);
+        items.push([f.id, f.sortOrder!]);
+      }
+    });
+
+    invoke('list_reorder_folders', { items }).catch(e => console.error('Failed to sync reorderFolders:', e));
   }
 
   deleteFolder(id: string): void {

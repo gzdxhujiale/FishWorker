@@ -16,6 +16,7 @@ export interface Folder {
   id: string;
   name: string;
   isPinned?: boolean;
+  sortOrder?: number;
 }
 
 export interface NoteGroup {

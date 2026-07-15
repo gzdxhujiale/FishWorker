@@ -273,6 +273,17 @@ pub async fn list_reorder_lists(items: Vec<(String, i32)>, pool: State<'_, MySql
 }
 
 #[tauri::command]
+pub async fn list_reorder_folders(items: Vec<(String, i32)>, pool: State<'_, MySqlPool>) -> Result<(), String> {
+    let now = now_dt();
+    for (id, order) in &items {
+        sqlx::query("UPDATE list_folders SET sort_order = ?, updated_at = ? WHERE id = ?")
+            .bind(order).bind(now).bind(id)
+            .execute(&*pool).await.map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn list_move_list(list_id: String, folder_id: Option<String>, sort_order: i32, pool: State<'_, MySqlPool>) -> Result<(), String> {
     let now = now_dt();
     sqlx::query("UPDATE list_lists SET folder_id = ?, sort_order = ?, updated_at = ? WHERE id = ?")

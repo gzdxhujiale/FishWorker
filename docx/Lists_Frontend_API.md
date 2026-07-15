@@ -31,6 +31,7 @@ export interface Folder {
   id: string;               // 唯一标识符
   name: string;             // 文件夹名称
   isPinned?: boolean;       // 是否置顶
+  sortOrder?: number;       // 用于拖拽排序的连续型整数
 }
 ```
 
@@ -103,6 +104,8 @@ export interface Template {
   更新指定文件夹属性（如：重命名、置顶）。
 - `deleteFolder(id: string): void`
   删除指定文件夹，同时将该文件夹下的所有清单的 `folderId` 置为 `null`。
+- `reorderFolders(orderedIds: string[]): void`
+  根据提供的 ID 数组更新所有文件夹的排序顺序（`sortOrder`），并异步同步至云端。
 
 ### 2.3 笔记 (Note) 操作
 - `getNotesByListId(listId: string): Note[]`
@@ -171,6 +174,13 @@ export interface Template {
 - **延迟/异步初始化**: 更改 `establish_connection` 流程，通过 `connect_lazy` 毫秒级建立句柄并不阻塞 Tauri 程序 `.setup` 的主线程（修复冷启动白屏白字现象），并将 `ensure_tables` 表结构迁移放置在后台 Tokio 异步进程中执行。
 - **SSL 安全连接**: 后端连接选项显式添加了 `ssl-mode=required` 参数以对接远端 TiDB 加密通信审计，并设置连接超时限制为 `10s`。
 
+### 3.3 数据库同步与重新排序 API
+- **文件夹重新排序**
+  * **命令**: `list_reorder_folders`
+  * **输入**: `{ items: Array<[string, number]> }`
+  * **输出**: `Promise<void>`
+  * **说明**: 批量更新后端数据库中各文件夹的 `sort_order`，保证排序后的永久一致性。
+
 ## 4. 全局提示组件接口 (Toast API)
 
 为提供非阻塞式的操作状态反馈，前端通过统一的 Toast 提示状态对各种文件与操作行为进行全局通知。
@@ -189,4 +199,16 @@ export interface Toast {
 ### 4.2 提示函数定义
 - `showToast(message: string, type?: ToastType): void`
   在主视图中心顶部拉起一条浮动提示消息。成功时提示“导入成功”、“导出成功”等；发生错误或被取消时进行静默或显著的错误提示。提示消息显示 3 秒后将自动渐隐销毁。
+
+## 5. 本地持久化缓存与状态记忆 (LocalStorage API)
+
+清单模块在客户端通过 `localStorage` 缓存一些非核心业务、属于用户偏好/导航状态的数据，以提升使用连贯性：
+
+- **`lists-sidebar-collapsed`**
+  * **类型**: `"true" | "false"`
+  * **说明**: 记忆左侧侧边栏折叠/收起状态。
+- **`lists-active-list-id`**
+  * **类型**: `string` (UUID)
+  * **说明**: 记忆最后一次点击并激活的清单 ID。切换页面导航再切换回来时，将首先查找并尝试恢复该 ID 代表的清单，从而保持激活状态不变。若首次启动或记录失效，则降级按第一个文件夹的首个清单规则进行默认初始化。
+
 

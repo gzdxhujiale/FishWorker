@@ -1,39 +1,23 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import {
-  Folder,
   Clock,
   CalendarDays,
   ClipboardList,
   LayoutGrid
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";
-import { CoursePanel } from "./features/course/CoursePanel";
 import { TimeManagementPanel } from "./features/time-management/TimeManagementPanel";
 import { DailyReviewPanel } from "./features/daily-review/DailyReviewPanel";
 import { SettingsModal } from "./features/settings/SettingsModal";
 import { ListsPanel } from "./features/lists/ListsPanel";
 
-import { startCoreFeatureWarmup } from "./lib/performanceWarmup";
-import { drainBeforeCloseSaves } from "./lib/saveDrain";
 import "./index.css";
 
 declare global {
   interface Window {
-    aistudyLifecycle?: {
-      onBeforeClose: (callback: () => Promise<unknown> | unknown) => () => void;
-    };
     aistudyClipboard?: {
       writeText: (text: string) => Promise<boolean>;
-    };
-    aistudyCourseLocators?: {
-      createPath: (input: {
-        courseId: string;
-        courseName: string;
-        courseDescription: string;
-        sectionId: string | null;
-        sectionName: string;
-      }) => Promise<string>;
     };
   }
 }
@@ -65,17 +49,11 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   }
 }
 
-type AppSection = "knowledge" | "weekly-planning" | "four-quadrants" | "daily-review" | "lists";
+type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists";
 
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("lists");
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    return window.aistudyLifecycle?.onBeforeClose(() => drainBeforeCloseSaves());
-  }, []);
-
-  React.useEffect(() => startCoreFeatureWarmup(), []);
 
   return (
     <>
@@ -88,7 +66,6 @@ function App() {
               { id: "weekly-planning", name: "周计划", icon: CalendarDays, component: () => <></> },
               { id: "four-quadrants", name: "四象限工作台", icon: LayoutGrid, component: () => <></> },
               { id: "daily-review", name: "每日复盘", icon: Clock, component: () => <></> },
-              { id: "knowledge", name: "知识库", icon: Folder, component: () => <></> },
             ]}
             activeToolId={activeSection}
             onToolSelect={(id) => setActiveSection(id as AppSection)}
@@ -97,9 +74,7 @@ function App() {
         }
         mainContent={
           <MainContent>
-            {activeSection === "knowledge" ? (
-              <CoursePanel />
-            ) : activeSection === "weekly-planning" ? (
+            {activeSection === "weekly-planning" ? (
               <TimeManagementPanel mode="weekly" />
             ) : activeSection === "four-quadrants" ? (
               <TimeManagementPanel mode="daily" />

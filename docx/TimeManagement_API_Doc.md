@@ -71,4 +71,4 @@ interface TimeManagementData {
 - **Response**: `Promise<void>`
 - **返回逻辑**:
   - 成功写入数据库后 `resolve`。
-  - 写入失败时 `reject` 抛出错误字符串，前端据此进入 `attention` (部分未同步) 的界面状态。
+  - 写入失败时 `reject` 抛出错误字符串，前端据此更新后台同步状态并启动数据冲突对齐或重试机制。

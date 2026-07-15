@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus, CheckCircle2, Circle, AlignLeft, X, MoreHorizontal } from 'lucide-react';
+import { Plus, CheckCircle2, Circle, AlignLeft, X } from 'lucide-react';
 import { Task, QuadrantType } from './timeManagementTypes';
 import { CollapsibleGroup } from './components/CollapsibleGroup';
 import { QuickAddPopover } from './components/QuickAddPopover';
@@ -145,9 +145,6 @@ export function DailyQuadrants({ tasks, onToggleComplete, onMoveTask, onAddTask,
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-strong)' }}
             >
               <Plus size={18} />
-            </button>
-            <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-strong)' }}>
-              <MoreHorizontal size={18} />
             </button>
           </div>
         </div>

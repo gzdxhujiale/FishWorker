@@ -99,8 +99,14 @@ export function ListsSidebar({
   };
 
   const handleDragOver = (event: any) => {
-    const { over } = event;
+    const { active, over } = event;
     if (!over) {
+      setDragOverFolderId(null);
+      return;
+    }
+    // If active is a folder, we don't highlight folders as targets for nesting
+    const activeFolder = folders.some(f => f.id === active.id);
+    if (activeFolder) {
       setDragOverFolderId(null);
       return;
     }
@@ -121,6 +127,20 @@ export function ListsSidebar({
     
     const { active, over } = event;
     if (active.id !== over?.id && over) {
+      // Check if dragging a folder
+      const activeFolder = folders.find(f => f.id === active.id);
+      if (activeFolder) {
+        const overId = String(over.id);
+        const overFolderIndex = folders.findIndex(f => f.id === overId);
+        if (overFolderIndex !== -1) {
+          const oldIndex = folders.findIndex(f => f.id === active.id);
+          const newFolders = arrayMove(folders, oldIndex, overFolderIndex);
+          listsStore.reorderFolders(newFolders.map(f => f.id));
+          onDataChange();
+        }
+        return;
+      }
+
       const activeList = lists.find(l => l.id === active.id);
       if (!activeList) return;
 
@@ -188,131 +208,135 @@ export function ListsSidebar({
       <div className="lists-tree">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
           {/* Render folders and their nested lists */}
-          {folders.map(folder => {
-            const isCollapsed = collapsedFolders[folder.id];
-            const folderLists = listsByFolder[folder.id] || [];
-            
-            const activeList = lists.find(l => l.id === activeDragId);
-            const isTarget = dragOverFolderId === folder.id && activeList?.folderId !== folder.id;
-            
-            return (
-              <div key={folder.id} className="lists-folder-group">
-                <DroppableArea 
-                  id={folder.id} 
-                  data={{ type: 'folder' }}
-                  className={`lists-folder-header ${isCollapsed ? 'collapsed' : ''} ${isTarget ? 'droppable-over-target' : ''}`}
-                  onClick={() => toggleFolder(folder.id)}
-                >
-                  <ChevronDown size={14} className="chevron-icon" />
-                  <FolderIcon size={16} className="folder-icon" />
-                  <span>{folder.name}</span>
-                  {folder.isPinned && <span style={{marginLeft: '4px', fontSize: '10px', color: 'var(--accent)'}}>📌</span>}
-                  
-                  <div className="lists-item-actions-wrapper" onClick={e => e.stopPropagation()}>
-                    <MoreHorizontal 
-                      size={16} 
-                      className="lists-folder-actions" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveDropdown(activeDropdown?.id === folder.id ? null : {type: 'folder', id: folder.id});
-                      }} 
-                    />
-                    {activeDropdown?.type === 'folder' && activeDropdown.id === folder.id && (
-                      <div className="lists-dropdown-menu" ref={dropdownRef}>
-                        <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onAddClick(folder.id); }}>添加清单</div>
-                        <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditFolder(folder); }}>编辑</div>
-                        <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinFolder(folder); }}>{folder.isPinned ? '取消置顶' : '置顶'}</div>
-                        <ConfirmBubble
-                          isOpen={deleteConfirmFolderId === folder.id}
-                          message={`确定要解散文件夹 "${folder.name}" 吗？（其中的清单不会被删除）`}
-                          position="right"
-                          onConfirm={() => {
-                            onDissolveFolder(folder);
-                            setDeleteConfirmFolderId(null);
-                            setActiveDropdown(null);
-                          }}
-                          onCancel={() => setDeleteConfirmFolderId(null)}
-                        >
-                          <div 
-                            className="lists-dropdown-item text-danger"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirmFolderId(folder.id);
-                            }}
-                          >
-                            解散
-                          </div>
-                        </ConfirmBubble>
-                      </div>
-                    )}
-                  </div>
-                </DroppableArea>
-                
-                {!isCollapsed && (
-                  <SortableContext items={folderLists.map(l => l.id)} strategy={verticalListSortingStrategy}>
-                    {folderLists.map(list => (
-                      <SortableItem key={list.id} id={list.id}>
-                        <div 
-                          className={`lists-item nested ${activeListId === list.id ? 'active' : ''}`}
-                          onClick={() => onSelectList(list.id)}
-                        >
-                  <div className="lists-item-icon">
-                    {getIcon(list.icon, list.color)}
-                  </div>
-                  <span>{list.name}</span>
-                  {list.isPinned && <span style={{marginLeft: '4px', fontSize: '10px', color: 'var(--accent)'}}>📌</span>}
-                  
-                  <div className="lists-item-count-wrapper">
-                    {list.itemCount !== undefined && list.itemCount > 0 && (
-                      <span className="lists-item-count">{list.itemCount}</span>
-                    )}
-                    <div className="lists-item-actions-wrapper" onClick={e => e.stopPropagation()}>
-                      <MoreHorizontal 
-                        size={16} 
-                        className={`lists-item-more-action ${activeDropdown?.type === 'list' && activeDropdown.id === list.id ? 'active' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveDropdown(activeDropdown?.id === list.id ? null : {type: 'list', id: list.id});
-                        }} 
-                      />
-                      {activeDropdown?.type === 'list' && activeDropdown.id === list.id && (
-                        <div className="lists-dropdown-menu" ref={dropdownRef}>
-                          <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditList(list); }}>编辑</div>
-                          <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinList(list); }}>{list.isPinned ? '取消置顶' : '置顶'}</div>
-                          <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onDuplicateList(list); }}>复制</div>
-                          <ConfirmBubble
-                            isOpen={deleteConfirmListId === list.id}
-                            message={`确定要删除清单 "${list.name}" 吗？`}
-                            position="right"
-                            onConfirm={() => {
-                              onDeleteList(list);
-                              setDeleteConfirmListId(null);
-                              setActiveDropdown(null);
-                            }}
-                            onCancel={() => setDeleteConfirmListId(null)}
-                          >
-                            <div 
-                              className="lists-dropdown-item text-danger"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirmListId(list.id);
+          <SortableContext items={folders.map(f => f.id)} strategy={verticalListSortingStrategy}>
+            {folders.map(folder => {
+              const isCollapsed = collapsedFolders[folder.id];
+              const folderLists = listsByFolder[folder.id] || [];
+              
+              const activeList = lists.find(l => l.id === activeDragId);
+              const isTarget = dragOverFolderId === folder.id && activeList?.folderId !== folder.id;
+              
+              return (
+                <div key={folder.id} className="lists-folder-group">
+                  <SortableItem id={folder.id}>
+                    <DroppableArea 
+                      id={folder.id} 
+                      data={{ type: 'folder' }}
+                      className={`lists-folder-header ${isCollapsed ? 'collapsed' : ''} ${isTarget ? 'droppable-over-target' : ''}`}
+                      onClick={() => toggleFolder(folder.id)}
+                    >
+                      <ChevronDown size={14} className="chevron-icon" />
+                      <FolderIcon size={16} className="folder-icon" />
+                      <span>{folder.name}</span>
+                      {folder.isPinned && <span style={{marginLeft: '4px', fontSize: '10px', color: 'var(--accent)'}}>📌</span>}
+                      
+                      <div className="lists-item-actions-wrapper" onClick={e => e.stopPropagation()}>
+                        <MoreHorizontal 
+                          size={16} 
+                          className="lists-folder-actions" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdown(activeDropdown?.id === folder.id ? null : {type: 'folder', id: folder.id});
+                          }} 
+                        />
+                        {activeDropdown?.type === 'folder' && activeDropdown.id === folder.id && (
+                          <div className="lists-dropdown-menu" ref={dropdownRef}>
+                            <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onAddClick(folder.id); }}>添加清单</div>
+                            <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditFolder(folder); }}>编辑</div>
+                            <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinFolder(folder); }}>{folder.isPinned ? '取消置顶' : '置顶'}</div>
+                            <ConfirmBubble
+                              isOpen={deleteConfirmFolderId === folder.id}
+                              message={`确定要解散文件夹 "${folder.name}" 吗？（其中的清单不会被删除）`}
+                              position="right"
+                              onConfirm={() => {
+                                onDissolveFolder(folder);
+                                setDeleteConfirmFolderId(null);
+                                setActiveDropdown(null);
                               }}
+                              onCancel={() => setDeleteConfirmFolderId(null)}
                             >
-                              删除
-                            </div>
-                          </ConfirmBubble>
-                        </div>
+                              <div 
+                                className="lists-dropdown-item text-danger"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfirmFolderId(folder.id);
+                                }}
+                              >
+                                解散
+                              </div>
+                            </ConfirmBubble>
+                          </div>
+                        )}
+                      </div>
+                    </DroppableArea>
+                  </SortableItem>
+                  
+                  {!isCollapsed && (
+                    <SortableContext items={folderLists.map(l => l.id)} strategy={verticalListSortingStrategy}>
+                      {folderLists.map(list => (
+                        <SortableItem key={list.id} id={list.id}>
+                          <div 
+                            className={`lists-item nested ${activeListId === list.id ? 'active' : ''}`}
+                            onClick={() => onSelectList(list.id)}
+                          >
+                    <div className="lists-item-icon">
+                      {getIcon(list.icon, list.color)}
+                    </div>
+                    <span>{list.name}</span>
+                    {list.isPinned && <span style={{marginLeft: '4px', fontSize: '10px', color: 'var(--accent)'}}>📌</span>}
+                    
+                    <div className="lists-item-count-wrapper">
+                      {list.itemCount !== undefined && list.itemCount > 0 && (
+                        <span className="lists-item-count">{list.itemCount}</span>
                       )}
+                      <div className="lists-item-actions-wrapper" onClick={e => e.stopPropagation()}>
+                        <MoreHorizontal 
+                          size={16} 
+                          className={`lists-item-more-action ${activeDropdown?.type === 'list' && activeDropdown.id === list.id ? 'active' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdown(activeDropdown?.id === list.id ? null : {type: 'list', id: list.id});
+                          }} 
+                        />
+                        {activeDropdown?.type === 'list' && activeDropdown.id === list.id && (
+                          <div className="lists-dropdown-menu" ref={dropdownRef}>
+                            <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditList(list); }}>编辑</div>
+                            <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinList(list); }}>{list.isPinned ? '取消置顶' : '置顶'}</div>
+                            <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onDuplicateList(list); }}>复制</div>
+                            <ConfirmBubble
+                              isOpen={deleteConfirmListId === list.id}
+                              message={`确定要删除清单 "${list.name}" 吗？`}
+                              position="right"
+                              onConfirm={() => {
+                                onDeleteList(list);
+                                setDeleteConfirmListId(null);
+                                setActiveDropdown(null);
+                              }}
+                              onCancel={() => setDeleteConfirmListId(null)}
+                            >
+                              <div 
+                                className="lists-dropdown-item text-danger"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfirmListId(list.id);
+                                }}
+                              >
+                                删除
+                              </div>
+                            </ConfirmBubble>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+                </SortableItem>
+              ))}
+            </SortableContext>
+          )}
                 </div>
-              </SortableItem>
-            ))}
+              );
+            })}
           </SortableContext>
-        )}
-              </div>
-            );
-          })}
 
           {folders.length > 0 && standaloneLists.length > 0 && <div style={{ height: '12px' }} />}
 
