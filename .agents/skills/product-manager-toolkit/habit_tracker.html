@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>习惯 - 高级打卡助手</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #F8FAFC;
+        }
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+        /* 斜线条纹背景（未打卡占位符） */
+        .striped-placeholder {
+            background: repeating-linear-gradient(
+                45deg,
+                #F1F5F9,
+                #F1F5F9 4px,
+                #E2E8F0 4px,
+                #E2E8F0 8px
+            );
+        }
+    </style>
+</head>
+<body class="overflow-hidden h-screen w-screen text-slate-800">
+
+    <!-- React & Babel for production-like component state and seamless rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+    <!-- App Root Element -->
+    <div id="root" class="h-full w-full"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // Native Synthesizer Sound for delightful feedback
+        const playSuccessSound = () => {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // First note of the chime
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+                gain1.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start();
+                osc1.stop(ctx.currentTime + 0.3);
+
+                // Second note (harmonic harmony slightly delayed)
+                setTimeout(() => {
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
+                    gain2.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.start();
+                    osc2.stop(ctx.currentTime + 0.4);
+                }, 80);
+            } catch (e) {
+                console.log("AudioContext blocked or unsupported", e);
+            }
+        };
+
+        /* Confetti Effect Component for micro-interactions */
+        const ConfettiCanvas = ({ active, x, y, onComplete }) => {
+            const canvasRef = useRef(null);
+
+            useEffect(() => {
+                if (!active) return;
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+
+                let particles = [];
+                const colors = ['#34D399', '#60A5FA', '#FBBF24', '#F87171', '#C084FC'];
+
+                for (let i = 0; i < 40; i++) {
+                    particles.push({
+                        x: x || window.innerWidth / 2,
+                        y: y || window.innerHeight / 2,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: (Math.random() - 0.6) * 10 - 2,
+                        radius: Math.random() * 4 + 3,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        alpha: 1,
+                        decay: Math.random() * 0.02 + 0.015
+                    });
+                }
+
+                let animationFrameId;
+                const update = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    let alive = false;
+                    particles.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.2; // gravity
+                        p.alpha -= p.decay;
+                        if (p.alpha > 0) {
+                            alive = true;
+                            ctx.beginPath();
+                            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                            ctx.fillStyle = p.color;
+                            ctx.globalAlpha = p.alpha;
+                            ctx.fill();
+                        }
+                    });
+
+                    if (alive) {
+                        animationFrameId = requestAnimationFrame(update);
+                    } else {
+                        onComplete();
+                    }
+                };
+
+                update();
+                return () => cancelAnimationFrame(animationFrameId);
+            }, [active, x, y]);
+
+            if (!active) return null;
+            return <canvas ref={canvasRef} class="pointer-events-none fixed inset-0 z-50 w-full h-full" />;
+        };
+
+        // Seed some habit data matching the dates around July 2026 (matching screenshots)
+        const INITIAL_HABITS = [
+            {
+                id: 'habit-1',
+                name: '习惯一',
+                emoji: '😊',
+                color: '#10B981', // Emerald
+                group: '上午',
+                frequency: '每天',
+                target: '当天完成打卡',
+                startDate: '2026-07-01',
+                duration: '永远',
+                reminderTime: '09:00',
+                autoLog: false,
+                logs: {
+                    '2026-07-01': '第1天打卡，感觉不错！',
+                    '2026-07-02': '坚持住！',
+                    '2026-07-05': '补卡记录',
+                    '2026-07-06': '开始建立惯性',
+                    '2026-07-13': '下午补卡。',
+                    '2026-07-14': '加油！'
+                }
+            },
+            {
+                id: 'habit-2',
+                name: '每日饮水 2000ml',
+                emoji: '💧',
+                color: '#3B82F6', // Blue
+                group: '上午',
+                frequency: '每天',
+                target: '当天完成打卡',
+                startDate: '2026-07-10',
+                duration: '永远',
+                reminderTime: '10:00',
+                autoLog: true,
+                logs: {
+                    '2026-07-10': '水喝够了，身体更轻松',
+                    '2026-07-11': '打卡',
+                    '2026-07-15': '早起第一杯水已喝。'
+                }
+            },
+            {
+                id: 'habit-3',
+                name: '阅读半小时',
+                emoji: '📚',
+                color: '#8B5CF6', // Violet
+                group: '下午',
+                frequency: '每天',
+                target: '当天完成打卡',
+                startDate: '2026-07-01',
+                duration: '永远',
+                reminderTime: '21:00',
+                autoLog: false,
+                logs: {
+                    '2026-07-05': '看完了《设计心理学》第一章',
+                    '2026-07-12': '阅读中收获平静',
+                    '2026-07-14': '睡前静读半小时'
+                }
+            }
+        ];
+
+        function App() {
+            // App state
+            const [habits, setHabits] = useState(INITIAL_HABITS);
+            const [selectedHabitId, setSelectedHabitId] = useState('habit-1');
+            const [isDetailOpen, setIsDetailOpen] = useState(true);
+            const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+            const [editingHabit, setEditingHabit] = useState(null); // Null means creating new
+            const [isGroupOpen, setIsGroupOpen] = useState({ '上午': true, '下午': true, '晚上': true });
+            
+            // Dropdowns
+            const [isHabitDropdownOpen, setIsHabitDropdownOpen] = useState(false);
+            const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
+            // Audio & Confetti micro-interactions
+            const [confetti, setConfetti] = useState({ active: false, x: 0, y: 0 });
+
+            // Focus Timer state (Pomodoro)
+            const [focusHabit, setFocusHabit] = useState(null);
+            const [focusTime, setFocusTime] = useState(1500); // 25 mins
+            const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+            // Currently focused calendar anchor date (around Wed July 15, 2026 as shown in screenshot)
+            const [currentAnchorDate, setCurrentAnchorDate] = useState(new Date('2026-07-15'));
+            const todayStr = '2026-07-15'; // Locked to 2026-07-15 for the demo consistency
+
+            /* --- Generate 7-day Weekly Header Array based on currentAnchorDate --- */
+            const weekDays = useMemo(() => {
+                const days = [];
+                const dayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                for (let i = -6; i <= 0; i++) {
+                    const d = new Date(currentAnchorDate);
+                    d.setDate(currentAnchorDate.getDate() + i);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const dateVal = String(d.getDate()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${dateVal}`;
+                    days.push({
+                        name: dayLabels[d.getDay()],
+                        num: d.getDate(),
+                        dateStr: dateStr,
+                        isToday: dateStr === todayStr
+                    });
+                }
+                return days;
+            }, [currentAnchorDate]);
+
+            // Retrieve active habit object
+            const activeHabit = useMemo(() => {
+                return habits.find(h => h.id === selectedHabitId) || habits[0];
+            }, [habits, selectedHabitId]);
+
+            /* --- Streak Calculations --- */
+            const calculateStats = (habit) => {
+                if (!habit) return { monthCount: 0, totalCount: 0, completionRate: 0, currentStreak: 0 };
+                const loggedDates = Object.keys(habit.logs || {}).sort();
+                const totalCount = loggedDates.length;
+
+                // July 2026 Specific
+                const julyLogs = loggedDates.filter(d => d.startsWith('2026-07'));
+                const monthCount = julyLogs.length;
+                const completionRate = Math.round((monthCount / 31) * 100);
+
+                // Streak calculation
+                let currentStreak = 0;
+                let checkDate = new Date(todayStr);
+                
+                while (true) {
+                    const year = checkDate.getFullYear();
+                    const month = String(checkDate.getMonth() + 1).padStart(2, '0');
+                    const dateVal = String(checkDate.getDate()).padStart(2, '0');
+                    const checkStr = `${year}-${month}-${dateVal}`;
+
+                    if (habit.logs && habit.logs[checkStr] !== undefined) {
+                        currentStreak++;
+                        checkDate.setDate(checkDate.getDate() - 1);
+                    } else {
+                        // If checking today and unchecked, try yesterday to see if streak is still alive
+                        if (checkStr === todayStr) {
+                            checkDate.setDate(checkDate.getDate() - 1);
+                            const yesterdayYear = checkDate.getFullYear();
+                            const yesterdayMonth = String(checkDate.getMonth() + 1).padStart(2, '0');
+                            const yesterdayDateVal = String(checkDate.getDate()).padStart(2, '0');
+                            const yesterdayStr = `${yesterdayYear}-${yesterdayMonth}-${yesterdayDateVal}`;
+                            if (habit.logs && habit.logs[yesterdayStr] !== undefined) {
+                                // Streak continues from yesterday
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                return { monthCount, totalCount, completionRate, currentStreak };
+            };
+
+            const activeStats = useMemo(() => {
+                return calculateStats(activeHabit);
+            }, [activeHabit]);
+
+            /* --- Actions & Interactions --- */
+            const handleToggleCheckIn = (habitId, dateStr, event) => {
+                if (event) {
+                    event.stopPropagation();
+                    const rect = event.target.getBoundingClientRect();
+                    if (!habits.find(h => h.id === habitId).logs[dateStr]) {
+                        setConfetti({ active: true, x: rect.left + rect.width/2, y: rect.top + rect.height/2 });
+                        playSuccessSound();
+                    }
+                }
+
+                setHabits(prev => prev.map(h => {
+                    if (h.id === habitId) {
+                        const newLogs = { ...h.logs };
+                        if (newLogs[dateStr] !== undefined) {
+                            delete newLogs[dateStr];
+                        } else {
+                            newLogs[dateStr] = "日常完成打卡";
+                        }
+                        return { ...h, logs: newLogs };
+                    }
+                    return h;
+                }));
+            };
+
+            const handleSaveHabit = (updatedHabit) => {
+                if (editingHabit) {
+                    // Update existing
+                    setHabits(prev => prev.map(h => h.id === updatedHabit.id ? updatedHabit : h));
+                } else {
+                    // Create new
+                    const newId = `habit-${Date.now()}`;
+                    setHabits(prev => [...prev, { ...updatedHabit, id: newId }]);
+                    setSelectedHabitId(newId);
+                }
+                setIsEditModalOpen(false);
+                setEditingHabit(null);
+            };
+
+            const handleDeleteHabit = (habitId) => {
+                if(confirm("确定要删除这个习惯吗？该操作不可撤销。")) {
+                    setHabits(prev => prev.filter(h => h.id !== habitId));
+                    setSelectedHabitId(prev => habits[0]?.id || '');
+                    setIsMoreMenuOpen(false);
+                }
+            };
+
+            // Focus Timer logic
+            useEffect(() => {
+                let interval;
+                if (isTimerRunning && focusTime > 0) {
+                    interval = setInterval(() => {
+                        setFocusTime(prev => prev - 1);
+                    }, 1000);
+                } else if (focusTime === 0) {
+                    setIsTimerRunning(false);
+                    playSuccessSound();
+                    alert(`恭喜！你已完成了有关 "${focusHabit?.name}" 的 25分钟 专注！`);
+                    // Automatically log check-in for today!
+                    if (focusHabit) {
+                        handleToggleCheckIn(focusHabit.id, todayStr);
+                    }
+                    setFocusHabit(null);
+                }
+                return () => clearInterval(interval);
+            }, [isTimerRunning, focusTime, focusHabit]);
+
+            // Custom Notification Toast/alert replacement
+            const startFocus = (habit) => {
+                setFocusHabit(habit);
+                setFocusTime(1500); // Reset to 25 mins
+                setIsTimerRunning(true);
+                setIsMoreMenuOpen(false);
+            };
+
+            // Format timer time (mm:ss)
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const s = (seconds % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            };
+
+            return (
+                <div class="h-full w-full flex flex-col bg-[#FAF9FB]">
+                    <ConfettiCanvas 
+                        active={confetti.active} 
+                        x={confetti.x} 
+                        y={confetti.y} 
+                        onComplete={() => setConfetti({ active: false, x: 0, y: 0 })} 
+                    />
+
+                    {}
+                    {/* Top navigation mirroring image_22b846.png */}
+                    <header class="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-100 z-10 shadow-sm">
+                        <div class="relative flex items-center gap-2">
+                            <button 
+                                onClick={() => setIsHabitDropdownOpen(!isHabitDropdownOpen)}
+                                class="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2 hover:bg-slate-50 px-3 py-1.5 rounded-xl transition duration-200"
+                            >
+                                习惯
+                                <svg class={`w-5 h-5 text-slate-500 transition-transform duration-300 ${isHabitDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+
+                            {/* Dropdown Menu for App Actions */}
+                            {isHabitDropdownOpen && (
+                                <div class="absolute left-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div class="px-4 py-2 text-xs font-semibold text-slate-400 tracking-wider">切换分组</div>
+                                    <button class="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2 text-indigo-600 font-medium">
+                                        <span class="w-2 h-2 rounded-full bg-indigo-600"></span> 全部习惯
+                                    </button>
+                                    <button class="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2 text-slate-600">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 上午习惯
+                                    </button>
+                                    <button class="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2 text-slate-600">
+                                        <span class="w-2 h-2 rounded-full bg-violet-500"></span> 下午习惯
+                                    </button>
+                                    <hr class="my-1 border-slate-100" />
+                                    <button 
+                                        onClick={() => { setIsEditModalOpen(true); setEditingHabit(null); setIsHabitDropdownOpen(false); }}
+                                        class="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 text-emerald-600 font-medium flex items-center gap-2"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                        新建习惯
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Top Right Action Button */}
+                        <div class="flex items-center gap-3">
+                            <button 
+                                onClick={() => { setEditingHabit(null); setIsEditModalOpen(true); }}
+                                class="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition duration-250 flex items-center justify-center active:scale-95 shadow-sm"
+                                title="新建习惯"
+                            >
+                                <svg class="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </header>
+
+                    {/* Main Container */}
+                    <div class="flex-1 flex overflow-hidden">
+                        
+                        {/* Left Main View (Habit List & Calendar Navigation) */}
+                        <main class="flex-1 flex flex-col overflow-y-auto min-w-0 bg-white">
+                            
+                            {}
+                            {/* Interactive weekly list mirroring image_22b846.png */}
+                            <div class="px-6 py-5 bg-white border-b border-slate-100 flex justify-between items-center select-none">
+                                <div class="max-w-4xl mx-auto w-full grid grid-cols-7 gap-3 text-center">
+                                    {weekDays.map((day) => {
+                                        const isChecked = activeHabit?.logs[day.dateStr] !== undefined;
+                                        return (
+                                            <div key={day.dateStr} class="flex flex-col items-center gap-2">
+                                                <span class={`text-[13px] font-medium ${day.isToday ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
+                                                    {day.name}
+                                                </span>
+                                                <span class={`text-base font-bold tracking-tight ${day.isToday ? 'text-indigo-600' : 'text-slate-700'}`}>
+                                                    {day.num}
+                                                </span>
+                                                
+                                                {/* Check-in Indicator under date */}
+                                                <button 
+                                                    onClick={(e) => handleToggleCheckIn(activeHabit?.id, day.dateStr, e)}
+                                                    class={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 ${
+                                                        isChecked 
+                                                        ? 'bg-emerald-500 hover:bg-emerald-600 shadow-md shadow-emerald-100 text-white' 
+                                                        : day.isToday 
+                                                            ? 'border-2 border-indigo-500 bg-white hover:bg-indigo-50/50' 
+                                                            : 'striped-placeholder hover:opacity-80'
+                                                    }`}
+                                                >
+                                                    {isChecked ? (
+                                                        <svg class="w-5 h-5 animate-jump-in" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                                    ) : (
+                                                        day.isToday && <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {}
+                            <div class="flex-1 p-6 max-w-4xl mx-auto w-full space-y-6">
+                                
+                                {/* Focus Timer Overlay Widget if active */}
+                                {focusHabit && (
+                                    <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden animate-fade-in">
+                                        <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-y-1/4 translate-x-1/4">
+                                            <svg class="w-80 h-80" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/><path d="M13 7h-2v6h6v-2h-4z"/></svg>
+                                        </div>
+                                        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div>
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="px-2 py-0.5 bg-white/20 rounded-full text-xs font-semibold backdrop-blur-sm">专注模式</span>
+                                                    <span class="text-indigo-100 text-sm">与 "{focusHabit.name}" 同步</span>
+                                                </div>
+                                                <h3 class="text-2xl font-bold tracking-tight">专注计时中</h3>
+                                            </div>
+                                            <div class="flex items-center gap-6">
+                                                <span class="text-4xl font-mono font-bold tracking-widest bg-white/15 px-4 py-2 rounded-2xl backdrop-blur-md">
+                                                    {formatTime(focusTime)}
+                                                </span>
+                                                <div class="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={() => setIsTimerRunning(!isTimerRunning)} 
+                                                        class="p-3 bg-white text-indigo-600 rounded-2xl hover:bg-indigo-50 transition active:scale-95 shadow-lg"
+                                                    >
+                                                        {isTimerRunning ? (
+                                                            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                                        ) : (
+                                                            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                        )}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => { setFocusHabit(null); setIsTimerRunning(false); }} 
+                                                        class="p-3 bg-white/20 hover:bg-white/30 text-white rounded-2xl transition active:scale-95"
+                                                    >
+                                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Group Sections Rendered Dynamically */}
+                                {['上午', '下午', '晚上'].map((groupName) => {
+                                    const groupHabits = habits.filter(h => h.group === groupName);
+                                    if (groupHabits.length === 0) return null;
+
+                                    return (
+                                        <div key={groupName} class="space-y-3">
+                                            {/* Section Header */}
+                                            <button 
+                                                onClick={() => setIsGroupOpen(prev => ({ ...prev, [groupName]: !prev[groupName] }))}
+                                                class="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors py-1 text-sm font-semibold tracking-wide uppercase select-none"
+                                            >
+                                                <svg class={`w-4 h-4 transform transition-transform duration-200 ${isGroupOpen[groupName] ? 'rotate-180' : 'rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                                                <span>{groupName}</span>
+                                                <span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full font-medium ml-1">
+                                                    {groupHabits.length}
+                                                </span>
+                                            </button>
+
+                                            {/* Habit Cards in this Group */}
+                                            {isGroupOpen[groupName] && (
+                                                <div class="space-y-3.5">
+                                                    {groupHabits.map((habit) => {
+                                                        const isSelected = selectedHabitId === habit.id;
+                                                        const stats = calculateStats(habit);
+                                                        return (
+                                                            <div 
+                                                                key={habit.id}
+                                                                onClick={() => { setSelectedHabitId(habit.id); setIsDetailOpen(true); }}
+                                                                class={`group/card flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
+                                                                    isSelected 
+                                                                    ? 'border-indigo-500 shadow-md shadow-indigo-50/50 bg-indigo-50/10' 
+                                                                    : 'border-slate-100 hover:border-slate-300 hover:shadow-sm'
+                                                                }`}
+                                                            >
+                                                                {/* Left: Info Block */}
+                                                                <div class="flex items-center gap-3.5 min-w-0">
+                                                                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-2xl shadow-sm">
+                                                                        {habit.emoji}
+                                                                    </div>
+                                                                    <div class="min-w-0">
+                                                                        <h4 class="text-base font-bold text-slate-800 tracking-tight truncate group-hover/card:text-indigo-600 transition-colors">
+                                                                            {habit.name}
+                                                                        </h4>
+                                                                        <div class="flex items-center gap-3 text-xs text-slate-400 mt-1 font-medium">
+                                                                            <span class="flex items-center gap-1">
+                                                                                <svg class="w-3.5 h-3.5 text-sky-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" /></svg>
+                                                                                {stats.totalCount}天
+                                                                            </span>
+                                                                            <span class="flex items-center gap-1">
+                                                                                <svg class="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.317.766-.514 1.57-.52 2.378a5.24 5.24 0 01-.408-.268A8.99 8.99 0 008 5a1 1 0 00-1-1c-1.11 0-2.037.402-2.735 1.002C3.587 5.58 3 6.726 3 8a7 7 0 0014 0c0-1.272-.588-2.42-1.561-3.136a5.61 5.61 0 00-.987-.624 5.05 5.05 0 01-.714-.99 5.9 5.9 0 01-.343-.697z" clip-rule="evenodd" /></svg>
+                                                                                {stats.currentStreak}天
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Right: Quick-access week check-in dots */}
+                                                                <div class="flex items-center gap-2.5 mt-3 md:mt-0 select-none">
+                                                                    {weekDays.map((day) => {
+                                                                        const isChecked = habit.logs[day.dateStr] !== undefined;
+                                                                        return (
+                                                                            <button
+                                                                                key={day.dateStr}
+                                                                                onClick={(e) => handleToggleCheckIn(habit.id, day.dateStr, e)}
+                                                                                class={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 ${
+                                                                                    isChecked 
+                                                                                    ? 'bg-emerald-500 text-white shadow-sm' 
+                                                                                    : 'bg-slate-50 hover:bg-slate-100 border border-slate-200'
+                                                                                }`}
+                                                                                title={`${day.name} (${day.dateStr})`}
+                                                                            >
+                                                                                {isChecked ? (
+                                                                                    <svg class="w-4.5 h-4.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                                                                ) : (
+                                                                                    <span class="w-2 h-2 rounded-full bg-slate-300 opacity-60 group-hover:bg-slate-400"></span>
+                                                                                )}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+
+                                {habits.length === 0 && (
+                                    <div class="text-center py-16 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        </div>
+                                        <h3 class="text-lg font-bold text-slate-700">现在还没有创建任何习惯</h3>
+                                        <p class="text-sm text-slate-400 mt-1 max-w-sm mx-auto">添加一个新习惯，开始记录和追踪您每日的自律生活吧。</p>
+                                        <button 
+                                            onClick={() => { setEditingHabit(null); setIsEditModalOpen(true); }}
+                                            class="mt-5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-2xl shadow-lg shadow-indigo-100 transition active:scale-95"
+                                        >
+                                            新建首个习惯
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </main>
+
+                        {}
+                        {/* High-fidelity panel corresponding to image_22b864.png and image_22b86c.png */}
+                        {isDetailOpen && activeHabit && (
+                            <aside class="w-full md:w-[480px] border-l border-slate-100 bg-white flex flex-col h-full z-20 relative shadow-2xl md:shadow-none animate-in slide-in-from-right duration-300">
+                                
+                                {/* Detail Header */}
+                                <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                                    <div class="flex items-center gap-3.5">
+                                        <button 
+                                            onClick={() => setIsDetailOpen(false)}
+                                            class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition"
+                                        >
+                                            <svg class="w-5 h-5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-xl">
+                                                {activeHabit.emoji}
+                                            </div>
+                                            <h3 class="text-lg font-bold text-slate-800 tracking-tight">{activeHabit.name}</h3>
+                                        </div>
+                                    </div>
+
+                                    {/* Options Dropdown Menu Button */}
+                                    <div class="relative">
+                                        <button 
+                                            onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                                            class="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition active:scale-95"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
+                                        </button>
+
+                                        {/* Dropdown Menu List (image_22b86c.png) */}
+                                        {isMoreMenuOpen && (
+                                            <div class="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                                                <button 
+                                                    onClick={() => { setEditingHabit(activeHabit); setIsEditModalOpen(true); setIsMoreMenuOpen(false); }}
+                                                    class="w-full text-left px-4.5 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                                                >
+                                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                                    编辑
+                                                </button>
+                                                <button 
+                                                    onClick={() => startFocus(activeHabit)}
+                                                    class="w-full text-left px-4.5 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                                                >
+                                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                    开始专注
+                                                </button>
+                                                <button class="w-full text-left px-4.5 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3">
+                                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                                                    打卡样式
+                                                </button>
+                                                <button class="w-full text-left px-4.5 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3">
+                                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                                                    归档
+                                                </button>
+                                                <hr class="my-1.5 border-slate-100" />
+                                                <button 
+                                                    onClick={() => handleDeleteHabit(activeHabit.id)}
+                                                    class="w-full text-left px-4.5 py-2 text-sm text-rose-600 hover:bg-rose-50 flex items-center gap-3"
+                                                >
+                                                    <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    删除
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Sidebar Scrollable Content */}
+                                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                                    
+                                    {}
+                                    {/* 2x2 Grid exactly mirroring image_22b864.png */}
+                                    <div class="grid grid-cols-2 gap-3.5">
+                                        
+                                        {/* Stat card 1 */}
+                                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1.5 relative overflow-hidden">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                                </span>
+                                                <span class="text-[13px] font-medium text-slate-500">月打卡</span>
+                                            </div>
+                                            <div class="flex items-baseline gap-1 mt-1">
+                                                <span class="text-2xl font-bold tracking-tight text-slate-800">{activeStats.monthCount}</span>
+                                                <span class="text-xs text-slate-400 font-medium">天</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Stat card 2 */}
+                                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1.5 relative overflow-hidden">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                                </span>
+                                                <span class="text-[13px] font-medium text-slate-500">总打卡</span>
+                                            </div>
+                                            <div class="flex items-baseline gap-1 mt-1">
+                                                <span class="text-2xl font-bold tracking-tight text-slate-800">{activeStats.totalCount}</span>
+                                                <span class="text-xs text-slate-400 font-medium">天</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Stat card 3 */}
+                                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1.5 relative overflow-hidden">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                                                    <span class="text-xs font-bold">%</span>
+                                                </span>
+                                                <span class="text-[13px] font-medium text-slate-500">月完成率</span>
+                                            </div>
+                                            <div class="flex items-baseline gap-1 mt-1">
+                                                <span class="text-2xl font-bold tracking-tight text-slate-800">{activeStats.completionRate}</span>
+                                                <span class="text-xs text-slate-400 font-medium">%</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Stat card 4 */}
+                                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1.5 relative overflow-hidden">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+                                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.317.766-.514 1.57-.52 2.378a5.24 5.24 0 01-.408-.268A8.99 8.99 0 008 5a1 1 0 00-1-1c-1.11 0-2.037.402-2.735 1.002C3.587 5.58 3 6.726 3 8a7 7 0 0014 0c0-1.272-.588-2.42-1.561-3.136a5.61 5.61 0 00-.987-.624 5.05 5.05 0 01-.714-.99 5.9 5.9 0 01-.343-.697z" clip-rule="evenodd" /></svg>
+                                                </span>
+                                                <span class="text-[13px] font-medium text-slate-500">当前连续</span>
+                                            </div>
+                                            <div class="flex items-baseline gap-1 mt-1">
+                                                <span class="text-2xl font-bold tracking-tight text-slate-800">{activeStats.currentStreak}</span>
+                                                <span class="text-xs text-slate-400 font-medium">天</span>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    {}
+                                    {/* Interactive calendar grid exactly mirroring July 2026 as shown in image_22b864.png */}
+                                    <div class="space-y-4">
+                                        <div class="flex items-center justify-between">
+                                            <button class="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 transition hover:text-slate-600">
+                                                <svg class="w-4 h-4 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+                                            </button>
+                                            <span class="font-bold text-slate-700 text-sm">2026年7月</span>
+                                            <button class="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 transition hover:text-slate-600">
+                                                <svg class="w-4 h-4 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+                                            </button>
+                                        </div>
+
+                                        {/* Weekday Names */}
+                                        <div class="grid grid-cols-7 text-center text-xs font-semibold text-slate-400">
+                                            <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+                                        </div>
+
+                                        {/* Days Grid */}
+                                        <div class="grid grid-cols-7 gap-y-3.5 gap-x-2 text-center">
+                                            {/* Prepend empty spaces for July 2026 (Starts on a Wednesday/三) */}
+                                            {/* Mon 29, Tue 30 representation */}
+                                            <div class="text-slate-300 text-xs py-1 font-medium">29</div>
+                                            <div class="text-slate-300 text-xs py-1 font-medium">30</div>
+                                            
+                                            {/* Generating 31 days of July */}
+                                            {Array.from({ length: 31 }, (_, i) => {
+                                                const dayNum = i + 1;
+                                                const dateStr = `2026-07-${String(dayNum).padStart(2, '0')}`;
+                                                const isChecked = activeHabit.logs[dateStr] !== undefined;
+                                                const isHighlighted = dateStr === todayStr;
+
+                                                return (
+                                                    <div key={dayNum} class="flex flex-col items-center gap-1 relative group/day">
+                                                        <span class={`text-xs font-bold ${isHighlighted ? 'text-indigo-600' : 'text-slate-600'}`}>
+                                                            {dayNum}
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => handleToggleCheckIn(activeHabit.id, dateStr, e)}
+                                                            class={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 active:scale-90 ${
+                                                                isChecked 
+                                                                ? 'bg-emerald-500 shadow-sm shadow-emerald-100 text-white' 
+                                                                : isHighlighted 
+                                                                    ? 'border border-indigo-500 bg-white hover:bg-indigo-50' 
+                                                                    : 'bg-slate-50 hover:bg-slate-100 border border-slate-100'
+                                                            }`}
+                                                        >
+                                                            {isChecked ? (
+                                                                <svg class="w-4.5 h-4.5 stroke-[3.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                                            ) : (
+                                                                <span class="text-[10px] text-slate-400 font-medium group-hover/day:block hidden">+</span>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* Post-pend offset August days */}
+                                            <div class="text-slate-300 text-xs py-1 font-medium">1</div>
+                                            <div class="text-slate-300 text-xs py-1 font-medium">2</div>
+                                        </div>
+                                    </div>
+
+                                    {}
+                                    <div class="space-y-4 pt-4 border-t border-slate-100">
+                                        <h4 class="font-bold text-slate-800 text-base">7月打卡日志</h4>
+                                        <div class="space-y-3">
+                                            {Object.entries(activeHabit.logs || {})
+                                                .filter(([date]) => date.startsWith('2026-07'))
+                                                .sort((a, b) => b[0].localeCompare(a[0])) // Descending dates
+                                                .map(([date, comment]) => (
+                                                    <div key={date} class="flex gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                                                        <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                                                            <svg class="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                                        </div>
+                                                        <div>
+                                                            <div class="text-xs text-slate-400 font-bold">{date}</div>
+                                                            <p class="text-sm text-slate-600 mt-1 font-medium">{comment}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+
+                                            {Object.keys(activeHabit.logs || {}).filter(d => d.startsWith('2026-07')).length === 0 && (
+                                                <div class="text-center py-8 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-sm">
+                                                    这个月没有写打卡日志哦
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </aside>
+                        )}
+                    </div>
+
+                    {}
+                    {/* High-fidelity dialog exactly mirroring image_22b887.png */}
+                    {isEditModalOpen && (
+                        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+                            <div 
+                                class="bg-white rounded-[32px] w-full max-w-lg shadow-2xl p-6 relative overflow-hidden flex flex-col max-h-[90vh] animate-in scale-in duration-200"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <h3 class="text-xl font-bold text-slate-900 tracking-tight mb-5">
+                                    {editingHabit ? '编辑习惯' : '新建习惯'}
+                                </h3>
+
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const formData = new FormData(e.target);
+                                    const emoji = formData.get('emoji') || (editingHabit ? editingHabit.emoji : '😊');
+                                    const name = formData.get('name') || '新习惯';
+                                    const group = formData.get('group') || '上午';
+                                    const frequency = formData.get('frequency') || '每天';
+                                    const target = formData.get('target') || '当天完成打卡';
+                                    const startDate = formData.get('startDate') || todayStr;
+                                    const duration = formData.get('duration') || '永远';
+                                    const reminderTime = formData.get('reminderTime') || '09:00';
+                                    const autoLog = formData.get('autoLog') === 'on';
+
+                                    handleSaveHabit({
+                                        id: editingHabit ? editingHabit.id : `habit-${Date.now()}`,
+                                        name,
+                                        emoji,
+                                        color: editingHabit ? editingHabit.color : '#10B981',
+                                        group,
+                                        frequency,
+                                        target,
+                                        startDate,
+                                        duration,
+                                        reminderTime,
+                                        autoLog,
+                                        logs: editingHabit ? editingHabit.logs : {}
+                                    });
+                                }} class="space-y-4 overflow-y-auto flex-1 pr-1">
+                                    
+                                    {/* Name & Emoji Picker Input Row */}
+                                    <div class="flex items-center gap-3.5 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                        <div class="relative group/emoji cursor-pointer">
+                                            <input 
+                                                type="text" 
+                                                name="emoji" 
+                                                defaultValue={editingHabit ? editingHabit.emoji : '😊'}
+                                                class="w-12 h-12 bg-white rounded-xl shadow-sm text-center text-2xl font-bold flex items-center justify-center border border-slate-200 focus:outline-none focus:border-indigo-500"
+                                                maxLength="2"
+                                            />
+                                            <span class="absolute -bottom-1 -right-1 bg-slate-800 text-white p-0.5 rounded-full text-[10px] scale-90">✏️</span>
+                                        </div>
+                                        <input 
+                                            type="text" 
+                                            name="name" 
+                                            defaultValue={editingHabit ? editingHabit.name : ''}
+                                            placeholder="输入习惯名称" 
+                                            required
+                                            class="flex-1 bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-base font-bold text-slate-800 focus:outline-none focus:border-indigo-500 shadow-sm"
+                                        />
+                                    </div>
+
+                                    {/* Form Fields layout exactly like image_22b887.png */}
+                                    <div class="space-y-3">
+                                        
+                                        {/* Field: 频率 */}
+                                        <div class="flex items-center justify-between gap-4">
+                                            <label class="text-[14px] font-bold text-slate-500 flex-shrink-0">频率</label>
+                                            <select 
+                                                name="frequency"
+                                                defaultValue={editingHabit ? editingHabit.frequency : '每天'}
+                                                class="flex-1 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-right appearance-none cursor-pointer"
+                                            >
+                                                <option value="每天">每天</option>
+                                                <option value="每周">每周</option>
+                                                <option value="每月">每月</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Field: 目标 */}
+                                        <div class="flex items-center justify-between gap-4">
+                                            <label class="text-[14px] font-bold text-slate-500 flex-shrink-0">目标</label>
+                                            <select 
+                                                name="target"
+                                                defaultValue={editingHabit ? editingHabit.target : '当天完成打卡'}
+                                                class="flex-1 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-right cursor-pointer"
+                                            >
+                                                <option value="当天完成打卡">当天完成打卡</option>
+                                                <option value="目标时长">设定具体计时目标</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Field: 开始日期 */}
+                                        <div class="flex items-center justify-between gap-4">
+                                            <label class="text-[14px] font-bold text-slate-500 flex-shrink-0">开始日期</label>
+                                            <input 
+                                                type="date"
+                                                name="startDate"
+                                                defaultValue={editingHabit ? editingHabit.startDate : todayStr}
+                                                class="flex-1 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-right cursor-pointer"
+                                            />
+                                        </div>
+
+                                        {/* Field: 坚持天数 */}
+                                        <div class="flex items-center justify-between gap-4">
+                                            <label class="text-[14px] font-bold text-slate-500 flex-shrink-0 flex items-center gap-1">
+                                                坚持天数
+                                                <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            </label>
+                                            <select 
+                                                name="duration"
+                                                defaultValue={editingHabit ? editingHabit.duration : '永远'}
+                                                class="flex-1 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-right cursor-pointer"
+                                            >
+                                                <option value="永远">永远</option>
+                                                <option value="21天">坚持 21 天 (习惯养成期)</option>
+                                                <option value="100天">坚持 100 天 (深度重塑)</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Field: 所属分组 */}
+                                        <div class="flex items-center justify-between gap-4">
+                                            <label class="text-[14px] font-bold text-slate-500 flex-shrink-0">所属分组</label>
+                                            <select 
+                                                name="group"
+                                                defaultValue={editingHabit ? editingHabit.group : '上午'}
+                                                class="flex-1 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500 text-right cursor-pointer"
+                                            >
+                                                <option value="上午">上午</option>
+                                                <option value="下午">下午</option>
+                                                <option value="晚上">晚上</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Field: 提醒 */}
+                                        <div class="flex items-center justify-between gap-4 py-1">
+                                            <label class="text-[14px] font-bold text-slate-500 flex-shrink-0">提醒</label>
+                                            <div class="flex items-center gap-2">
+                                                <input 
+                                                    type="time" 
+                                                    name="reminderTime"
+                                                    defaultValue={editingHabit ? editingHabit.reminderTime : '09:00'}
+                                                    class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-indigo-500"
+                                                />
+                                                <button type="button" class="p-2 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl transition border border-slate-200/60">
+                                                    <svg class="w-4 h-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Toggle Block: 持续提醒 */}
+                                        <div class="flex items-center justify-between py-1">
+                                            <span class="text-[14px] font-bold text-slate-500">持续提醒</span>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" class="sr-only peer" />
+                                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                            </label>
+                                        </div>
+
+                                        <hr class="border-slate-100 my-2" />
+
+                                        {/* Checkbox: 自动弹出打卡日志 */}
+                                        <label class="flex items-center gap-2.5 py-1 cursor-pointer group">
+                                            <input 
+                                                type="checkbox" 
+                                                name="autoLog"
+                                                defaultChecked={editingHabit ? editingHabit.autoLog : false}
+                                                class="w-4.5 h-4.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300" 
+                                            />
+                                            <span class="text-sm font-semibold text-slate-500 group-hover:text-slate-700 transition">自动弹出打卡日志</span>
+                                        </label>
+
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div class="flex gap-3 pt-4 border-t border-slate-100">
+                                        <button 
+                                            type="submit" 
+                                            class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-2xl font-bold transition active:scale-95 shadow-lg shadow-indigo-100"
+                                        >
+                                            保存
+                                        </button>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => { setIsEditModalOpen(false); setEditingHabit(null); }}
+                                            class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-2xl font-bold transition active:scale-95"
+                                        >
+                                            取消
+                                        </button>
+                                    </div>
+
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        }
+
+        // Render React DOM
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
