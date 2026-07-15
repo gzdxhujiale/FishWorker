@@ -1,11 +1,10 @@
+import { create } from 'zustand';
 import { DailyReview, DailyReviewData, CompoundStats } from './dailyReviewTypes';
 import { dailyReviewApi } from './dailyReviewService';
 
 const STORAGE_KEY = 'aistudy_daily_review_data';
 
 export type SyncStatus = 'saved' | 'saving' | 'error';
-let currentSyncStatus: SyncStatus = 'saved';
-const pendingSaves = new Map<string, number>();
 
 const defaultData: DailyReviewData = {
   reviews: []
@@ -24,44 +23,61 @@ function isReviewEmpty(content: string): boolean {
   return !content || content === '<p></p>' || content === '<p></p>\n';
 }
 
-export const dailyReviewStore = {
-  load(): DailyReviewData {
+interface DailyReviewStore {
+  data: DailyReviewData;
+  syncStatus: SyncStatus;
+  
+  // Internal/System
+  _pendingSaves: Map<string, number>;
+  load: () => void;
+  save: (data: DailyReviewData) => void;
+  setSyncStatus: (status: SyncStatus) => void;
+  triggerDBSync: (review: DailyReview, isHighFreq?: boolean) => void;
+  
+  // Public Actions
+  syncAllFromDB: () => Promise<void>;
+  getAllReviews: () => DailyReview[];
+  getReviewByDate: (date: string) => DailyReview | undefined;
+  getCompoundStats: () => CompoundStats;
+  saveReview: (date: string, content: string, rating?: number, isHighFreq?: boolean) => DailyReview;
+  deleteReview: (id: string) => void;
+}
+
+export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
+  data: defaultData,
+  syncStatus: 'saved',
+  _pendingSaves: new Map<string, number>(),
+
+  load: () => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored) as DailyReviewData;
+        set({ data: JSON.parse(stored) as DailyReviewData });
       }
     } catch (err) {
       console.error('Failed to load daily review data:', err);
     }
-    return defaultData;
   },
 
-  save(data: DailyReviewData): void {
+  save: (data: DailyReviewData) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      // Dispatch an event so other components can reactively update
-      window.dispatchEvent(new Event('daily-review-updated'));
+      set({ data });
     } catch (err) {
       console.error('Failed to save daily review data:', err);
     }
   },
 
-  getSyncStatus(): SyncStatus {
-    return currentSyncStatus;
+  setSyncStatus: (status: SyncStatus) => {
+    set({ syncStatus: status });
   },
 
-  setSyncStatus(status: SyncStatus) {
-    currentSyncStatus = status;
-    window.dispatchEvent(new Event('daily-review-sync-updated'));
-  },
-
-  async syncAllFromDB() {
+  syncAllFromDB: async () => {
     try {
-      this.setSyncStatus('saving');
+      get().setSyncStatus('saving');
       const dbReviews = await dailyReviewApi.loadAll();
-      const localData = this.load();
       
+      const localData = get().data;
       const mergedMap = new Map<string, DailyReview>();
       localData.reviews.forEach(r => mergedMap.set(r.date, r));
       
@@ -75,21 +91,22 @@ export const dailyReviewStore = {
       });
 
       if (changed) {
-        localData.reviews = Array.from(mergedMap.values());
-        this.save(localData);
+        const newData = { ...localData, reviews: Array.from(mergedMap.values()) };
+        get().save(newData);
       }
-      this.setSyncStatus('saved');
+      get().setSyncStatus('saved');
     } catch (e) {
       console.error('Sync failed', e);
-      this.setSyncStatus('error');
+      get().setSyncStatus('error');
     }
   },
 
-  triggerDBSync(review: DailyReview, isHighFreq: boolean = true) {
-    this.setSyncStatus('saving');
+  triggerDBSync: (review: DailyReview, isHighFreq: boolean = true) => {
+    const state = get();
+    state.setSyncStatus('saving');
     
-    if (pendingSaves.has(review.id)) {
-      window.clearTimeout(pendingSaves.get(review.id));
+    if (state._pendingSaves.has(review.id)) {
+      window.clearTimeout(state._pendingSaves.get(review.id));
     }
 
     const delay = isHighFreq ? 500 : 300;
@@ -97,37 +114,37 @@ export const dailyReviewStore = {
     const timeout = window.setTimeout(async () => {
       try {
         await dailyReviewApi.save(review);
-        pendingSaves.delete(review.id);
-        if (pendingSaves.size === 0) {
-          this.setSyncStatus('saved');
+        const latestState = get();
+        latestState._pendingSaves.delete(review.id);
+        if (latestState._pendingSaves.size === 0) {
+          latestState.setSyncStatus('saved');
         }
       } catch (e) {
-        this.setSyncStatus('error');
+        get().setSyncStatus('error');
       }
     }, delay);
     
-    pendingSaves.set(review.id, timeout);
+    state._pendingSaves.set(review.id, timeout);
   },
 
-  getReviewByDate(date: string): DailyReview | undefined {
-    const data = this.load();
-    return data.reviews.find(r => r.date === date);
+  getReviewByDate: (date: string): DailyReview | undefined => {
+    return get().data.reviews.find(r => r.date === date);
   },
 
-  getAllReviews(): DailyReview[] {
-    return this.load().reviews
+  getAllReviews: (): DailyReview[] => {
+    return get().data.reviews
       .filter(r => !isReviewEmpty(r.content))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   },
 
-  saveReview(date: string, content: string, rating?: number, isHighFreq?: boolean): DailyReview {
-    const data = this.load();
+  saveReview: (date: string, content: string, rating?: number, isHighFreq?: boolean): DailyReview => {
+    const data = get().data;
     const existingIndex = data.reviews.findIndex(r => r.date === date);
     
     if (isReviewEmpty(content) && (rating === undefined || rating === 0)) {
       if (existingIndex !== -1) {
         const id = data.reviews[existingIndex].id;
-        this.deleteReview(id);
+        get().deleteReview(id);
       }
       return {
         id: '',
@@ -140,46 +157,48 @@ export const dailyReviewStore = {
     }
     
     let review: DailyReview;
+    const newReviews = [...data.reviews];
+    
     if (existingIndex !== -1) {
       review = {
-        ...data.reviews[existingIndex],
+        ...newReviews[existingIndex],
         content,
-        rating: rating !== undefined ? rating : data.reviews[existingIndex].rating,
+        rating: rating !== undefined ? rating : newReviews[existingIndex].rating,
         updatedAt: Date.now()
       };
-      data.reviews[existingIndex] = review;
+      newReviews[existingIndex] = review;
     } else {
       review = {
         id: crypto.randomUUID(),
         date,
         content,
-        rating,
+        rating: rating || 0,
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
-      data.reviews.push(review);
+      newReviews.push(review);
     }
     
-    this.save(data);
-    this.triggerDBSync(review, isHighFreq ?? true);
+    get().save({ ...data, reviews: newReviews });
+    get().triggerDBSync(review, isHighFreq ?? true);
     return review;
   },
 
-  deleteReview(id: string): void {
-    const data = this.load();
-    data.reviews = data.reviews.filter(r => r.id !== id);
-    this.save(data);
+  deleteReview: (id: string): void => {
+    const data = get().data;
+    const newReviews = data.reviews.filter(r => r.id !== id);
+    get().save({ ...data, reviews: newReviews });
 
-    this.setSyncStatus('saving');
+    get().setSyncStatus('saving');
     dailyReviewApi.delete(id).then(() => {
-      this.setSyncStatus('saved');
+      get().setSyncStatus('saved');
     }).catch(() => {
-      this.setSyncStatus('error');
+      get().setSyncStatus('error');
     });
   },
 
-  getCompoundStats(): CompoundStats {
-    const reviews = this.load().reviews.filter(r => !isReviewEmpty(r.content));
+  getCompoundStats: (): CompoundStats => {
+    const reviews = get().data.reviews.filter(r => !isReviewEmpty(r.content));
     if (reviews.length === 0) {
       return { currentStreak: 0, longestStreak: 0, totalReviews: 0, compoundValue: 1.00 };
     }
@@ -224,4 +243,7 @@ export const dailyReviewStore = {
       compoundValue
     };
   }
-};
+}));
+
+// Initialize load when imported
+useDailyReviewStore.getState().load();

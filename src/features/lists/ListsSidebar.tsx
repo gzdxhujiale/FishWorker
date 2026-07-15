@@ -5,7 +5,7 @@ import { ConfirmBubble } from './ConfirmBubble';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';
-import { listsStore } from './listsStore';
+import { useListsStore } from './listsStore';
 
 function DroppableArea({ id, data, children, className, style, onClick }: any) {
   const { setNodeRef, isOver } = useDroppable({ id, data });
@@ -57,6 +57,7 @@ export function ListsSidebar({
   onDataChange,
   isCollapsed
 }: ListsSidebarProps) {
+  const store = useListsStore();
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   
   // Dropdown state
@@ -135,7 +136,7 @@ export function ListsSidebar({
         if (overFolderIndex !== -1) {
           const oldIndex = folders.findIndex(f => f.id === active.id);
           const newFolders = arrayMove(folders, oldIndex, overFolderIndex);
-          listsStore.reorderFolders(newFolders.map(f => f.id));
+          store.reorderFolders(newFolders.map(f => f.id));
           onDataChange();
         }
         return;
@@ -163,7 +164,7 @@ export function ListsSidebar({
             const oldIndex = siblingLists.findIndex(l => l.id === active.id);
             if (oldIndex !== -1 && targetIndex !== -1) {
               const newSiblingLists = arrayMove(siblingLists, oldIndex, targetIndex);
-              listsStore.reorderLists(newSiblingLists.map(l => l.id));
+              store.reorderLists(newSiblingLists.map(l => l.id));
               onDataChange();
               return;
             }
@@ -172,7 +173,7 @@ export function ListsSidebar({
       }
 
       if (activeList.folderId !== targetFolderId || targetIndex !== undefined) {
-        listsStore.moveList(active.id as string, targetFolderId, targetIndex);
+        store.moveList(active.id as string, targetFolderId, targetIndex);
         onDataChange();
       }
     }

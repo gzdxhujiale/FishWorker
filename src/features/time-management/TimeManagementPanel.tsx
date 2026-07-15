@@ -1,12 +1,12 @@
 import React from 'react';
 import { Plus, GripVertical, User, Trash2, X, MoreHorizontal } from 'lucide-react';
-import { timeManagementStore, TimeManagementData } from './timeManagementStore';
+import { useTimeStore } from './timeManagementStore';
 import { QuadrantType, Task } from './timeManagementTypes';
 import { DailyQuadrants } from './DailyQuadrants';
 import { WeeklyPlanning } from './WeeklyPlanning';
 import { TaskDetailModal } from './TaskDetailModal';
+import { usePreferencesStore } from '../settings/preferencesStore';
 import './timeManagement.css';
-
 
 const PREDEFINED_COLORS = ['#1f6fd1', '#25845a', '#d97706', '#7657d6', '#d32f2f', '#0ea5e9'];
 
@@ -16,8 +16,24 @@ interface TimeManagementPanelProps {
 
 export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProps) {
   const activeTab = mode;
-  const [data, setData] = React.useState<TimeManagementData>({ roles: [], tasks: [] });
-  const [hideCompleted, setHideCompleted] = React.useState(false);
+  
+  const roles = useTimeStore(state => state.data.roles);
+  const tasks = useTimeStore(state => state.data.tasks);
+  
+  const { 
+    syncAllFromDB, 
+    updateTask, 
+    addTask, 
+    deleteTask, 
+    addRole, 
+    deleteRole 
+  } = useTimeStore();
+
+  const hideCompletedStr = usePreferencesStore(state => state.getPreference('tm-hide-completed', 'false'));
+  const hideCompleted = hideCompletedStr === 'true';
+  const setPreference = usePreferencesStore(state => state.setPreference);
+  const setHideCompleted = (val: boolean) => setPreference('tm-hide-completed', String(val));
+
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
 
   const [draftRoleName, setDraftRoleName] = React.useState('');
@@ -26,26 +42,8 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    let isCancelled = false;
-
-    // Initial Load & Sync
-    timeManagementStore.syncAllFromDB().then(() => {
-      if (!isCancelled) {
-        setData(timeManagementStore.load());
-      }
-    });
-
-    const handleUpdate = () => {
-      if (!isCancelled) setData(timeManagementStore.load());
-    };
-
-    window.addEventListener('time-management-updated', handleUpdate);
-
-    return () => {
-      isCancelled = true;
-      window.removeEventListener('time-management-updated', handleUpdate);
-    };
-  }, []);
+    syncAllFromDB();
+  }, [syncAllFromDB]);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -58,12 +56,12 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
   }, []);
 
   React.useEffect(() => {
-    if (data.tasks.length === 0) return;
+    if (tasks.length === 0) return;
 
     const todayStr = new Date().toISOString().split('T')[0];
     let hasUpdates = false;
 
-    const updatedTasks = data.tasks.map(task => {
+    const updatedTasks = tasks.map(task => {
       if (task.scheduledDate === todayStr && !task.completed && task.quadrant !== 'Q2' && task.quadrant !== 'Q1') {
         hasUpdates = true;
         return { ...task, quadrant: 'Q2' as QuadrantType };
@@ -73,54 +71,54 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
 
     if (hasUpdates) {
       // Find which tasks were updated and trigger individual syncs
-      data.tasks.forEach((oldTask, i) => {
+      tasks.forEach((oldTask, i) => {
         const newTask = updatedTasks[i];
         if (oldTask.quadrant !== newTask.quadrant) {
-          timeManagementStore.updateTask(oldTask.id, { quadrant: newTask.quadrant }, false);
+          updateTask(oldTask.id, { quadrant: newTask.quadrant }, false);
         }
       });
     }
-  }, [data.tasks]);
+  }, [tasks, updateTask]);
 
   const handleToggleComplete = (taskId: string) => {
-    const task = data.tasks.find(t => t.id === taskId);
+    const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
     const isCompleted = !task.completed;
-    timeManagementStore.updateTask(taskId, {
+    updateTask(taskId, {
       completed: isCompleted,
       completedAt: isCompleted ? Date.now() : undefined
     }, false); // false = not high freq
   };
 
   const handleMoveTask = (taskId: string, newQuadrant: QuadrantType) => {
-    timeManagementStore.updateTask(taskId, { quadrant: newQuadrant }, false);
+    updateTask(taskId, { quadrant: newQuadrant }, false);
   };
 
   const handleAddTaskToQuadrant = (title: string, quadrant: QuadrantType, deadline?: number) => {
-    const task = timeManagementStore.addTask(title, quadrant, undefined);
+    const task = addTask(title, quadrant, undefined);
     if (deadline) {
-      timeManagementStore.updateTask(task.id, { deadline }, false);
+      updateTask(task.id, { deadline }, false);
     }
   };
 
   const handleAddRole = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && draftRoleName.trim()) {
       const randomColor = PREDEFINED_COLORS[Math.floor(Math.random() * PREDEFINED_COLORS.length)];
-      timeManagementStore.addRole(draftRoleName.trim(), randomColor);
+      addRole(draftRoleName.trim(), randomColor);
       setDraftRoleName('');
     }
   };
 
   const handleDeleteRole = (roleId: string) => {
-    timeManagementStore.deleteRole(roleId);
+    deleteRole(roleId);
   };
 
   const handleAddTaskToRole = (e: React.KeyboardEvent<HTMLInputElement>, roleId: string) => {
     if (e.key === 'Enter') {
       const title = draftTasks[roleId]?.trim();
       if (title) {
-        timeManagementStore.addTask(title, 'Q2', undefined, roleId);
+        addTask(title, 'Q2', undefined, roleId);
         setDraftTasks(prev => ({ ...prev, [roleId]: '' }));
       }
     }
@@ -135,16 +133,15 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
       updates.deadline = d.getTime();
       updates.quadrant = 'Q2';
     }
-    timeManagementStore.updateTask(taskId, updates, false);
+    updateTask(taskId, updates, false);
   };
 
   const handleDeleteTask = (taskId: string) => {
-    timeManagementStore.deleteTask(taskId);
+    deleteTask(taskId);
   };
 
   const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
-    // updates from generic text edits will be true by default
-    timeManagementStore.updateTask(taskId, updates);
+    updateTask(taskId, updates);
   };
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
@@ -152,7 +149,7 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
     e.dataTransfer.setData('application/tm-task-id', taskId);
   };
 
-  const backlogTasks = data.tasks.filter(t => !t.scheduledDate && !t.completed);
+  const backlogTasks = tasks.filter(t => !t.scheduledDate && !t.completed);
 
   return (
     <section className="time-management-page">
@@ -227,7 +224,7 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
               </div>
 
               <div className="tm-roles-list">
-                {data.roles.map(role => {
+                {roles.map(role => {
                   const roleTasks = backlogTasks.filter(t => t.roleId === role.id);
                   return (
                     <div key={role.id} className="tm-role-card" style={{ borderLeftColor: role.color }}>
@@ -293,8 +290,8 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
             <div className="tm-workspace" style={{ overflowX: activeTab === 'weekly' ? 'auto' : 'hidden', overflowY: 'auto' }}>
               {activeTab === 'weekly' ? (
                 <WeeklyPlanning
-                  roles={data.roles}
-                  tasks={data.tasks}
+                  roles={roles}
+                  tasks={tasks}
                   onScheduleTask={handleScheduleTask}
                   hideCompleted={hideCompleted}
                   onDeleteTask={handleDeleteTask}
@@ -302,7 +299,7 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
                 />
               ) : (
                 <DailyQuadrants
-                  tasks={data.tasks}
+                  tasks={tasks}
                   onToggleComplete={handleToggleComplete}
                   onMoveTask={handleMoveTask}
                   onAddTask={handleAddTaskToQuadrant}

@@ -1,6 +1,6 @@
 # 清单模块前端接口与数据模型文档 (Lists Frontend API)
 
-本文档描述了“清单”功能模块（v1.4）的前端数据模型定义，以及本地 Store (`listsStore.ts`) 提供的数据操作接口与 Tauri 后端 API。当前数据存储**基于 Rust 后端直连 TiDB** 实现，前端通过 Tauri IPC (Invoke) 与后端同步数据，并采用内存乐观更新策略以保证极速响应。
+本文档描述了“清单”功能模块（v1.4）的前端数据模型定义，以及 Zustand Store (`useListsStore`) 提供的数据操作接口与 Tauri 后端 API。当前数据存储**基于 Rust 后端直连 TiDB** 实现，前端通过 Tauri IPC (Invoke) 与后端同步数据，并采用内存乐观更新策略以保证极速响应。
 
 ## 1. 数据模型定义 (Models)
 
@@ -77,7 +77,7 @@ export interface Template {
 
 ## 2. Store 接口定义 (Store API)
 
-`listsStore` 提供了以下对上述模型进行增删改查（CRUD）的方法。
+`useListsStore` 提供了以下对上述模型进行增删改查（CRUD）的方法。
 
 ### 2.1 清单 (List) 操作
 - `getLists(): List[]`
@@ -140,10 +140,10 @@ export interface Template {
   删除指定的模板。
 
 ### 2.5 数据持久化与同步机制 (Data Persistence & Sync)
-- **初始加载 (Initialization)**: `listsStore.init()` 异步从 Tauri IPC 加载所有数据。如果检测到本地 `localStorage` 有遗留数据，会自动进行一次性迁移到 TiDB。
-- **乐观更新 (Optimistic UI)**: 前端的所有 CRUD 操作都会**同步**更新本地内存状态，以实现极速响应（例如即时新建、拖拽即时生效），然后以“触发后不管 (fire-and-forget)”的方式异步调用 Tauri IPC 命令将变更写入 TiDB 数据库。
-- **写入防抖 (Debouncing)**: 针对笔记内容的编辑这种极高频操作，使用 `500ms` 的防抖拦截，减少向后端和数据库发送的 IO 频率。
-- **数据回退 (Fallback)**: 若 Tauri 后端 IPC 调用失败（例如未在 Tauri 环境下运行或数据库离线），Store 具备后备处理，可降级从 `localStorage` 获取数据以确保本地调试依然可用。
+- **初始加载 (Initialization)**: `useListsStore` 中的 `init()` 异步从 Tauri IPC 加载所有数据。如果检测到本地 `localStorage` 有遗留数据，会自动进行一次性迁移到 TiDB。
+- **乐观更新 (Optimistic UI)**: 前端的所有 CRUD 操作都会通过 Zustand **同步**更新本地内存状态，以实现极速响应（例如即时新建、拖拽即时生效），然后以“触发后不管 (fire-and-forget)”的方式异步调用 Tauri IPC 命令将变更写入 TiDB 数据库。
+- **写入防抖 (Debouncing)**: 针对笔记内容的编辑这种极高频操作，在 Zustand Action 中使用 `500ms` 的防抖拦截，减少向后端和数据库发送的 IO 频率。
+- **数据回退 (Fallback)**: 若 Tauri 后端 IPC 调用失败（例如未在 Tauri 环境下运行或数据库离线），Zustand Store 具备后备处理，可降级从 `localStorage` 获取数据以确保本地调试依然可用。
 
 ## 3. 后端 Native API 与集成优化
 

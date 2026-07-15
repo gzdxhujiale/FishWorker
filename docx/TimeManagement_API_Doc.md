@@ -4,40 +4,34 @@
 
 ## 1. 数据库设计 (TiDB / MySQL)
 
-为避免复杂的表结构变更及实现跨平台的简单同步，时间管理数据采用单行 JSON 记录进行存储。
+时间管理数据主要分为“角色”与“任务”两张实体表，使用外键及关联设计以支持高粒度的数据流转与同步。
 
-**表名：** `time_management_data`
+### 1.1 角色表 (`time_management_roles`)
 
 | 字段名 | 数据类型 | 描述 |
 | ------ | -------- | ---- |
-| `id` | `VARCHAR(64)` | 主键，默认存储单条记录 `'default'` |
-| `payload_json` | `LONGTEXT` | 完整的时间管理数据，序列化的 JSON |
-| `updated_at` | `DATETIME(3)` | 该条数据的最后更新时间 |
+| `id` | `VARCHAR(36)` | 主键 (UUID) |
+| `name` | `VARCHAR(255)` | 角色名称 (例如 "个人成长") |
+| `color` | `VARCHAR(50)` | 角色代表色十六进制 |
+| `created_at` | `BIGINT` | 创建时间戳 (ms) |
+| `updated_at` | `TIMESTAMP` | 记录更新时间 |
 
-**`payload_json` 结构定义 (TypeScript Reference):**
-```typescript
-interface TimeManagementData {
-  roles: {
-    id: string;
-    name: string;
-    color?: string;
-    createdAt: number;
-  }[];
-  tasks: {
-    id: string;
-    title: string;
-    roleId?: string;
-    quadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4';
-    scheduledDate?: string; // YYYY-MM-DD
-    timeOfDay?: 'morning' | 'afternoon';
-    completed: boolean;
-    createdAt: number;
-    completedAt?: number;
-    description?: string;
-    deadline?: number; // Timestamp
-  }[];
-}
-```
+### 1.2 任务表 (`time_management_tasks`)
+
+| 字段名 | 数据类型 | 描述 |
+| ------ | -------- | ---- |
+| `id` | `VARCHAR(36)` | 主键 (UUID) |
+| `title` | `VARCHAR(255)` | 任务标题 |
+| `role_id` | `VARCHAR(36)` | 关联的角色 ID，可空 |
+| `quadrant` | `VARCHAR(10)` | 艾森豪威尔四象限分类 ('Q1'|'Q2'|'Q3'|'Q4') |
+| `scheduled_date` | `VARCHAR(20)` | 排期执行日期字符串 ('YYYY-MM-DD')，可空 |
+| `time_of_day` | `VARCHAR(20)` | 上下午排期标识 ('morning'|'afternoon')，可空 |
+| `completed` | `TINYINT(1)` | 完成状态 (0 或 1) |
+| `created_at` | `BIGINT` | 创建时间戳 (ms) |
+| `completed_at` | `BIGINT` | 完成时间戳 (ms)，可空 |
+| `description` | `TEXT` | 任务备注详细信息，可空 |
+| `deadline` | `BIGINT` | 截止日期时间戳 (ms)，可空 |
+| `updated_at` | `TIMESTAMP` | 记录更新时间 |
 
 ---
 
@@ -45,30 +39,42 @@ interface TimeManagementData {
 
 时间管理模块通过 Tauri 的 `@tauri-apps/api/core` 中的 `invoke` 方法与后端通信。
 
-### 2.1 拉取数据 (`time_management_load`)
+### 2.1 载入全部时间管理数据 (`tm_load_all`)
 
-应用启动或打开时间管理面板时调用，用于获取云端最新状态。
+应用启动或打开面板时调用，用于获取数据库中所有角色和任务的状态。
 
-- **Command Name**: `time_management_load`
+- **Command Name**: `tm_load_all`
 - **Request Payload**: 无参数 `{}`
-- **Response**: `Promise<TimeManagementData | null>`
-- **返回逻辑**:
-  - 成功连接且有数据时返回解析后的 JSON 对象。
-  - 数据表为空（未曾同步）时返回 `null`。
-  - 异常断网、连接失败时抛出错误 (`Promise.reject`)。
+- **Response**: `Promise<{ roles: Role[], tasks: Task[] }>`
 
-### 2.2 保存数据 (`time_management_save`)
+### 2.2 保存/更新角色 (`tm_upsert_role`)
 
-在新增/修改/删除角色或任务后，采用防抖机制（例如 1000 毫秒）延时后调用，以全量覆盖的方式保存至云端。
+添加或修改角色属性。
 
-- **Command Name**: `time_management_save`
-- **Request Payload**:
-  ```typescript
-  {
-    payload: TimeManagementData
-  }
-  ```
+- **Command Name**: `tm_upsert_role`
+- **Request Payload**: `{ role: Role }`
 - **Response**: `Promise<void>`
-- **返回逻辑**:
-  - 成功写入数据库后 `resolve`。
-  - 写入失败时 `reject` 抛出错误字符串，前端据此更新后台同步状态并启动数据冲突对齐或重试机制。
+
+### 2.3 删除角色 (`tm_delete_role`)
+
+物理删除该角色。并自动将相关所有关联任务的 `roleId` 字段设为 `null`。
+
+- **Command Name**: `tm_delete_role`
+- **Request Payload**: `{ id: string }`
+- **Response**: `Promise<void>`
+
+### 2.4 保存/更新任务 (`tm_upsert_task`)
+
+添加或修改任务字段，或移动象限、改变完成状态、设置排期。
+
+- **Command Name**: `tm_upsert_task`
+- **Request Payload**: `{ task: Task }`
+- **Response**: `Promise<void>`
+
+### 2.5 删除任务 (`tm_delete_task`)
+
+物理删除该任务。
+
+- **Command Name**: `tm_delete_task`
+- **Request Payload**: `{ id: string }`
+- **Response**: `Promise<void>`

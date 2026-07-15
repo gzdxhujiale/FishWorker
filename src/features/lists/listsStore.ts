@@ -1,3 +1,4 @@
+import { create } from 'zustand';
 import { List, Folder, Note, Template, ListsData, NoteGroup } from './listsTypes';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -22,9 +23,6 @@ const DEFAULT_TEMPLATES: Template[] = [
   }
 ];
 
-// ── Debounce utility ──
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   let timer: ReturnType<typeof setTimeout> | null = null;
   return ((...args: any[]) => {
@@ -33,182 +31,177 @@ function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   }) as unknown as T;
 }
 
-// ── ID generator (matching old format) ──
-
 function genId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// ── Store class ──
+interface ListsStoreState {
+  data: ListsData;
+  initialized: boolean;
+  
+  // System
+  initPromise: Promise<void> | null;
+  init: () => Promise<void>;
+  
+  // Lists
+  getLists: () => List[];
+  addList: (list: Omit<List, 'id'>) => List;
+  updateList: (id: string, updates: Partial<List>) => void;
+  deleteList: (id: string) => void;
+  duplicateList: (list: List) => List;
+  reorderLists: (orderedIds: string[]) => void;
+  moveList: (listId: string, folderId: string | null, targetIndex?: number) => void;
+  
+  // Folders
+  getFolders: () => Folder[];
+  addFolder: (name: string) => Folder;
+  updateFolder: (id: string, updates: Partial<Folder>) => void;
+  reorderFolders: (orderedIds: string[]) => void;
+  deleteFolder: (id: string) => void;
+  
+  // Notes
+  getNotesByListId: (listId: string) => Note[];
+  addNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'sortOrder'>) => Note;
+  updateNote: (id: string, updates: Partial<Note>) => void;
+  deleteNote: (id: string) => void;
+  moveNoteAndReorder: (noteId: string, groupId: string | null, targetIndex?: number) => void;
+  reorderNotes: (orderedIds: string[]) => void;
+  
+  // Note Groups
+  getNoteGroups: (listId: string) => NoteGroup[];
+  addGroup: (listId: string, name: string) => NoteGroup;
+  updateGroup: (id: string, updates: Partial<NoteGroup>) => void;
+  deleteGroup: (id: string) => void;
+  
+  // Templates
+  getTemplates: () => Template[];
+  addTemplate: (name: string, content: string) => Template;
+  updateTemplate: (id: string, updates: Partial<Template>) => void;
+  deleteTemplate: (id: string) => void;
+}
 
-class ListsStore {
-  private data: ListsData;
-  private initialized = false;
-  private initPromise: Promise<void> | null = null;
+const debouncedNoteUpdate = debounce((note: Note) => {
+  invoke('list_upsert_note', {
+    note: {
+      id: note.id,
+      listId: note.listId,
+      groupId: note.groupId || null,
+      title: note.title,
+      content: note.content,
+      isPinned: note.isPinned || false,
+      sortOrder: note.sortOrder || 0,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+    }
+  }).catch(e => console.error('Failed to sync note update:', e));
+}, 500);
 
-  // Debounced IPC calls for note editing
-  private debouncedNoteUpdate = debounce((note: Note) => {
-    invoke('list_upsert_note', {
-      note: {
-        id: note.id,
-        listId: note.listId,
-        groupId: note.groupId || null,
-        title: note.title,
-        content: note.content,
-        isPinned: note.isPinned || false,
-        sortOrder: note.sortOrder || 0,
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-      }
-    }).catch(e => console.error('Failed to sync note update:', e));
-  }, 500);
+export const useListsStore = create<ListsStoreState>((set, get) => ({
+  data: {
+    lists: [],
+    folders: [],
+    noteGroups: [],
+    notes: [],
+    templates: DEFAULT_TEMPLATES,
+  },
+  initialized: false,
+  initPromise: null,
 
-  constructor() {
-    this.data = {
-      lists: [],
-      folders: [],
-      noteGroups: [],
-      notes: [],
-      templates: DEFAULT_TEMPLATES,
-    };
-  }
+  init: async () => {
+    const state = get();
+    if (state.initialized) return;
+    if (state.initPromise) return state.initPromise;
 
-  // ── Initialization ──
+    const promise = (async () => {
+      try {
+        const migrated = localStorage.getItem(MIGRATION_FLAG);
+        if (!migrated) {
+          try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) {
+              localStorage.setItem(MIGRATION_FLAG, '1');
+            } else {
+              const parsed = JSON.parse(stored) as ListsData;
+              if (!parsed.notes) parsed.notes = [];
+              if (!parsed.templates) parsed.templates = DEFAULT_TEMPLATES;
+              if (!parsed.noteGroups) parsed.noteGroups = [];
 
-  async init(): Promise<void> {
-    if (this.initialized) return;
-    if (this.initPromise) return this.initPromise;
-    this.initPromise = this._doInit();
-    return this.initPromise;
-  }
+              await invoke('list_migrate_from_local', { data: parsed });
+              localStorage.setItem(MIGRATION_FLAG, '1');
+            }
+          } catch (e) {
+            console.error('Migration from localStorage failed:', e);
+          }
+        }
 
-  private async _doInit(): Promise<void> {
-    try {
-      // Check if we need to migrate from localStorage
-      const migrated = localStorage.getItem(MIGRATION_FLAG);
-      if (!migrated) {
-        await this.migrateFromLocalStorage();
-      }
+        const allData = await invoke<{
+          folders: Array<{ id: string; name: string; isPinned: boolean; sortOrder: number }>;
+          lists: Array<{ id: string; name: string; icon: string; color: string; viewType: string; folderId: string | null; isPinned: boolean; sortOrder: number; itemCount: number }>;
+          noteGroups: Array<{ id: string; listId: string; name: string; sortOrder: number }>;
+          notes: Array<{ id: string; listId: string; groupId: string | null; title: string; content: string; isPinned: boolean; sortOrder: number; createdAt: number; updatedAt: number }>;
+          templates: Array<{ id: string; name: string; content: string }>;
+        }>('list_load_all');
 
-      // Load from TiDB
-      const allData = await invoke<{
-        folders: Array<{ id: string; name: string; isPinned: boolean; sortOrder: number }>;
-        lists: Array<{ id: string; name: string; icon: string; color: string; viewType: string; folderId: string | null; isPinned: boolean; sortOrder: number; itemCount: number }>;
-        noteGroups: Array<{ id: string; listId: string; name: string; sortOrder: number }>;
-        notes: Array<{ id: string; listId: string; groupId: string | null; title: string; content: string; isPinned: boolean; sortOrder: number; createdAt: number; updatedAt: number }>;
-        templates: Array<{ id: string; name: string; content: string }>;
-      }>('list_load_all');
+        let defaultTemplates = allData.templates.length > 0 ? allData.templates : DEFAULT_TEMPLATES;
 
-      this.data.folders = allData.folders.map(f => ({
-        id: f.id,
-        name: f.name,
-        isPinned: f.isPinned,
-        sortOrder: f.sortOrder,
-      }));
+        if (allData.templates.length === 0) {
+          for (const t of DEFAULT_TEMPLATES) {
+            await invoke('list_upsert_template', { template: t }).catch(() => {});
+          }
+        }
 
-      this.data.lists = allData.lists.map(l => ({
-        id: l.id,
-        name: l.name,
-        icon: l.icon,
-        color: l.color,
-        viewType: l.viewType as 'list' | 'board',
-        folderId: l.folderId,
-        isPinned: l.isPinned,
-        sortOrder: l.sortOrder,
-        itemCount: l.itemCount,
-      }));
-
-      this.data.noteGroups = allData.noteGroups.map(g => ({
-        id: g.id,
-        listId: g.listId,
-        name: g.name,
-        sortOrder: g.sortOrder,
-      }));
-
-      this.data.notes = allData.notes.map(n => ({
-        id: n.id,
-        listId: n.listId,
-        groupId: n.groupId,
-        title: n.title,
-        content: n.content,
-        isPinned: n.isPinned,
-        sortOrder: n.sortOrder,
-        createdAt: n.createdAt,
-        updatedAt: n.updatedAt,
-      }));
-
-      this.data.templates = allData.templates.length > 0 ? allData.templates : DEFAULT_TEMPLATES;
-
-      // Seed default templates if DB has none
-      if (allData.templates.length === 0) {
-        for (const t of DEFAULT_TEMPLATES) {
-          await invoke('list_upsert_template', { template: t }).catch(() => {});
+        set({
+          data: {
+            folders: allData.folders.map(f => ({ ...f })),
+            lists: allData.lists.map(l => ({ ...l, viewType: l.viewType as 'list' | 'board' })),
+            noteGroups: allData.noteGroups.map(g => ({ ...g })),
+            notes: allData.notes.map(n => ({ ...n })),
+            templates: defaultTemplates,
+          },
+          initialized: true
+        });
+      } catch (e) {
+        console.error('Failed to load from TiDB, falling back to localStorage:', e);
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (!parsed.notes) parsed.notes = [];
+            if (!parsed.templates) parsed.templates = DEFAULT_TEMPLATES;
+            if (!parsed.noteGroups) parsed.noteGroups = [];
+            set({ data: parsed, initialized: true });
+          } else {
+            set({ initialized: true });
+          }
+        } catch (e2) {
+          set({ initialized: true });
         }
       }
+    })();
 
-      this.initialized = true;
-    } catch (e) {
-      console.error('Failed to load from TiDB, falling back to localStorage:', e);
-      this.loadFromLocalStorage();
-      this.initialized = true;
-    }
-  }
-
-  private loadFromLocalStorage(): void {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (!parsed.notes) parsed.notes = [];
-        if (!parsed.templates) parsed.templates = DEFAULT_TEMPLATES;
-        if (!parsed.noteGroups) parsed.noteGroups = [];
-        this.data = parsed;
-      }
-    } catch (e) {
-      console.error('Failed to load from localStorage:', e);
-    }
-  }
-
-  private async migrateFromLocalStorage(): Promise<void> {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) {
-        localStorage.setItem(MIGRATION_FLAG, '1');
-        return;
-      }
-
-      const parsed = JSON.parse(stored) as ListsData;
-      if (!parsed.notes) parsed.notes = [];
-      if (!parsed.templates) parsed.templates = DEFAULT_TEMPLATES;
-      if (!parsed.noteGroups) parsed.noteGroups = [];
-
-      await invoke('list_migrate_from_local', { data: parsed });
-      localStorage.setItem(MIGRATION_FLAG, '1');
-      console.log('Successfully migrated list data from localStorage to TiDB');
-    } catch (e) {
-      console.error('Migration from localStorage failed:', e);
-      // Don't set flag so it retries next time
-    }
-  }
+    set({ initPromise: promise });
+    return promise;
+  },
 
   // ── Lists ──
-
-  getLists(): List[] {
-    return [...this.data.lists].sort((a, b) => {
+  getLists: () => {
+    return [...get().data.lists].sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
       return (a.sortOrder || 0) - (b.sortOrder || 0);
     });
-  }
+  },
 
-  addList(list: Omit<List, 'id'>): List {
+  addList: (list) => {
+    const data = get().data;
     const newList: List = {
       ...list,
       id: genId('list'),
       itemCount: 0,
-      sortOrder: this.data.lists.length
+      sortOrder: data.lists.length
     };
-    this.data.lists.push(newList);
+    
+    set({ data: { ...data, lists: [...data.lists, newList] } });
 
     invoke('list_upsert_list', {
       list: {
@@ -225,12 +218,16 @@ class ListsStore {
     }).catch(e => console.error('Failed to sync addList:', e));
 
     return newList;
-  }
+  },
 
-  updateList(id: string, updates: Partial<List>): void {
-    const list = this.data.lists.find(l => l.id === id);
-    if (list) {
-      Object.assign(list, updates);
+  updateList: (id, updates) => {
+    const data = get().data;
+    const index = data.lists.findIndex(l => l.id === id);
+    if (index !== -1) {
+      const newLists = [...data.lists];
+      newLists[index] = { ...newLists[index], ...updates };
+      set({ data: { ...data, lists: newLists } });
+      const list = newLists[index];
 
       invoke('list_upsert_list', {
         list: {
@@ -246,37 +243,41 @@ class ListsStore {
         }
       }).catch(e => console.error('Failed to sync updateList:', e));
     }
-  }
+  },
 
-  deleteList(id: string): void {
-    this.data.lists = this.data.lists.filter(l => l.id !== id);
-    this.data.notes = this.data.notes.filter(n => n.listId !== id);
-    this.data.noteGroups = this.data.noteGroups.filter(g => g.listId !== id);
+  deleteList: (id) => {
+    const data = get().data;
+    set({
+      data: {
+        ...data,
+        lists: data.lists.filter(l => l.id !== id),
+        notes: data.notes.filter(n => n.listId !== id),
+        noteGroups: data.noteGroups.filter(g => g.listId !== id)
+      }
+    });
 
     invoke('list_delete_list', { id }).catch(e => console.error('Failed to sync deleteList:', e));
-  }
+  },
 
-  duplicateList(list: List): List {
-    const newList = this.addList({
+  duplicateList: (list) => {
+    const newList = get().addList({
       ...list,
       name: list.name + ' (副本)',
       isPinned: false
     });
 
-    // Copy groups
-    const groups = this.getNoteGroups(list.id);
+    const groups = get().getNoteGroups(list.id);
     const groupMap = new Map<string, string>();
 
     groups.forEach(group => {
-      const newGroup = this.addGroup(newList.id, group.name);
-      newGroup.sortOrder = group.sortOrder;
+      const newGroup = get().addGroup(newList.id, group.name);
+      get().updateGroup(newGroup.id, { sortOrder: group.sortOrder });
       groupMap.set(group.id, newGroup.id);
     });
 
-    // Copy notes
-    const notes = this.getNotesByListId(list.id);
+    const notes = get().getNotesByListId(list.id);
     notes.forEach(note => {
-      this.addNote({
+      get().addNote({
         listId: newList.id,
         groupId: note.groupId ? groupMap.get(note.groupId) || null : null,
         title: note.title,
@@ -285,7 +286,6 @@ class ListsStore {
       });
     });
 
-    // Also sync the complete duplication to backend
     invoke('list_duplicate_list', {
       sourceId: list.id,
       newList: {
@@ -302,27 +302,36 @@ class ListsStore {
     }).catch(e => console.error('Failed to sync duplicateList:', e));
 
     return newList;
-  }
+  },
 
-  reorderLists(orderedIds: string[]): void {
+  reorderLists: (orderedIds) => {
+    const data = get().data;
     const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
     const items: Array<[string, number]> = [];
-    this.data.lists.forEach(l => {
+    
+    const newLists = data.lists.map(l => {
       if (orderMap.has(l.id)) {
-        l.sortOrder = orderMap.get(l.id);
-        items.push([l.id, l.sortOrder!]);
+        const order = orderMap.get(l.id)!;
+        items.push([l.id, order]);
+        return { ...l, sortOrder: order };
       }
+      return l;
     });
 
+    set({ data: { ...data, lists: newLists } });
     invoke('list_reorder_lists', { items }).catch(e => console.error('Failed to sync reorderLists:', e));
-  }
+  },
 
-  moveList(listId: string, folderId: string | null, targetIndex?: number): void {
-    const list = this.data.lists.find(l => l.id === listId);
-    if (!list) return;
+  moveList: (listId, folderId, targetIndex) => {
+    const data = get().data;
+    const listIndex = data.lists.findIndex(l => l.id === listId);
+    if (listIndex === -1) return;
 
-    list.folderId = folderId;
-    const siblingLists = this.data.lists
+    const list = { ...data.lists[listIndex], folderId };
+    let newLists = [...data.lists];
+    newLists[listIndex] = list;
+
+    const siblingLists = newLists
       .filter(l => l.folderId === folderId && l.id !== listId)
       .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
@@ -332,34 +341,46 @@ class ListsStore {
       siblingLists.push(list);
     }
 
+    const orderMap = new Map();
     siblingLists.forEach((l, idx) => {
-      l.sortOrder = idx;
+      orderMap.set(l.id, idx);
     });
+
+    newLists = newLists.map(l => {
+      if (orderMap.has(l.id)) {
+        return { ...l, sortOrder: orderMap.get(l.id) };
+      }
+      return l;
+    });
+
+    set({ data: { ...data, lists: newLists } });
+    const updatedList = newLists.find(l => l.id === listId);
 
     invoke('list_move_list', {
       listId,
       folderId,
-      sortOrder: list.sortOrder || 0
+      sortOrder: updatedList?.sortOrder || 0
     }).catch(e => console.error('Failed to sync moveList:', e));
-  }
+  },
 
   // ── Folders ──
-
-  getFolders(): Folder[] {
-    return [...this.data.folders].sort((a, b) => {
+  getFolders: () => {
+    return [...get().data.folders].sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
       return (a.sortOrder || 0) - (b.sortOrder || 0);
     });
-  }
+  },
 
-  addFolder(name: string): Folder {
+  addFolder: (name) => {
+    const data = get().data;
     const newFolder: Folder = {
       id: genId('folder'),
       name,
-      sortOrder: this.data.folders.length,
+      sortOrder: data.folders.length,
     };
-    this.data.folders.push(newFolder);
+    
+    set({ data: { ...data, folders: [...data.folders, newFolder] } });
 
     invoke('list_upsert_folder', {
       folder: {
@@ -371,12 +392,16 @@ class ListsStore {
     }).catch(e => console.error('Failed to sync addFolder:', e));
 
     return newFolder;
-  }
+  },
 
-  updateFolder(id: string, updates: Partial<Folder>): void {
-    const folder = this.data.folders.find(f => f.id === id);
-    if (folder) {
-      Object.assign(folder, updates);
+  updateFolder: (id, updates) => {
+    const data = get().data;
+    const index = data.folders.findIndex(f => f.id === id);
+    if (index !== -1) {
+      const newFolders = [...data.folders];
+      newFolders[index] = { ...newFolders[index], ...updates };
+      set({ data: { ...data, folders: newFolders } });
+      const folder = newFolders[index];
 
       invoke('list_upsert_folder', {
         folder: {
@@ -387,36 +412,42 @@ class ListsStore {
         }
       }).catch(e => console.error('Failed to sync updateFolder:', e));
     }
-  }
+  },
 
-  reorderFolders(orderedIds: string[]): void {
+  reorderFolders: (orderedIds) => {
+    const data = get().data;
     const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
     const items: Array<[string, number]> = [];
-    this.data.folders.forEach(f => {
+    
+    const newFolders = data.folders.map(f => {
       if (orderMap.has(f.id)) {
-        f.sortOrder = orderMap.get(f.id);
-        items.push([f.id, f.sortOrder!]);
+        const order = orderMap.get(f.id)!;
+        items.push([f.id, order]);
+        return { ...f, sortOrder: order };
       }
+      return f;
     });
 
+    set({ data: { ...data, folders: newFolders } });
     invoke('list_reorder_folders', { items }).catch(e => console.error('Failed to sync reorderFolders:', e));
-  }
+  },
 
-  deleteFolder(id: string): void {
-    this.data.folders = this.data.folders.filter(f => f.id !== id);
-    this.data.lists.forEach(l => {
-      if (l.folderId === id) {
-        l.folderId = null;
+  deleteFolder: (id) => {
+    const data = get().data;
+    set({
+      data: {
+        ...data,
+        folders: data.folders.filter(f => f.id !== id),
+        lists: data.lists.map(l => (l.folderId === id ? { ...l, folderId: null } : l))
       }
     });
 
     invoke('list_delete_folder', { id }).catch(e => console.error('Failed to sync deleteFolder:', e));
-  }
+  },
 
   // ── Notes ──
-
-  getNotesByListId(listId: string): Note[] {
-    return this.data.notes
+  getNotesByListId: (listId) => {
+    return get().data.notes
       .filter(n => n.listId === listId)
       .sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
@@ -426,10 +457,11 @@ class ListsStore {
         }
         return b.updatedAt - a.updatedAt;
       });
-  }
+  },
 
-  addNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt' | 'sortOrder'>): Note {
-    const siblingNotes = this.data.notes.filter(n => n.listId === note.listId && n.groupId === note.groupId);
+  addNote: (note) => {
+    const data = get().data;
+    const siblingNotes = data.notes.filter(n => n.listId === note.listId && n.groupId === note.groupId);
     const newNote: Note = {
       ...note,
       id: genId('note'),
@@ -437,13 +469,14 @@ class ListsStore {
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
-    this.data.notes.push(newNote);
-
-    // Update list item count
-    const list = this.data.lists.find(l => l.id === note.listId);
-    if (list) {
-      list.itemCount = (list.itemCount || 0) + 1;
+    
+    let newLists = [...data.lists];
+    const listIndex = newLists.findIndex(l => l.id === note.listId);
+    if (listIndex !== -1) {
+      newLists[listIndex] = { ...newLists[listIndex], itemCount: (newLists[listIndex].itemCount || 0) + 1 };
     }
+
+    set({ data: { ...data, notes: [...data.notes, newNote], lists: newLists } });
 
     invoke('list_upsert_note', {
       note: {
@@ -460,38 +493,51 @@ class ListsStore {
     }).catch(e => console.error('Failed to sync addNote:', e));
 
     return newNote;
-  }
+  },
 
-  updateNote(id: string, updates: Partial<Note>): void {
-    const note = this.data.notes.find(n => n.id === id);
-    if (note) {
-      Object.assign(note, updates);
-      note.updatedAt = Date.now();
-
-      // Use debounce for content/title updates (high frequency)
-      this.debouncedNoteUpdate(note);
+  updateNote: (id, updates) => {
+    const data = get().data;
+    const index = data.notes.findIndex(n => n.id === id);
+    if (index !== -1) {
+      const newNotes = [...data.notes];
+      newNotes[index] = { ...newNotes[index], ...updates, updatedAt: Date.now() };
+      set({ data: { ...data, notes: newNotes } });
+      debouncedNoteUpdate(newNotes[index]);
     }
-  }
+  },
 
-  deleteNote(id: string): void {
-    const note = this.data.notes.find(n => n.id === id);
+  deleteNote: (id) => {
+    const data = get().data;
+    const note = data.notes.find(n => n.id === id);
     if (note) {
-      this.data.notes = this.data.notes.filter(n => n.id !== id);
-      const list = this.data.lists.find(l => l.id === note.listId);
-      if (list && list.itemCount && list.itemCount > 0) {
-        list.itemCount -= 1;
+      let newLists = [...data.lists];
+      const listIndex = newLists.findIndex(l => l.id === note.listId);
+      if (listIndex !== -1 && (newLists[listIndex].itemCount || 0) > 0) {
+        newLists[listIndex] = { ...newLists[listIndex], itemCount: newLists[listIndex].itemCount! - 1 };
       }
+
+      set({
+        data: {
+          ...data,
+          notes: data.notes.filter(n => n.id !== id),
+          lists: newLists
+        }
+      });
 
       invoke('list_delete_note', { id }).catch(e => console.error('Failed to sync deleteNote:', e));
     }
-  }
+  },
 
-  moveNoteAndReorder(noteId: string, groupId: string | null, targetIndex?: number): void {
-    const note = this.data.notes.find(n => n.id === noteId);
-    if (!note) return;
+  moveNoteAndReorder: (noteId, groupId, targetIndex) => {
+    const data = get().data;
+    const noteIndex = data.notes.findIndex(n => n.id === noteId);
+    if (noteIndex === -1) return;
 
-    note.groupId = groupId;
-    const siblingNotes = this.data.notes
+    let newNotes = [...data.notes];
+    const note = { ...newNotes[noteIndex], groupId };
+    newNotes[noteIndex] = note;
+
+    const siblingNotes = newNotes
       .filter(n => n.listId === note.listId && n.groupId === groupId && n.id !== noteId)
       .sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
@@ -506,47 +552,64 @@ class ListsStore {
       siblingNotes.push(note);
     }
 
+    const orderMap = new Map();
     siblingNotes.forEach((n, idx) => {
-      n.sortOrder = idx;
+      orderMap.set(n.id, idx);
     });
+
+    newNotes = newNotes.map(n => {
+      if (orderMap.has(n.id)) {
+        return { ...n, sortOrder: orderMap.get(n.id) };
+      }
+      return n;
+    });
+
+    set({ data: { ...data, notes: newNotes } });
+    const updatedNote = newNotes.find(n => n.id === noteId);
 
     invoke('list_move_note', {
       noteId,
       listId: note.listId,
       groupId,
-      sortOrder: note.sortOrder || 0,
+      sortOrder: updatedNote?.sortOrder || 0,
     }).catch(e => console.error('Failed to sync moveNote:', e));
-  }
+  },
 
-  reorderNotes(orderedIds: string[]): void {
+  reorderNotes: (orderedIds) => {
+    const data = get().data;
     const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
     const items: Array<[string, number]> = [];
-    this.data.notes.forEach(n => {
+    
+    const newNotes = data.notes.map(n => {
       if (orderMap.has(n.id)) {
-        n.sortOrder = orderMap.get(n.id);
-        items.push([n.id, n.sortOrder!]);
+        const order = orderMap.get(n.id)!;
+        items.push([n.id, order]);
+        return { ...n, sortOrder: order };
       }
+      return n;
     });
 
+    set({ data: { ...data, notes: newNotes } });
     invoke('list_reorder_notes', { items }).catch(e => console.error('Failed to sync reorderNotes:', e));
-  }
+  },
 
   // ── Note Groups ──
-
-  getNoteGroups(listId: string): NoteGroup[] {
-    return this.data.noteGroups
+  getNoteGroups: (listId) => {
+    return get().data.noteGroups
       .filter(g => g.listId === listId)
       .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-  }
+  },
 
-  addGroup(listId: string, name: string): NoteGroup {
+  addGroup: (listId, name) => {
+    const data = get().data;
     const newGroup: NoteGroup = {
       id: genId('group'),
       listId,
       name,
-      sortOrder: this.data.noteGroups.filter(g => g.listId === listId).length
+      sortOrder: data.noteGroups.filter(g => g.listId === listId).length
     };
-    this.data.noteGroups.push(newGroup);
+    
+    set({ data: { ...data, noteGroups: [...data.noteGroups, newGroup] } });
 
     invoke('list_upsert_group', {
       group: {
@@ -558,12 +621,16 @@ class ListsStore {
     }).catch(e => console.error('Failed to sync addGroup:', e));
 
     return newGroup;
-  }
+  },
 
-  updateGroup(id: string, updates: Partial<NoteGroup>): void {
-    const group = this.data.noteGroups.find(g => g.id === id);
-    if (group) {
-      Object.assign(group, updates);
+  updateGroup: (id, updates) => {
+    const data = get().data;
+    const index = data.noteGroups.findIndex(g => g.id === id);
+    if (index !== -1) {
+      const newGroups = [...data.noteGroups];
+      newGroups[index] = { ...newGroups[index], ...updates };
+      set({ data: { ...data, noteGroups: newGroups } });
+      const group = newGroups[index];
 
       invoke('list_upsert_group', {
         group: {
@@ -574,55 +641,65 @@ class ListsStore {
         }
       }).catch(e => console.error('Failed to sync updateGroup:', e));
     }
-  }
+  },
 
-  deleteGroup(id: string): void {
-    this.data.noteGroups = this.data.noteGroups.filter(g => g.id !== id);
-    this.data.notes.forEach(n => {
-      if (n.groupId === id) {
-        n.groupId = null;
+  deleteGroup: (id) => {
+    const data = get().data;
+    set({
+      data: {
+        ...data,
+        noteGroups: data.noteGroups.filter(g => g.id !== id),
+        notes: data.notes.map(n => (n.groupId === id ? { ...n, groupId: null } : n))
       }
     });
 
     invoke('list_delete_group', { id }).catch(e => console.error('Failed to sync deleteGroup:', e));
-  }
+  },
 
   // ── Templates ──
+  getTemplates: () => {
+    return get().data.templates;
+  },
 
-  getTemplates(): Template[] {
-    return this.data.templates;
-  }
-
-  addTemplate(name: string, content: string): Template {
+  addTemplate: (name, content) => {
+    const data = get().data;
     const newTemplate: Template = {
       id: genId('tpl'),
       name,
       content
     };
-    this.data.templates.push(newTemplate);
+    
+    set({ data: { ...data, templates: [...data.templates, newTemplate] } });
 
     invoke('list_upsert_template', { template: newTemplate })
       .catch(e => console.error('Failed to sync addTemplate:', e));
 
     return newTemplate;
-  }
+  },
 
-  updateTemplate(id: string, updates: Partial<Template>): void {
-    const tpl = this.data.templates.find(t => t.id === id);
-    if (tpl) {
-      Object.assign(tpl, updates);
-
-      invoke('list_upsert_template', { template: tpl })
+  updateTemplate: (id, updates) => {
+    const data = get().data;
+    const index = data.templates.findIndex(t => t.id === id);
+    if (index !== -1) {
+      const newTemplates = [...data.templates];
+      newTemplates[index] = { ...newTemplates[index], ...updates };
+      set({ data: { ...data, templates: newTemplates } });
+      
+      invoke('list_upsert_template', { template: newTemplates[index] })
         .catch(e => console.error('Failed to sync updateTemplate:', e));
     }
-  }
+  },
 
-  deleteTemplate(id: string): void {
-    this.data.templates = this.data.templates.filter(t => t.id !== id);
+  deleteTemplate: (id) => {
+    const data = get().data;
+    set({
+      data: {
+        ...data,
+        templates: data.templates.filter(t => t.id !== id)
+      }
+    });
 
     invoke('list_delete_template', { id })
       .catch(e => console.error('Failed to sync deleteTemplate:', e));
   }
-}
-
-export const listsStore = new ListsStore();
+}));

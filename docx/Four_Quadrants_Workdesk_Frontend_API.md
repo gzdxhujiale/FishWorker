@@ -1,6 +1,6 @@
 # 四象限工作台前端接口与数据模型文档 (Four Quadrants Workdesk Frontend API)
 
-本文档描述了“四象限工作台”模块的前端数据模型定义，以及本地 Store (`timeManagementStore.ts`)、主面板组件 `TimeManagementPanel` 与核心组件（如 `DailyQuadrants`、`QuickAddPopover` 等）的接口定义与 Tauri 后端 API。
+本文档描述了“四象限工作台”模块的前端数据模型定义，以及本地 Zustand Store (`useTimeStore`)、主面板组件 `TimeManagementPanel` 与核心组件（如 `DailyQuadrants`、`QuickAddPopover` 等）的接口定义与 Tauri 后端 API。
 
 ---
 
@@ -47,7 +47,7 @@ export interface Task {
 ## 2. Store 与组件交互接口定义 (API Interfaces)
 
 ### 2.1 Store 核心操作
-`timeManagementStore` 针对任务操作暴露以下核心接口：
+`useTimeStore` 针对任务操作暴露以下核心接口：
 
 - **添加任务**
   `addTask(title: string, quadrant?: QuadrantType, scheduledDate?: string, roleId?: string): Task`
@@ -116,7 +116,7 @@ interface CollapsibleGroupProps {
 
 ## 3. 后端 Tauri IPC 命令接口 (Tauri IPC Commands)
 
-四象限工作台的所有状态更新由前端以**乐观更新 (Optimistic UI)** 机制先修改内存与 `localStorage`，而后异步调度 Rust 后端与 TiDB 交互。
+四象限工作台的所有状态更新由前端以**乐观更新 (Optimistic UI)** 机制先通过 Zustand Store (`useTimeStore`) 修改内存状态与 `localStorage`，而后异步调度 Rust 后端与 TiDB 交互。
 
 ### 3.1 载入全部数据
 * **命令 (Command)**: `tm_load_all`

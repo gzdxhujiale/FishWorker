@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ArrowDownUp, MoreHorizontal, Plus, PanelLeftClose, PanelLeftOpen, CheckCircle, AlertCircle } from 'lucide-react';
-import { listsStore } from './listsStore';
-import { List, Folder, ViewType, Note, Template, NoteGroup } from './listsTypes';
+import { useListsStore } from './listsStore';
+import { List, Folder, ViewType, Note, Template } from './listsTypes';
 import { ListsSidebar } from './ListsSidebar';
 import { AddListModal } from './AddListModal';
 import { FolderModal } from './FolderModal';
@@ -17,11 +17,50 @@ import { BatchExportModal } from './BatchExportModal';
 import './lists.css';
 
 export function ListsPanel() {
-  const [lists, setLists] = useState<List[]>([]);
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const store = useListsStore();
+  
+  const lists = useMemo(() => {
+    return [...store.data.lists].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return (a.sortOrder || 0) - (b.sortOrder || 0);
+    });
+  }, [store.data.lists]);
+
+  const folders = useMemo(() => {
+    return [...store.data.folders].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return (a.sortOrder || 0) - (b.sortOrder || 0);
+    });
+  }, [store.data.folders]);
+
+  const templates = store.data.templates;
+
   const [activeListId, setActiveListId] = useState<string | null>(() => {
     return localStorage.getItem('lists-active-list-id');
   });
+
+  const notes = useMemo(() => {
+    if (!activeListId) return [];
+    return store.data.notes
+      .filter(n => n.listId === activeListId)
+      .sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        if (a.sortOrder !== b.sortOrder) {
+          return (a.sortOrder || 0) - (b.sortOrder || 0);
+        }
+        return b.updatedAt - a.updatedAt;
+      });
+  }, [store.data.notes, activeListId]);
+
+  const noteGroups = useMemo(() => {
+    if (!activeListId) return [];
+    return store.data.noteGroups
+      .filter(g => g.listId === activeListId)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }, [store.data.noteGroups, activeListId]);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('lists-sidebar-collapsed') === 'true';
@@ -44,8 +83,6 @@ export function ListsPanel() {
   const [editFolderTarget, setEditFolderTarget] = useState<Folder | undefined>();
 
   // Note state
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [noteGroups, setNoteGroups] = useState<NoteGroup[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState('');
@@ -58,7 +95,6 @@ export function ListsPanel() {
 
   // Template state
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>([]);
   const [batchExportModalOpen, setBatchExportModalOpen] = useState(false);
 
   // Toast state
@@ -83,40 +119,22 @@ export function ListsPanel() {
     }, 3000);
   };
 
-  const refreshData = () => {
-    setLists(listsStore.getLists());
-    setFolders(listsStore.getFolders());
-    setTemplates(listsStore.getTemplates());
-    if (activeListId) {
-      setNotes(listsStore.getNotesByListId(activeListId));
-      setNoteGroups(listsStore.getNoteGroups(activeListId));
-    }
-  };
-
   useEffect(() => {
-    listsStore.init().then(() => {
-      const loadedLists = listsStore.getLists();
-      setLists(loadedLists);
-      setFolders(listsStore.getFolders());
-      setTemplates(listsStore.getTemplates());
-
+    store.init().then(() => {
+      const loadedLists = store.getLists();
+      
       if (loadedLists.length > 0) {
         const savedId = localStorage.getItem('lists-active-list-id');
         const exists = savedId && loadedLists.some(l => l.id === savedId);
 
-        if (exists) {
-          setActiveListId(savedId);
-          setNotes(listsStore.getNotesByListId(savedId));
-          setNoteGroups(listsStore.getNoteGroups(savedId));
-        } else {
-          const loadedFolders = listsStore.getFolders();
+        if (!exists) {
+          const loadedFolders = store.getFolders();
           let defaultListId = loadedLists[0].id;
 
           if (loadedFolders.length > 0) {
             const firstFolder = loadedFolders[0];
             const folderLists = loadedLists.filter(l => l.folderId === firstFolder.id);
             if (folderLists.length > 0) {
-              // Sort folderLists to respect pinned state and sortOrder
               folderLists.sort((a, b) => {
                 if (a.isPinned && !b.isPinned) return -1;
                 if (!a.isPinned && b.isPinned) return 1;
@@ -128,23 +146,18 @@ export function ListsPanel() {
 
           setActiveListId(defaultListId);
           localStorage.setItem('lists-active-list-id', defaultListId);
-          setNotes(listsStore.getNotesByListId(defaultListId));
-          setNoteGroups(listsStore.getNoteGroups(defaultListId));
         }
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (activeListId) {
-      setNotes(listsStore.getNotesByListId(activeListId));
-      setNoteGroups(listsStore.getNoteGroups(activeListId));
       setActiveNote(null);
       setIsDrawerOpen(false);
       localStorage.setItem('lists-active-list-id', activeListId);
     } else {
-      setNotes([]);
-      setNoteGroups([]);
       localStorage.removeItem('lists-active-list-id');
     }
   }, [activeListId]);
@@ -191,25 +204,21 @@ export function ListsPanel() {
       let targetGroupId: string | null = null;
       let targetIndex: number | undefined = undefined;
 
-      // Check if dropped on a group container directly
       if (over.data?.current?.type === 'group') {
         targetGroupId = overId === 'ungrouped' ? null : overId;
       } else {
-        // Dropped on a note
         const overNote = notes.find(n => n.id === overId);
         if (overNote) {
           targetGroupId = overNote.groupId || null;
 
           const activeNoteData = notes.find(n => n.id === activeNoteId);
           if (activeNoteData && (activeNoteData.groupId || null) === targetGroupId) {
-            // Same group reordering
             const siblingNotes = notes.filter(n => (n.groupId || null) === targetGroupId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
             const oldIndex = siblingNotes.findIndex(n => n.id === activeNoteId);
             const newIndex = siblingNotes.findIndex(n => n.id === overId);
             if (oldIndex !== -1 && newIndex !== -1) {
               const newSiblingNotes = arrayMove(siblingNotes, oldIndex, newIndex);
-              listsStore.reorderNotes(newSiblingNotes.map(n => n.id));
-              refreshData();
+              store.reorderNotes(newSiblingNotes.map(n => n.id));
               return;
             }
           }
@@ -221,8 +230,7 @@ export function ListsPanel() {
 
       const activeNoteData = notes.find(n => n.id === activeNoteId);
       if (activeNoteData) {
-        listsStore.moveNoteAndReorder(activeNoteId, targetGroupId, targetIndex);
-        refreshData();
+        store.moveNoteAndReorder(activeNoteId, targetGroupId, targetIndex);
       }
     }
   };
@@ -235,19 +243,17 @@ export function ListsPanel() {
   };
 
   const handleAddFolder = (name: string) => {
-    const newFolder = listsStore.addFolder(name);
-    refreshData();
-    return newFolder;
+    return store.addFolder(name);
   };
 
   const handleAddList = (data: { name: string; color: string; viewType: ViewType; folderId: string | null; icon: string }, newFolderName?: string) => {
     let finalFolderId = data.folderId;
     if (newFolderName) {
-      const newFolder = listsStore.addFolder(newFolderName);
+      const newFolder = store.addFolder(newFolderName);
       finalFolderId = newFolder.id;
     }
     if (editListTarget) {
-      listsStore.updateList(editListTarget.id, {
+      store.updateList(editListTarget.id, {
         name: data.name,
         color: data.color,
         viewType: data.viewType,
@@ -255,7 +261,7 @@ export function ListsPanel() {
         icon: data.icon,
       });
     } else {
-      const newList = listsStore.addList({
+      const newList = store.addList({
         name: data.name,
         color: data.color,
         viewType: data.viewType,
@@ -264,7 +270,6 @@ export function ListsPanel() {
       });
       setActiveListId(newList.id);
     }
-    refreshData();
     setIsAddModalOpen(false);
     setEditListTarget(undefined);
   };
@@ -277,21 +282,18 @@ export function ListsPanel() {
 
   const handleSaveFolder = (name: string) => {
     if (editFolderTarget) {
-      listsStore.updateFolder(editFolderTarget.id, { name });
+      store.updateFolder(editFolderTarget.id, { name });
     }
-    refreshData();
     setIsFolderModalOpen(false);
     setEditFolderTarget(undefined);
   };
 
   const handlePinFolder = (folder: Folder) => {
-    listsStore.updateFolder(folder.id, { isPinned: !folder.isPinned });
-    refreshData();
+    store.updateFolder(folder.id, { isPinned: !folder.isPinned });
   };
 
   const handleDissolveFolder = (folder: Folder) => {
-    listsStore.deleteFolder(folder.id);
-    refreshData();
+    store.deleteFolder(folder.id);
   };
 
   const handleEditList = (list: List) => {
@@ -300,32 +302,28 @@ export function ListsPanel() {
   };
 
   const handlePinList = (list: List) => {
-    listsStore.updateList(list.id, { isPinned: !list.isPinned });
-    refreshData();
+    store.updateList(list.id, { isPinned: !list.isPinned });
   };
 
   const handleDuplicateList = (list: List) => {
-    const newList = listsStore.duplicateList(list);
-    refreshData();
+    const newList = store.duplicateList(list);
     setActiveListId(newList.id);
   };
 
   const handleDeleteList = (list: List) => {
-    listsStore.deleteList(list.id);
+    store.deleteList(list.id);
     if (activeListId === list.id) setActiveListId(null);
-    refreshData();
   };
 
   // --- Note Actions ---
   const handleAddNote = () => {
     if (!activeListId || !newNoteTitle.trim()) return;
-    const newNote = listsStore.addNote({
+    const newNote = store.addNote({
       listId: activeListId,
       title: newNoteTitle.trim(),
       content: '',
     });
     setNewNoteTitle('');
-    refreshData();
     setActiveNote(newNote);
     setIsDrawerOpen(true);
   };
@@ -342,13 +340,12 @@ export function ListsPanel() {
             .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
             .join('');
         }
-        listsStore.addNote({
+        store.addNote({
           listId: activeListId,
           title: file.title,
           content: htmlContent,
         });
       }
-      refreshData();
       showToast(`已成功导入 ${importedFiles.length} 条笔记！`);
     } catch (err) {
       console.warn('Batch import cancelled or failed:', err);
@@ -391,36 +388,31 @@ export function ListsPanel() {
   };
 
   const handleNoteUpdate = (id: string, title: string, content: string) => {
-    listsStore.updateNote(id, { title, content });
-    if (activeListId) setNotes(listsStore.getNotesByListId(activeListId));
+    store.updateNote(id, { title, content });
   };
 
   const handlePinNote = (note: Note) => {
-    listsStore.updateNote(note.id, { isPinned: !note.isPinned });
-    if (activeListId) setNotes(listsStore.getNotesByListId(activeListId));
-    if (activeNote?.id === note.id) setActiveNote({ ...activeNote, isPinned: !activeNote.isPinned });
+    store.updateNote(note.id, { isPinned: !note.isPinned });
+    if (activeNote?.id === note.id) setActiveNote({ ...activeNote, isPinned: !note.isPinned });
   };
 
   const handleDuplicateNote = (note: Note) => {
-    const newNote = listsStore.addNote({
+    const newNote = store.addNote({
       listId: note.listId,
       title: note.title + ' (副本)',
       content: note.content,
     });
-    refreshData();
     setActiveNote(newNote);
     setIsDrawerOpen(true);
   };
 
   const handleSaveAsTemplate = (note: Note) => {
-    listsStore.addTemplate(note.title || '自定义模板', note.content);
-    refreshData();
+    store.addTemplate(note.title || '自定义模板', note.content);
     showToast('已保存为模板！');
   };
 
   const handleDeleteNote = (note: Note) => {
-    listsStore.deleteNote(note.id);
-    refreshData();
+    store.deleteNote(note.id);
     if (activeNote?.id === note.id) {
       setActiveNote(null);
       setIsDrawerOpen(false);
@@ -441,20 +433,17 @@ export function ListsPanel() {
   const handleSelectTemplate = (template: Template) => {
     if (!activeNote) return;
     const htmlContent = ensureHtmlFormat(template.content);
-    listsStore.updateNote(activeNote.id, { content: htmlContent });
-    refreshData();
+    store.updateNote(activeNote.id, { content: htmlContent });
     setIsTemplateModalOpen(false);
     setActiveNote({ ...activeNote, content: htmlContent });
   };
 
   const handleEditTemplate = (id: string, name: string, content: string) => {
-    listsStore.updateTemplate(id, { name, content });
-    refreshData();
+    store.updateTemplate(id, { name, content });
   };
 
   const handleDeleteTemplate = (id: string) => {
-    listsStore.deleteTemplate(id);
-    refreshData();
+    store.deleteTemplate(id);
   };
 
   // --- Group Actions ---
@@ -466,25 +455,21 @@ export function ListsPanel() {
   const handleConfirmAddGroup = () => {
     if (!activeListId) return;
     if (newGroupName.trim()) {
-      listsStore.addGroup(activeListId, newGroupName.trim());
-      refreshData();
+      store.addGroup(activeListId, newGroupName.trim());
     }
     setIsAddingGroup(false);
   };
 
   const handleRenameGroup = (id: string, name: string) => {
-    listsStore.updateGroup(id, { name });
-    refreshData();
+    store.updateGroup(id, { name });
   };
 
   const handleDeleteGroup = (id: string) => {
-    listsStore.deleteGroup(id);
-    refreshData();
+    store.deleteGroup(id);
   };
 
   const handleMoveNote = (note: Note, targetListId: string) => {
-    listsStore.updateNote(note.id, { listId: targetListId, groupId: null });
-    refreshData();
+    store.updateNote(note.id, { listId: targetListId, groupId: null });
     if (activeNote?.id === note.id && activeListId !== targetListId) {
       setActiveNote(null);
       setIsDrawerOpen(false);
@@ -508,7 +493,7 @@ export function ListsPanel() {
         onPinList={handlePinList}
         onDuplicateList={handleDuplicateList}
         onDeleteList={handleDeleteList}
-        onDataChange={refreshData}
+        onDataChange={() => {}} // No longer needed with Zustand
         isCollapsed={isSidebarCollapsed}
       />
 
@@ -585,7 +570,6 @@ export function ListsPanel() {
                   )}
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
                     {noteGroups.length === 0 && !isAddingGroup ? (
-                      // Flat list if no groups
                       <SortableContext items={notes.map(n => n.id)} strategy={verticalListSortingStrategy}>
                         {notes.map(note => (
                           <SortableItem key={note.id} id={note.id}>
@@ -603,7 +587,6 @@ export function ListsPanel() {
                         ))}
                       </SortableContext>
                     ) : (
-                      // Grouped view
                       <>
                         {noteGroups.map(group => {
                           const groupNotes = notes.filter(n => n.groupId === group.id);
@@ -626,7 +609,6 @@ export function ListsPanel() {
                             />
                           );
                         })}
-                        {/* Ungrouped notes */}
                         {notes.filter(n => !n.groupId).length > 0 && (
                           (() => {
                             const activeNoteItem = notes.find(n => n.id === activeDragNoteId);

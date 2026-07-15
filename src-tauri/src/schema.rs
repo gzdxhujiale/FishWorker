@@ -118,5 +118,14 @@ pub async fn ensure_tables(pool: &MySqlPool) -> Result<(), sqlx::Error> {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ).execute(pool).await?;
 
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS app_preferences (
+            pref_key VARCHAR(255) NOT NULL,
+            pref_value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (pref_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
     Ok(())
 }

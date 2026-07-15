@@ -1,6 +1,6 @@
 # 周计划与角色前端接口与数据模型文档 (Weekly Planning Frontend API)
 
-本文档描述了“周计划”模块的前端数据模型定义，以及本地 Store (`timeManagementStore.ts`)、主面板组件 `TimeManagementPanel` 提供的数据操作接口与 Tauri 后端 API。当前数据存储基于 Rust 后端直连 TiDB 实现，前端通过 Tauri IPC (Invoke) 与后端同步数据，并采用内存乐观更新与高/低频防抖同步策略，以保证流畅的交互体验。
+本文档描述了“周计划”模块的前端数据模型定义，以及 Zustand Store (`useTimeStore`)、主面板组件 `TimeManagementPanel` 提供的数据操作接口与 Tauri 后端 API。当前数据存储基于 Rust 后端直连 TiDB 实现，前端通过 Tauri IPC (Invoke) 与后端同步数据，并采用内存乐观更新与高/低频防抖同步策略，以保证流畅的交互体验。
 
 ---
 
@@ -67,7 +67,7 @@ export interface Task {
 
 ## 2. Store 接口定义 (Store API)
 
-`timeManagementStore` 是时间管理模块的状态管理中心，提供前端数据的增删改查方法，并处理后台同步机制。
+`useTimeStore` 是时间管理模块的状态管理中心，提供前端数据的增删改查方法，并处理后台同步机制。
 
 ### 2.1 角色 (Role) 操作
 - **添加角色**
@@ -113,15 +113,15 @@ const handleScheduleTask = (taskId: string, date: string | undefined, timeOfDay?
     updates.quadrant = 'Q2';
   }
   
-  timeManagementStore.updateTask(taskId, updates, false); // 触发后台同步
+  updateTask(taskId, updates, false); // 触发后台同步
 };
 ```
 
 ### 2.4 数据持久化与同步机制
-- **本地落盘与事件广播**：所有写操作会执行 `save()`，将数据序列化存储在 `localStorage` (`aistudy_time_management_data`) 中，并发送 `time-management-updated` 事件通知相关 UI 重绘。
-- **初始化同步**：前端组件挂载时，调用 `syncAllFromDB()`。该方法通过 `timeManagementApi.loadAll()` 从后端 TiDB 拉取全量数据，并落盘至本地。
+- **状态自动同步**：所有写操作会通过 `set()` 更新 Zustand 内存数据并触发 React 重新渲染，同时自动序列化写入本地缓存 `localStorage` (`aistudy_time_management_data`)。
+- **初始化同步**：前端组件挂载时，调用 `syncAllFromDB()`。该方法通过 `timeManagementApi.loadAll()` 从后端 TiDB 拉取全量数据，并自动同步落盘至本地缓存。
 - **同步防抖与挂起队列**：
-  * 系统维护一个 `pendingSaves` 的 Map，记录等待发送至后端的超时器 ID。
+  * Zustand Store 内部维护 `_pendingSaves` 状态，记录等待发送至后端的超时器 ID。
   * `triggerRoleSync` 和 `triggerTaskSync` 会在接收变更后启动定时器，进行防抖处理：高频保存（如文本输入）为 `500ms`，普通保存为 `300ms`。
   * 同步进行中，`state` 为 `'saving'`；完成后回到 `'saved'`；发生错误则降级显示为 `'attention'`（告知用户部分数据未成功同步）。
 

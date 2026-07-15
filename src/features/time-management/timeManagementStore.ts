@@ -1,3 +1,4 @@
+import { create } from 'zustand';
 import { Role, Task, QuadrantType } from './timeManagementTypes';
 import { timeManagementApi, TimeManagementSyncStatus } from './timeManagementService';
 
@@ -8,9 +9,6 @@ export interface TimeManagementData {
   tasks: Task[];
 }
 
-let currentSyncStatus: TimeManagementSyncStatus = { state: 'saved', pendingCount: 0 };
-const pendingSaves = new Map<string, number>();
-
 const defaultData: TimeManagementData = {
   roles: [
     { id: '1', name: '个人成长', color: '#1f6fd1', createdAt: Date.now() },
@@ -19,139 +17,174 @@ const defaultData: TimeManagementData = {
   tasks: []
 };
 
-export const timeManagementStore = {
-  load(): TimeManagementData {
+interface TimeManagementStore {
+  data: TimeManagementData;
+  syncStatus: TimeManagementSyncStatus;
+  
+  // Internal
+  _pendingSaves: Map<string, number>;
+  load: () => void;
+  save: (data: TimeManagementData) => void;
+  setSyncStatus: (status: TimeManagementSyncStatus) => void;
+  triggerRoleSync: (role: Role, isHighFreq?: boolean) => void;
+  triggerTaskSync: (task: Task, isHighFreq?: boolean) => void;
+  
+  // Public
+  syncAllFromDB: () => Promise<void>;
+  addRole: (name: string, color?: string) => Role;
+  updateRole: (roleId: string, updates: Partial<Role>, isHighFreq?: boolean) => void;
+  deleteRole: (roleId: string) => void;
+  addTask: (title: string, quadrant?: QuadrantType, scheduledDate?: string, roleId?: string) => Task;
+  updateTask: (taskId: string, updates: Partial<Task>, isHighFreq?: boolean) => void;
+  deleteTask: (taskId: string) => void;
+}
+
+export const useTimeStore = create<TimeManagementStore>((set, get) => ({
+  data: defaultData,
+  syncStatus: { state: 'saved', pendingCount: 0 },
+  _pendingSaves: new Map<string, number>(),
+
+  load: () => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored) as TimeManagementData;
+        set({ data: JSON.parse(stored) as TimeManagementData });
       }
     } catch (err) {
       console.error('Failed to load time management data:', err);
     }
-    return defaultData;
   },
 
-  save(data: TimeManagementData): void {
+  save: (data: TimeManagementData) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      window.dispatchEvent(new Event('time-management-updated'));
+      set({ data });
     } catch (err) {
       console.error('Failed to save time management data:', err);
     }
   },
 
-  getSyncStatus(): TimeManagementSyncStatus {
-    return currentSyncStatus;
+  setSyncStatus: (status: TimeManagementSyncStatus) => {
+    set({ syncStatus: status });
   },
 
-  setSyncStatus(status: TimeManagementSyncStatus) {
-    currentSyncStatus = status;
-    window.dispatchEvent(new Event('time-management-sync-updated'));
-  },
-
-  async syncAllFromDB() {
+  syncAllFromDB: async () => {
     try {
-      this.setSyncStatus({ state: 'saving', pendingCount: pendingSaves.size });
+      const state = get();
+      state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size });
       const dbData = await timeManagementApi.loadAll();
       if (dbData) {
-        this.save(dbData);
+        get().save(dbData);
       }
-      if (pendingSaves.size === 0) {
-        this.setSyncStatus({ state: 'saved', pendingCount: 0 });
+      const newState = get();
+      if (newState._pendingSaves.size === 0) {
+        newState.setSyncStatus({ state: 'saved', pendingCount: 0 });
       }
     } catch (e) {
-      this.setSyncStatus({ state: 'attention', pendingCount: pendingSaves.size });
+      const state = get();
+      state.setSyncStatus({ state: 'attention', pendingCount: state._pendingSaves.size });
     }
   },
 
-  triggerRoleSync(role: Role, isHighFreq: boolean = true) {
-    this.setSyncStatus({ state: 'saving', pendingCount: pendingSaves.size + 1 });
+  triggerRoleSync: (role: Role, isHighFreq: boolean = true) => {
+    const state = get();
+    state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size + 1 });
     const delay = isHighFreq ? 500 : 300;
 
-    if (pendingSaves.has(role.id)) {
-      window.clearTimeout(pendingSaves.get(role.id));
+    if (state._pendingSaves.has(role.id)) {
+      window.clearTimeout(state._pendingSaves.get(role.id));
     }
 
     const timeout = window.setTimeout(async () => {
       try {
         await timeManagementApi.upsertRole(role);
-        pendingSaves.delete(role.id);
-        if (pendingSaves.size === 0) {
-          this.setSyncStatus({ state: 'saved', pendingCount: 0 });
+        const latestState = get();
+        latestState._pendingSaves.delete(role.id);
+        if (latestState._pendingSaves.size === 0) {
+          latestState.setSyncStatus({ state: 'saved', pendingCount: 0 });
         } else {
-          this.setSyncStatus({ state: 'saving', pendingCount: pendingSaves.size });
+          latestState.setSyncStatus({ state: 'saving', pendingCount: latestState._pendingSaves.size });
         }
       } catch (e) {
-        this.setSyncStatus({ state: 'attention', pendingCount: pendingSaves.size });
+        const latestState = get();
+        latestState.setSyncStatus({ state: 'attention', pendingCount: latestState._pendingSaves.size });
       }
     }, delay);
-    pendingSaves.set(role.id, timeout);
+    state._pendingSaves.set(role.id, timeout);
   },
 
-  triggerTaskSync(task: Task, isHighFreq: boolean = true) {
-    this.setSyncStatus({ state: 'saving', pendingCount: pendingSaves.size + 1 });
+  triggerTaskSync: (task: Task, isHighFreq: boolean = true) => {
+    const state = get();
+    state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size + 1 });
     const delay = isHighFreq ? 500 : 300;
 
-    if (pendingSaves.has(task.id)) {
-      window.clearTimeout(pendingSaves.get(task.id));
+    if (state._pendingSaves.has(task.id)) {
+      window.clearTimeout(state._pendingSaves.get(task.id));
     }
 
     const timeout = window.setTimeout(async () => {
       try {
         await timeManagementApi.upsertTask(task);
-        pendingSaves.delete(task.id);
-        if (pendingSaves.size === 0) {
-          this.setSyncStatus({ state: 'saved', pendingCount: 0 });
+        const latestState = get();
+        latestState._pendingSaves.delete(task.id);
+        if (latestState._pendingSaves.size === 0) {
+          latestState.setSyncStatus({ state: 'saved', pendingCount: 0 });
         } else {
-          this.setSyncStatus({ state: 'saving', pendingCount: pendingSaves.size });
+          latestState.setSyncStatus({ state: 'saving', pendingCount: latestState._pendingSaves.size });
         }
       } catch (e) {
-        this.setSyncStatus({ state: 'attention', pendingCount: pendingSaves.size });
+        const latestState = get();
+        latestState.setSyncStatus({ state: 'attention', pendingCount: latestState._pendingSaves.size });
       }
     }, delay);
-    pendingSaves.set(task.id, timeout);
+    state._pendingSaves.set(task.id, timeout);
   },
 
-  addRole(name: string, color?: string): Role {
-    const data = this.load();
+  addRole: (name: string, color?: string): Role => {
+    const data = get().data;
     const newRole: Role = {
       id: crypto.randomUUID(),
       name,
       color: color || '#697381',
       createdAt: Date.now()
     };
-    data.roles.push(newRole);
-    this.save(data);
-    this.triggerRoleSync(newRole, false);
+    const newData = { ...data, roles: [...data.roles, newRole] };
+    get().save(newData);
+    get().triggerRoleSync(newRole, false);
     return newRole;
   },
 
-  updateRole(roleId: string, updates: Partial<Role>, isHighFreq: boolean = true): void {
-    const data = this.load();
+  updateRole: (roleId: string, updates: Partial<Role>, isHighFreq: boolean = true): void => {
+    const data = get().data;
     const index = data.roles.findIndex(r => r.id === roleId);
     if (index !== -1) {
-      data.roles[index] = { ...data.roles[index], ...updates };
-      this.save(data);
-      this.triggerRoleSync(data.roles[index], isHighFreq);
+      const newRoles = [...data.roles];
+      newRoles[index] = { ...newRoles[index], ...updates };
+      get().save({ ...data, roles: newRoles });
+      get().triggerRoleSync(newRoles[index], isHighFreq);
     }
   },
 
-  deleteRole(roleId: string): void {
-    const data = this.load();
-    data.roles = data.roles.filter(r => r.id !== roleId);
-    this.save(data);
+  deleteRole: (roleId: string): void => {
+    const data = get().data;
+    const newRoles = data.roles.filter(r => r.id !== roleId);
+    get().save({ ...data, roles: newRoles });
     
-    this.setSyncStatus({ state: 'saving', pendingCount: pendingSaves.size + 1 });
+    const state = get();
+    state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size + 1 });
     timeManagementApi.deleteRole(roleId)
       .then(() => {
-        if (pendingSaves.size === 0) this.setSyncStatus({ state: 'saved', pendingCount: 0 });
+        const latestState = get();
+        if (latestState._pendingSaves.size === 0) latestState.setSyncStatus({ state: 'saved', pendingCount: 0 });
       })
-      .catch(() => this.setSyncStatus({ state: 'attention', pendingCount: pendingSaves.size }));
+      .catch(() => {
+        const latestState = get();
+        latestState.setSyncStatus({ state: 'attention', pendingCount: latestState._pendingSaves.size });
+      });
   },
 
-  addTask(title: string, quadrant: QuadrantType = 'Q2', scheduledDate?: string, roleId?: string): Task {
-    const data = this.load();
+  addTask: (title: string, quadrant: QuadrantType = 'Q2', scheduledDate?: string, roleId?: string): Task => {
+    const data = get().data;
     const newTask: Task = {
       id: crypto.randomUUID(),
       title,
@@ -161,32 +194,41 @@ export const timeManagementStore = {
       completed: false,
       createdAt: Date.now()
     };
-    data.tasks.push(newTask);
-    this.save(data);
-    this.triggerTaskSync(newTask, false);
+    const newData = { ...data, tasks: [...data.tasks, newTask] };
+    get().save(newData);
+    get().triggerTaskSync(newTask, false);
     return newTask;
   },
 
-  updateTask(taskId: string, updates: Partial<Task>, isHighFreq: boolean = true): void {
-    const data = this.load();
+  updateTask: (taskId: string, updates: Partial<Task>, isHighFreq: boolean = true): void => {
+    const data = get().data;
     const index = data.tasks.findIndex(t => t.id === taskId);
     if (index !== -1) {
-      data.tasks[index] = { ...data.tasks[index], ...updates };
-      this.save(data);
-      this.triggerTaskSync(data.tasks[index], isHighFreq);
+      const newTasks = [...data.tasks];
+      newTasks[index] = { ...newTasks[index], ...updates };
+      get().save({ ...data, tasks: newTasks });
+      get().triggerTaskSync(newTasks[index], isHighFreq);
     }
   },
 
-  deleteTask(taskId: string): void {
-    const data = this.load();
-    data.tasks = data.tasks.filter(t => t.id !== taskId);
-    this.save(data);
+  deleteTask: (taskId: string): void => {
+    const data = get().data;
+    const newTasks = data.tasks.filter(t => t.id !== taskId);
+    get().save({ ...data, tasks: newTasks });
 
-    this.setSyncStatus({ state: 'saving', pendingCount: pendingSaves.size + 1 });
+    const state = get();
+    state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size + 1 });
     timeManagementApi.deleteTask(taskId)
       .then(() => {
-        if (pendingSaves.size === 0) this.setSyncStatus({ state: 'saved', pendingCount: 0 });
+        const latestState = get();
+        if (latestState._pendingSaves.size === 0) latestState.setSyncStatus({ state: 'saved', pendingCount: 0 });
       })
-      .catch(() => this.setSyncStatus({ state: 'attention', pendingCount: pendingSaves.size }));
+      .catch(() => {
+        const latestState = get();
+        latestState.setSyncStatus({ state: 'attention', pendingCount: latestState._pendingSaves.size });
+      });
   }
-};
+}));
+
+// Initialize data
+useTimeStore.getState().load();

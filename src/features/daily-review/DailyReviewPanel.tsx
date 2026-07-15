@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { dailyReviewStore } from './dailyReviewStore';
-import { DailyReview, CompoundStats as CompoundStatsType } from './dailyReviewTypes';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useDailyReviewStore } from './dailyReviewStore';
 import { CompoundStats } from './CompoundStats';
 import { ReviewEditor } from './ReviewEditor';
 import './dailyReview.css';
@@ -12,29 +11,24 @@ export const DailyReviewPanel: React.FC = () => {
   };
 
   const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
-  const [reviews, setReviews] = useState<DailyReview[]>([]);
-  const [stats, setStats] = useState<CompoundStatsType>({ currentStreak: 0, longestStreak: 0, totalReviews: 0, compoundValue: 1.0 });
-
-  const loadData = () => {
-    setReviews(dailyReviewStore.getAllReviews());
-    setStats(dailyReviewStore.getCompoundStats());
-  };
+  
+  // Use useMemo to avoid Zustand infinite loop error with dynamically generated objects/arrays
+  const reviewsData = useDailyReviewStore(state => state.data.reviews);
+  const getAllReviews = useDailyReviewStore(state => state.getAllReviews);
+  const getCompoundStats = useDailyReviewStore(state => state.getCompoundStats);
+  
+  const reviews = useMemo(() => getAllReviews(), [reviewsData, getAllReviews]);
+  const stats = useMemo(() => getCompoundStats(), [reviewsData, getCompoundStats]);
+  
+  const syncAllFromDB = useDailyReviewStore(state => state.syncAllFromDB);
+  const saveReview = useDailyReviewStore(state => state.saveReview);
 
   useEffect(() => {
-    loadData();
-    dailyReviewStore.syncAllFromDB().then(() => loadData());
-    
-    const handleUpdate = () => loadData();
-    
-    window.addEventListener('daily-review-updated', handleUpdate);
-    return () => {
-      window.removeEventListener('daily-review-updated', handleUpdate);
-    };
-  }, []);
+    syncAllFromDB();
+  }, [syncAllFromDB]);
 
   const handleSave = (date: string, content: string, rating: number, isHighFreq?: boolean) => {
-    dailyReviewStore.saveReview(date, content, rating, isHighFreq);
-    // Data reload is handled by the event listener in store.save()
+    saveReview(date, content, rating, isHighFreq);
   };
 
   const changeDate = (days: number) => {

@@ -118,6 +118,8 @@ pub fn run() {
             save_multiple_markdown_files,
             db::db_get_config,
             db::db_save_config,
+            db::db_get_preference,
+            db::db_set_preference,
             time_management::tm_load_all,
             time_management::tm_upsert_role,
             time_management::tm_delete_role,

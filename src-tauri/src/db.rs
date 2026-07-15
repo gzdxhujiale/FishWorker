@@ -116,3 +116,35 @@ pub async fn db_save_config(config: MysqlConfigJson) -> Result<(), String> {
     fs::write(path, content).map_err(|e| e.to_string())?;
     Ok(())
 }
+
+#[tauri::command]
+pub async fn db_get_preference(key: String, pool: tauri::State<'_, MySqlPool>) -> Result<Option<String>, String> {
+    use sqlx::Row;
+    let row = sqlx::query("SELECT pref_value FROM app_preferences WHERE pref_key = ?")
+        .bind(key)
+        .fetch_optional(&*pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Some(r) = row {
+        let val: String = r.try_get("pref_value").unwrap_or_default();
+        Ok(Some(val))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+pub async fn db_set_preference(key: String, value: String, pool: tauri::State<'_, MySqlPool>) -> Result<(), String> {
+    sqlx::query(
+        "INSERT INTO app_preferences (pref_key, pref_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE pref_value = ?"
+    )
+    .bind(key.clone())
+    .bind(value.clone())
+    .bind(value)
+    .execute(&*pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}

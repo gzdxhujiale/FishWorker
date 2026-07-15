@@ -19,11 +19,11 @@
 - **时间管理模块重构 (Time Management)：** 改造 `timeManagementStore.ts`，修复拖拽任务时整个面板重绘的性能问题。
 - **清单系统重构 (Lists)：** 改造 `listsStore.ts`，实现深层文件夹和列表的按需渲染。
 - **每日复盘重构 (Daily Review)：** 改造 `dailyReviewStore.ts`。
-- **配置系统重构 (Settings)：** （如适用）改造系统配置状态。
+- **配置系统重构 (Settings & Preferences)：** 新增 `app_preferences` 表及 `usePreferencesStore` 偏好状态管理 Hook，用以将“隐藏已完成”等全局 UI 偏好配置自动持久化同步至后端 TiDB。
 
 ### 3.3 超出本次范围
-- **Rust 后端架构调整**：本次仅涉及前端 React 侧的状态流动方式，不修改任何 Tauri / SQLite 相关的 Rust 数据持久化代码。
-- **业务功能新增**：本次属于纯技术重构（Technical Refactoring），不改变任何现有的用户界面 UI 设计或交互逻辑。
+- **主业务逻辑调整**：本次不改变任何现有的用户界面 UI 设计或交互逻辑。
+
 
 ## 4. 用户故事与需求
 
@@ -47,6 +47,7 @@
 | FR2 | 将 `timeManagementStore` 模块重构为 `useTimeStore` Hook | 核心模块 2 |
 | FR3 | 将 `dailyReviewStore` 重构为 `useDailyReviewStore` Hook | 核心模块 3 |
 | FR4 | 所有 Store 保留 `syncAllFromDB()` 等与 Tauri 交互的方法 | 保证数据持久化 |
+| FR5 | 实现 `usePreferencesStore` 及配置数据库表对全局 UI 配置进行保存同步 | 偏好设置同步 |
 
 ### 4.3 非功能需求
 - **性能 (Performance)：** 拖拽任务或新建文档时的 React 重渲染组件数量应下降 80% 以上。
