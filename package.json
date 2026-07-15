@@ -19,6 +19,7 @@
     "@hufe921/canvas-editor": "^0.9.137",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-window-state": "^2",
     "@tiptap/extension-placeholder": "^3.27.3",
     "@tiptap/pm": "^3.27.3",
     "@tiptap/react": "^3.27.3",

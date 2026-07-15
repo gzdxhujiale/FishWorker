@@ -99,6 +99,7 @@ fn save_multiple_markdown_files(files: Vec<MarkdownFile>) -> Result<(), String> 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             match tauri::async_runtime::block_on(async { db::establish_connection().await }) {
                 Ok(pool) => {
