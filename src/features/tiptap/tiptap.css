@@ -152,14 +152,14 @@
   transition: all 0.2s;
 }
 
-.toolbar-btn:hover:not(:disabled) {
+.toolbar-btn:not(.active):hover:not(:disabled) {
   background: var(--surface-3);
   color: var(--text-strong);
 }
 
 .toolbar-btn.active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--surface-3);
+  color: var(--accent);
 }
 
 .toolbar-btn:disabled {

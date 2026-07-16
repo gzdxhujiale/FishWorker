@@ -19,11 +19,11 @@ interface ListsSidebarProps {
   activeListId: string | null;
   onSelectList: (id: string) => void;
   onAddClick: (folderId?: string) => void;
-  
+
   onEditFolder: (folder: Folder) => void;
   onPinFolder: (folder: Folder) => void;
   onDissolveFolder: (folder: Folder) => void;
-  
+
   onEditList: (list: List) => void;
   onPinList: (list: List) => void;
   onDuplicateList: (list: List) => void;
@@ -41,11 +41,11 @@ const ICON_MAP: Record<string, ReactNode> = {
   Star: <Star size={16} />
 };
 
-export function ListsSidebar({ 
-  lists, 
-  folders, 
-  activeListId, 
-  onSelectList, 
+export function ListsSidebar({
+  lists,
+  folders,
+  activeListId,
+  onSelectList,
   onAddClick,
   onEditFolder,
   onPinFolder,
@@ -59,9 +59,9 @@ export function ListsSidebar({
 }: ListsSidebarProps) {
   const store = useListsStore();
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
-  
+
   // Dropdown state
-  const [activeDropdown, setActiveDropdown] = useState<{type: 'folder' | 'list', id: string} | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<{ type: 'folder' | 'list', id: string } | null>(null);
   const [deleteConfirmListId, setDeleteConfirmListId] = useState<string | null>(null);
   const [deleteConfirmFolderId, setDeleteConfirmFolderId] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -125,7 +125,7 @@ export function ListsSidebar({
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragId(null);
     setDragOverFolderId(null);
-    
+
     const { active, over } = event;
     if (active.id !== over?.id && over) {
       // Check if dragging a folder
@@ -159,7 +159,7 @@ export function ListsSidebar({
           targetFolderId = overList.folderId;
           const siblingLists = lists.filter(l => l.folderId === targetFolderId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
           targetIndex = siblingLists.findIndex(l => l.id === overId);
-          
+
           if (activeList.folderId === targetFolderId) {
             const oldIndex = siblingLists.findIndex(l => l.id === active.id);
             if (oldIndex !== -1 && targetIndex !== -1) {
@@ -198,7 +198,7 @@ export function ListsSidebar({
   });
 
   return (
-    <aside className={`lists-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+    <aside className={`lists-sidebar ${isCollapsed ? 'collapsed' : ''}`} style={{ width: '200px' }}>
       <div className="lists-sidebar-header">
         <span>清单</span>
         <div className="lists-add-btn" onClick={() => onAddClick()}>
@@ -213,15 +213,15 @@ export function ListsSidebar({
             {folders.map(folder => {
               const isCollapsed = collapsedFolders[folder.id];
               const folderLists = listsByFolder[folder.id] || [];
-              
+
               const activeList = lists.find(l => l.id === activeDragId);
               const isTarget = dragOverFolderId === folder.id && activeList?.folderId !== folder.id;
-              
+
               return (
                 <div key={folder.id} className="lists-folder-group">
                   <SortableItem id={folder.id}>
-                    <DroppableArea 
-                      id={folder.id} 
+                    <DroppableArea
+                      id={folder.id}
                       data={{ type: 'folder' }}
                       className={`lists-folder-header ${isCollapsed ? 'collapsed' : ''} ${isTarget ? 'droppable-over-target' : ''}`}
                       onClick={() => toggleFolder(folder.id)}
@@ -229,16 +229,16 @@ export function ListsSidebar({
                       <ChevronDown size={14} className="chevron-icon" />
                       <FolderIcon size={16} className="folder-icon" />
                       <span>{folder.name}</span>
-                      {folder.isPinned && <span style={{marginLeft: '4px', fontSize: '10px', color: 'var(--accent)'}}>📌</span>}
-                      
+                      {folder.isPinned && <span style={{ marginLeft: '4px', fontSize: '10px', color: 'var(--accent)' }}>📌</span>}
+
                       <div className="lists-item-actions-wrapper" onClick={e => e.stopPropagation()}>
-                        <MoreHorizontal 
-                          size={16} 
-                          className="lists-folder-actions" 
+                        <MoreHorizontal
+                          size={16}
+                          className="lists-folder-actions"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveDropdown(activeDropdown?.id === folder.id ? null : {type: 'folder', id: folder.id});
-                          }} 
+                            setActiveDropdown(activeDropdown?.id === folder.id ? null : { type: 'folder', id: folder.id });
+                          }}
                         />
                         {activeDropdown?.type === 'folder' && activeDropdown.id === folder.id && (
                           <div className="lists-dropdown-menu" ref={dropdownRef}>
@@ -256,7 +256,7 @@ export function ListsSidebar({
                               }}
                               onCancel={() => setDeleteConfirmFolderId(null)}
                             >
-                              <div 
+                              <div
                                 className="lists-dropdown-item text-danger"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -271,69 +271,69 @@ export function ListsSidebar({
                       </div>
                     </DroppableArea>
                   </SortableItem>
-                  
+
                   {!isCollapsed && (
                     <SortableContext items={folderLists.map(l => l.id)} strategy={verticalListSortingStrategy}>
                       {folderLists.map(list => (
                         <SortableItem key={list.id} id={list.id}>
-                          <div 
+                          <div
                             className={`lists-item nested ${activeListId === list.id ? 'active' : ''}`}
                             onClick={() => onSelectList(list.id)}
                           >
-                    <div className="lists-item-icon">
-                      {getIcon(list.icon, list.color)}
-                    </div>
-                    <span>{list.name}</span>
-                    {list.isPinned && <span style={{marginLeft: '4px', fontSize: '10px', color: 'var(--accent)'}}>📌</span>}
-                    
-                    <div className="lists-item-count-wrapper">
-                      {list.itemCount !== undefined && list.itemCount > 0 && (
-                        <span className="lists-item-count">{list.itemCount}</span>
-                      )}
-                      <div className="lists-item-actions-wrapper" onClick={e => e.stopPropagation()}>
-                        <MoreHorizontal 
-                          size={16} 
-                          className={`lists-item-more-action ${activeDropdown?.type === 'list' && activeDropdown.id === list.id ? 'active' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveDropdown(activeDropdown?.id === list.id ? null : {type: 'list', id: list.id});
-                          }} 
-                        />
-                        {activeDropdown?.type === 'list' && activeDropdown.id === list.id && (
-                          <div className="lists-dropdown-menu" ref={dropdownRef}>
-                            <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditList(list); }}>编辑</div>
-                            <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinList(list); }}>{list.isPinned ? '取消置顶' : '置顶'}</div>
-                            <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onDuplicateList(list); }}>复制</div>
-                            <ConfirmBubble
-                              isOpen={deleteConfirmListId === list.id}
-                              message={`确定要删除清单 "${list.name}" 吗？`}
-                              position="right"
-                              onConfirm={() => {
-                                onDeleteList(list);
-                                setDeleteConfirmListId(null);
-                                setActiveDropdown(null);
-                              }}
-                              onCancel={() => setDeleteConfirmListId(null)}
-                            >
-                              <div 
-                                className="lists-dropdown-item text-danger"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDeleteConfirmListId(list.id);
-                                }}
-                              >
-                                删除
+                            <div className="lists-item-icon">
+                              {getIcon(list.icon, list.color)}
+                            </div>
+                            <span>{list.name}</span>
+                            {list.isPinned && <span style={{ marginLeft: '4px', fontSize: '10px', color: 'var(--accent)' }}>📌</span>}
+
+                            <div className="lists-item-count-wrapper">
+                              {list.itemCount !== undefined && list.itemCount > 0 && (
+                                <span className="lists-item-count">{list.itemCount}</span>
+                              )}
+                              <div className="lists-item-actions-wrapper" onClick={e => e.stopPropagation()}>
+                                <MoreHorizontal
+                                  size={16}
+                                  className={`lists-item-more-action ${activeDropdown?.type === 'list' && activeDropdown.id === list.id ? 'active' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdown(activeDropdown?.id === list.id ? null : { type: 'list', id: list.id });
+                                  }}
+                                />
+                                {activeDropdown?.type === 'list' && activeDropdown.id === list.id && (
+                                  <div className="lists-dropdown-menu" ref={dropdownRef}>
+                                    <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditList(list); }}>编辑</div>
+                                    <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinList(list); }}>{list.isPinned ? '取消置顶' : '置顶'}</div>
+                                    <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onDuplicateList(list); }}>复制</div>
+                                    <ConfirmBubble
+                                      isOpen={deleteConfirmListId === list.id}
+                                      message={`确定要删除清单 "${list.name}" 吗？`}
+                                      position="right"
+                                      onConfirm={() => {
+                                        onDeleteList(list);
+                                        setDeleteConfirmListId(null);
+                                        setActiveDropdown(null);
+                                      }}
+                                      onCancel={() => setDeleteConfirmListId(null)}
+                                    >
+                                      <div
+                                        className="lists-dropdown-item text-danger"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeleteConfirmListId(list.id);
+                                        }}
+                                      >
+                                        删除
+                                      </div>
+                                    </ConfirmBubble>
+                                  </div>
+                                )}
                               </div>
-                            </ConfirmBubble>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </SortableItem>
-              ))}
-            </SortableContext>
-          )}
+                        </SortableItem>
+                      ))}
+                    </SortableContext>
+                  )}
                 </div>
               );
             })}
@@ -348,68 +348,68 @@ export function ListsSidebar({
             return (
               <DroppableArea id="standalone-area" data={{ type: 'folder' }} className={isTargetStandalone ? 'droppable-over-target' : ''} style={{ flex: 1, minHeight: '50px', paddingBottom: '20px', borderRadius: '6px' }}>
                 <SortableContext items={standaloneLists.map(l => l.id)} strategy={verticalListSortingStrategy}>
-              {standaloneLists.map(list => (
-                <SortableItem key={list.id} id={list.id}>
-                  <div 
-                    className={`lists-item ${activeListId === list.id ? 'active' : ''}`}
-                    onClick={() => onSelectList(list.id)}
-                  >
-              <div className="lists-item-icon">
-                {getIcon(list.icon, list.color)}
-              </div>
-              <span>{list.name}</span>
-              {list.isPinned && <span style={{marginLeft: '4px', fontSize: '10px', color: 'var(--accent)'}}>📌</span>}
-              
-              <div className="lists-item-count-wrapper">
-                {list.itemCount !== undefined && list.itemCount > 0 && (
-                  <span className="lists-item-count">{list.itemCount}</span>
-                )}
-                <div className="lists-item-actions-wrapper" onClick={e => e.stopPropagation()}>
-                  <MoreHorizontal 
-                    size={16} 
-                    className={`lists-item-more-action ${activeDropdown?.type === 'list' && activeDropdown.id === list.id ? 'active' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveDropdown(activeDropdown?.id === list.id ? null : {type: 'list', id: list.id});
-                    }} 
-                  />
-                  {activeDropdown?.type === 'list' && activeDropdown.id === list.id && (
-                    <div className="lists-dropdown-menu" ref={dropdownRef}>
-                      <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditList(list); }}>编辑</div>
-                      <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinList(list); }}>{list.isPinned ? '取消置顶' : '置顶'}</div>
-                      <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onDuplicateList(list); }}>复制</div>
-                      <ConfirmBubble
-                        isOpen={deleteConfirmListId === list.id}
-                        message={`确定要删除清单 "${list.name}" 吗？`}
-                        position="right"
-                        onConfirm={() => {
-                          onDeleteList(list);
-                          setDeleteConfirmListId(null);
-                          setActiveDropdown(null);
-                        }}
-                        onCancel={() => setDeleteConfirmListId(null)}
+                  {standaloneLists.map(list => (
+                    <SortableItem key={list.id} id={list.id}>
+                      <div
+                        className={`lists-item ${activeListId === list.id ? 'active' : ''}`}
+                        onClick={() => onSelectList(list.id)}
                       >
-                        <div 
-                          className="lists-dropdown-item text-danger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteConfirmListId(list.id);
-                          }}
-                        >
-                          删除
+                        <div className="lists-item-icon">
+                          {getIcon(list.icon, list.color)}
                         </div>
-                      </ConfirmBubble>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </SortableItem>
-        ))}
-            </SortableContext>
-          </DroppableArea>
-        );
-        })()}
+                        <span>{list.name}</span>
+                        {list.isPinned && <span style={{ marginLeft: '4px', fontSize: '10px', color: 'var(--accent)' }}>📌</span>}
+
+                        <div className="lists-item-count-wrapper">
+                          {list.itemCount !== undefined && list.itemCount > 0 && (
+                            <span className="lists-item-count">{list.itemCount}</span>
+                          )}
+                          <div className="lists-item-actions-wrapper" onClick={e => e.stopPropagation()}>
+                            <MoreHorizontal
+                              size={16}
+                              className={`lists-item-more-action ${activeDropdown?.type === 'list' && activeDropdown.id === list.id ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(activeDropdown?.id === list.id ? null : { type: 'list', id: list.id });
+                              }}
+                            />
+                            {activeDropdown?.type === 'list' && activeDropdown.id === list.id && (
+                              <div className="lists-dropdown-menu" ref={dropdownRef}>
+                                <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditList(list); }}>编辑</div>
+                                <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinList(list); }}>{list.isPinned ? '取消置顶' : '置顶'}</div>
+                                <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onDuplicateList(list); }}>复制</div>
+                                <ConfirmBubble
+                                  isOpen={deleteConfirmListId === list.id}
+                                  message={`确定要删除清单 "${list.name}" 吗？`}
+                                  position="right"
+                                  onConfirm={() => {
+                                    onDeleteList(list);
+                                    setDeleteConfirmListId(null);
+                                    setActiveDropdown(null);
+                                  }}
+                                  onCancel={() => setDeleteConfirmListId(null)}
+                                >
+                                  <div
+                                    className="lists-dropdown-item text-danger"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteConfirmListId(list.id);
+                                    }}
+                                  >
+                                    删除
+                                  </div>
+                                </ConfirmBubble>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </SortableItem>
+                  ))}
+                </SortableContext>
+              </DroppableArea>
+            );
+          })()}
         </DndContext>
       </div>
     </aside>

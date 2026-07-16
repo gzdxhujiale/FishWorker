@@ -73,14 +73,15 @@
   pointer-events: none;
 }
 
-.nav-button:hover,
+.nav-button:not(.active):hover,
 .icon-button:hover {
   background: rgba(240, 243, 246, 0.72);
   border-color: var(--line-soft);
   color: var(--text-strong);
 }
 
-.nav-button.active {
+.nav-button.active,
+.nav-button.active:hover {
   background: var(--surface-2);
   border-color: var(--line-accent);
   color: var(--accent);
@@ -117,7 +118,7 @@
   height: 100%;
   padding: 0;
   gap: 0;
-  background: var(--surface-0);
+  background: var(--surface-1);
 }
 
 

@@ -16,17 +16,17 @@ interface TimeManagementPanelProps {
 
 export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProps) {
   const activeTab = mode;
-  
+
   const roles = useTimeStore(state => state.data.roles);
   const tasks = useTimeStore(state => state.data.tasks);
-  
-  const { 
-    syncAllFromDB, 
-    updateTask, 
-    addTask, 
-    deleteTask, 
-    addRole, 
-    deleteRole 
+
+  const {
+    syncAllFromDB,
+    updateTask,
+    addTask,
+    deleteTask,
+    addRole,
+    deleteRole
   } = useTimeStore();
 
   const hideCompletedStr = usePreferencesStore(state => state.getPreference('tm-hide-completed', 'false'));
@@ -216,8 +216,8 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
         {/* Time Management Content Area */}
         <div className="tm-content-area" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {activeTab === 'weekly' && (
-            <aside className="tm-roles-sidebar" style={{ width: '240px', flex: 'none', display: 'flex', flexDirection: 'column' }}>
-              <div className="tm-sidebar-header">
+            <aside className="tm-roles-sidebar" style={{ width: '200px', flex: 'none', display: 'flex', flexDirection: 'column' }}>
+              <div className="tm-sidebar-header" style={{ height: '50px', background: 'transparent' }}>
                 <h3>本周计划看板</h3>
               </div>
 

@@ -2,13 +2,13 @@
   display: flex;
   height: 100%;
   width: 100%;
-  background: var(--surface-0);
+  background: var(--surface-1);
 }
 
 .lists-sidebar {
   width: 240px;
   flex: none;
-  background: #ffffff;
+  background: var(--surface-1);
   border-right: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
@@ -169,7 +169,7 @@
   position: relative;
 }
 
-.lists-item:hover {
+.lists-item:not(.active):hover {
   background: rgba(240, 243, 246, 0.72);
 }
 
@@ -978,14 +978,14 @@
   transition: all 0.2s;
 }
 
-.toolbar-btn:hover:not(:disabled) {
+.toolbar-btn:not(.active):hover:not(:disabled) {
   background: var(--surface-2);
   color: var(--text-strong);
 }
 
 .toolbar-btn.active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--surface-3);
+  color: var(--accent);
 }
 
 .toolbar-btn:disabled {

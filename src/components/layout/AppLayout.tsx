@@ -16,7 +16,6 @@ export const MenuBar: React.FC = () => {
   return (
     <div className="custom-menubar" data-tauri-drag-region>
       <div className="menubar-title" data-tauri-drag-region>
-        FishWorker
       </div>
       <div className="menubar-controls">
         <button className="menubar-btn" onClick={minimizeWindow} aria-label="Minimize">
@@ -41,9 +40,9 @@ export const AppLayout: React.FC<{
 }> = ({ menuBar, toolbar, mainContent }) => {
   return (
     <div className="app-layout">
-      <div className="app-layout-menubar">{menuBar}</div>
+      <div className="app-layout-toolbar">{toolbar}</div>
       <div className="app-layout-body">
-        <div className="app-layout-toolbar">{toolbar}</div>
+        <div className="app-layout-menubar">{menuBar}</div>
         <div className="app-layout-main">{mainContent}</div>
       </div>
     </div>
@@ -59,7 +58,7 @@ interface ToolbarProps {
 
 export const Toolbar: React.FC<ToolbarProps> = ({ tools, activeToolId, onToolSelect, onSettingsClick }) => {
   return (
-    <aside className="custom-toolbar">
+    <aside className="custom-toolbar" >
       <nav className="toolbar-nav" aria-label="Main Navigation">
         {tools.map((tool) => {
           const Icon = tool.icon;
@@ -78,11 +77,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({ tools, activeToolId, onToolSel
           );
         })}
       </nav>
-      <button 
-        className="toolbar-btn settings-btn" 
-        title="Settings" 
-        aria-label="Settings" 
-        type="button" 
+      <button
+        className="toolbar-btn settings-btn"
+        title="Settings"
+        aria-label="Settings"
+        type="button"
         onClick={onSettingsClick}
       >
         <Settings size={18} strokeWidth={1.9} />
