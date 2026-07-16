@@ -38,7 +38,8 @@ import "quill/components/tiptap-node/paragraph-node.scss"
 // --- Tiptap UI ---
 import { HeadingDropdownMenu } from "quill/components/tiptap-ui/heading-dropdown-menu"
 import { ImageUploadButton } from "quill/components/tiptap-ui/image-upload-button"
-import { ListDropdownMenu } from "quill/components/tiptap-ui/list-dropdown-menu"
+import { ListButton } from "quill/components/tiptap-ui/list-button"
+import { ImagePlusIcon } from "quill/components/tiptap-icons/image-plus-icon"
 import { BlockquoteButton } from "quill/components/tiptap-ui/blockquote-button"
 import { CodeBlockButton } from "quill/components/tiptap-ui/code-block-button"
 import {
@@ -108,8 +109,8 @@ const MoreDropdownMenu = () => {
         <Button
           type="button"
           variant="ghost"
-          aria-label="More options"
-          tooltip="More formatting"
+          aria-label="更多格式"
+          tooltip="更多格式"
           style={{ padding: "8px" }}
         >
           <MoreHorizontal className="tiptap-button-icon" />
@@ -127,7 +128,7 @@ const MoreDropdownMenu = () => {
                 style={{ justifyContent: "flex-start", width: "100%", padding: "6px 8px" }}
               >
                 <UnderlineIcon className="tiptap-button-icon" />
-                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>Underline</span>
+                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>下划线</span>
                 <kbd style={{ fontSize: "10px", opacity: 0.5, padding: "2px 4px", border: "1px solid rgba(128, 128, 128, 0.2)", borderRadius: "4px" }}>Ctrl+U</kbd>
               </Button>
             </DropdownMenuItem>
@@ -141,7 +142,7 @@ const MoreDropdownMenu = () => {
                 style={{ justifyContent: "flex-start", width: "100%", padding: "6px 8px" }}
               >
                 <StrikeIcon className="tiptap-button-icon" />
-                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>Strikethrough</span>
+                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>删除线</span>
                 <kbd style={{ fontSize: "10px", opacity: 0.5, padding: "2px 4px", border: "1px solid rgba(128, 128, 128, 0.2)", borderRadius: "4px" }}>Ctrl+Shift+X</kbd>
               </Button>
             </DropdownMenuItem>
@@ -155,7 +156,7 @@ const MoreDropdownMenu = () => {
                 style={{ justifyContent: "flex-start", width: "100%", padding: "6px 8px" }}
               >
                 <Code2Icon className="tiptap-button-icon" />
-                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>Code</span>
+                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>行内代码</span>
                 <kbd style={{ fontSize: "10px", opacity: 0.5, padding: "2px 4px", border: "1px solid rgba(128, 128, 128, 0.2)", borderRadius: "4px" }}>Ctrl+E</kbd>
               </Button>
             </DropdownMenuItem>
@@ -169,7 +170,7 @@ const MoreDropdownMenu = () => {
                 style={{ justifyContent: "flex-start", width: "100%", padding: "6px 8px" }}
               >
                 <BlockquoteIcon className="tiptap-button-icon" />
-                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>Blockquote</span>
+                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>引用</span>
                 <kbd style={{ fontSize: "10px", opacity: 0.5, padding: "2px 4px", border: "1px solid rgba(128, 128, 128, 0.2)", borderRadius: "4px" }}>Ctrl+Shift+B</kbd>
               </Button>
             </DropdownMenuItem>
@@ -183,9 +184,19 @@ const MoreDropdownMenu = () => {
                 style={{ justifyContent: "flex-start", width: "100%", padding: "6px 8px" }}
               >
                 <CodeBlockIcon className="tiptap-button-icon" />
-                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>Code Block</span>
+                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>代码块</span>
                 <kbd style={{ fontSize: "10px", opacity: 0.5, padding: "2px 4px", border: "1px solid rgba(128, 128, 128, 0.2)", borderRadius: "4px" }}>Ctrl+Alt+C</kbd>
               </Button>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem asChild>
+              <ImageUploadButton
+                showShortcut={false}
+                style={{ justifyContent: "flex-start", width: "100%", padding: "6px 8px" }}
+              >
+                <ImagePlusIcon className="tiptap-button-icon" />
+                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>图片</span>
+              </ImageUploadButton>
             </DropdownMenuItem>
           </DropdownMenuGroup>
 
@@ -196,12 +207,12 @@ const MoreDropdownMenu = () => {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => editor.chain().focus().toggleSuperscript().run()}
+                onClick={() => (editor.chain().focus() as any).toggleSuperscript().run()}
                 data-active-state={editor.isActive("superscript") ? "on" : "off"}
                 style={{ justifyContent: "flex-start", width: "100%", padding: "6px 8px" }}
               >
                 <SuperscriptIcon className="tiptap-button-icon" />
-                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>Superscript</span>
+                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>上标</span>
               </Button>
             </DropdownMenuItem>
 
@@ -209,12 +220,12 @@ const MoreDropdownMenu = () => {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => editor.chain().focus().toggleSubscript().run()}
+                onClick={() => (editor.chain().focus() as any).toggleSubscript().run()}
                 data-active-state={editor.isActive("subscript") ? "on" : "off"}
                 style={{ justifyContent: "flex-start", width: "100%", padding: "6px 8px" }}
               >
                 <SubscriptIcon className="tiptap-button-icon" />
-                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>Subscript</span>
+                <span style={{ marginLeft: "8px", flex: 1, textAlign: "left", fontSize: "14px" }}>下标</span>
               </Button>
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -225,9 +236,9 @@ const MoreDropdownMenu = () => {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => editor.chain().focus().setTextAlign("left").run()}
+              onClick={() => (editor.chain().focus() as any).setTextAlign("left").run()}
               data-active-state={editor.isActive({ textAlign: "left" }) ? "on" : "off"}
-              tooltip="Align Left"
+              tooltip="左对齐"
               style={{ padding: "8px" }}
             >
               <AlignLeftIcon className="tiptap-button-icon" />
@@ -236,9 +247,9 @@ const MoreDropdownMenu = () => {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => editor.chain().focus().setTextAlign("center").run()}
+              onClick={() => (editor.chain().focus() as any).setTextAlign("center").run()}
               data-active-state={editor.isActive({ textAlign: "center" }) ? "on" : "off"}
-              tooltip="Align Center"
+              tooltip="居中对齐"
               style={{ padding: "8px" }}
             >
               <AlignCenterIcon className="tiptap-button-icon" />
@@ -247,9 +258,9 @@ const MoreDropdownMenu = () => {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => editor.chain().focus().setTextAlign("right").run()}
+              onClick={() => (editor.chain().focus() as any).setTextAlign("right").run()}
               data-active-state={editor.isActive({ textAlign: "right" }) ? "on" : "off"}
-              tooltip="Align Right"
+              tooltip="右对齐"
               style={{ padding: "8px" }}
             >
               <AlignRightIcon className="tiptap-button-icon" />
@@ -258,9 +269,9 @@ const MoreDropdownMenu = () => {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+              onClick={() => (editor.chain().focus() as any).setTextAlign("justify").run()}
               data-active-state={editor.isActive({ textAlign: "justify" }) ? "on" : "off"}
-              tooltip="Align Justify"
+              tooltip="两端对齐"
               style={{ padding: "8px" }}
             >
               <AlignJustifyIcon className="tiptap-button-icon" />
@@ -286,22 +297,21 @@ const MainToolbarContent = ({
   return (
     <>
       <ToolbarGroup>
-        <UndoRedoButton action="undo" />
-        <UndoRedoButton action="redo" />
+        <UndoRedoButton action="undo" tooltip="撤销" />
+        <UndoRedoButton action="redo" tooltip="重做" />
       </ToolbarGroup>
 
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <HeadingDropdownMenu modal={false} levels={[1, 2, 3, 4]} />
-        <ListDropdownMenu
-          modal={false}
-          types={["bulletList", "orderedList", "taskList"]}
-        />
+        <HeadingDropdownMenu modal={false} levels={[1, 2, 3, 4, 5, 6]} tooltip="标题选择" />
+        <ListButton type="bulletList" tooltip="无序列表" />
+        <ListButton type="orderedList" tooltip="有序列表" />
+        <ListButton type="taskList" tooltip="待办清单" />
         {!isCompact && (
           <>
-            <BlockquoteButton />
-            <CodeBlockButton />
+            <BlockquoteButton tooltip="块引用" />
+            <CodeBlockButton tooltip="代码块" />
           </>
         )}
       </ToolbarGroup>
@@ -309,29 +319,29 @@ const MainToolbarContent = ({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <MarkButton type="bold" />
-        <MarkButton type="italic" />
+        <MarkButton type="bold" tooltip="加粗" />
+        <MarkButton type="italic" tooltip="斜体" />
         {!isCompact && (
           <>
-            <MarkButton type="strike" />
-            <MarkButton type="code" />
-            <MarkButton type="underline" />
+            <MarkButton type="strike" tooltip="删除线" />
+            <MarkButton type="code" tooltip="行内代码" />
+            <MarkButton type="underline" tooltip="下划线" />
           </>
         )}
         {!isMobile ? (
-          <ColorHighlightPopover />
+          <ColorHighlightPopover tooltip="文本高亮与颜色" />
         ) : (
-          <ColorHighlightPopoverButton onClick={onHighlighterClick} />
+          <ColorHighlightPopoverButton onClick={onHighlighterClick} tooltip="文本高亮与颜色" />
         )}
-        {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
+        {!isMobile ? <LinkPopover tooltip="超链接" /> : <LinkButton onClick={onLinkClick} tooltip="超链接" />}
       </ToolbarGroup>
 
       {!isCompact && (
         <>
           <ToolbarSeparator />
           <ToolbarGroup>
-            <MarkButton type="superscript" />
-            <MarkButton type="subscript" />
+            <MarkButton type="superscript" tooltip="上标" />
+            <MarkButton type="subscript" tooltip="下标" />
           </ToolbarGroup>
         </>
       )}
@@ -340,19 +350,22 @@ const MainToolbarContent = ({
         <>
           <ToolbarSeparator />
           <ToolbarGroup>
-            <TextAlignButton align="left" />
-            <TextAlignButton align="center" />
-            <TextAlignButton align="right" />
-            <TextAlignButton align="justify" />
+            <TextAlignButton align="left" tooltip="左对齐" />
+            <TextAlignButton align="center" tooltip="居中对齐" />
+            <TextAlignButton align="right" tooltip="右对齐" />
+            <TextAlignButton align="justify" tooltip="两端对齐" />
           </ToolbarGroup>
         </>
       )}
 
-      <ToolbarSeparator />
-
-      <ToolbarGroup>
-        <ImageUploadButton text="Add" />
-      </ToolbarGroup>
+      {!isCompact && (
+        <>
+          <ToolbarSeparator />
+          <ToolbarGroup>
+            <ImageUploadButton text="添加图片" tooltip="添加图片" />
+          </ToolbarGroup>
+        </>
+      )}
 
       {isCompact && (
         <>
