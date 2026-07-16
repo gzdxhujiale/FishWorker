@@ -22,7 +22,8 @@
     "noFallthroughCasesInSwitch": true,
 
     "paths": {
-      "quill": ["./scripts/npm-stubs/quill/index.js"]
+      "quill": ["./scripts/npm-stubs/quill/index.js"],
+      "quill/*": ["./src/*"]
     }
   },
   "include": ["src"],

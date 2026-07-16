@@ -17,7 +17,9 @@ export const getTiptapExtensions = (options: TiptapConfigOptions = {}) => {
   const { enableDragHandle = true, enableMarkdown = true } = options;
   
   const extensions: any[] = [
-    StarterKit.configure({}),
+    StarterKit.configure({
+      underline: false,
+    }),
     Underline.configure({}),
     TaskList.configure({}),
     TaskItem.configure({ nested: true }),

@@ -44,9 +44,10 @@ export default defineConfig(function () { return __awaiter(void 0, void 0, void 
         return [2 /*return*/, ({
                 plugins: [react()],
                 resolve: {
-                    alias: {
-                        "quill": path.resolve(__dirname, "scripts/npm-stubs/quill/index.js")
-                    }
+                    alias: [
+                        { find: /^quill\/(.*)/, replacement: path.resolve(__dirname, "src/$1") },
+                        { find: "quill", replacement: path.resolve(__dirname, "scripts/npm-stubs/quill/index.js") }
+                    ]
                 },
                 // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
                 //

@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DailyReview } from './dailyReviewTypes';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { Markdown } from 'tiptap-markdown';
 import { DatePicker } from '@arco-design/web-react';
+import { SimpleEditor } from 'quill/components/tiptap-templates/simple/simple-editor';
 
 interface Props {
   date: string;
@@ -18,17 +16,6 @@ interface Props {
 export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay, onNextDay, onSelectDate }) => {
   const [content, setContent] = useState('');
   const [rating, setRating] = useState(0);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Markdown,
-    ],
-    content: review?.content || '',
-    onUpdate: ({ editor }) => {
-      setContent(editor.getHTML());
-    },
-  });
 
   const lastSavedContent = useRef('');
   const currentContent = useRef('');
@@ -67,10 +54,7 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay,
     setRating(initialRating);
     lastSavedContent.current = initialContent;
     lastSavedRating.current = initialRating;
-    if (editor && editor.getHTML() !== initialContent) {
-      editor.commands.setContent(initialContent);
-    }
-  }, [review, date, editor]);
+  }, [review, date]);
 
   // Debounced auto-save for content
   useEffect(() => {
@@ -99,8 +83,6 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay,
     lastSavedRating.current = newRating;
   };
 
-  const isContentEmpty = !content || content === '<p></p>' || content === '<p></p>\n';
-
   return (
     <div className="review-editor-container">
       <div className="editor-header">
@@ -124,14 +106,10 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay,
       </div>
 
       <div className="editor-content" style={{ position: 'relative' }}>
-        {isContentEmpty && (
-          <div style={{ position: 'absolute', top: '24px', left: '24px', color: 'var(--color-text-muted)', fontSize: '1rem', pointerEvents: 'none', zIndex: 2, opacity: 0.5 }}>
-            今天学到了什么？什么可以改进？明天最重要的一件事？...
-          </div>
-        )}
-        <EditorContent
-          editor={editor}
-          className="editor-textarea note-drawer-editor-container"
+        <SimpleEditor
+          content={content}
+          onChange={setContent}
+          placeholder="今天学到了什么？什么可以改进？明天最重要的一件事？..."
         />
         
         <div className="rating-selector">
