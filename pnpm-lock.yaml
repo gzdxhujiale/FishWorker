@@ -137,6 +137,9 @@ importers:
       tiptap-extension-global-drag-handle:
         specifier: ^0.1.18
         version: 0.1.18
+      tiptap-extension-line-height:
+        specifier: ^1.0.0
+        version: 1.0.0(@tiptap/pm@3.27.4)
       tiptap-markdown:
         specifier: ^0.9.0
         version: 0.9.0(@tiptap/core@3.27.4(@tiptap/pm@3.27.4))
@@ -1145,6 +1148,11 @@ packages:
 
   '@tauri-apps/plugin-window-state@2.4.1':
     resolution: {integrity: sha512-OuvdrzyY8Q5Dbzpj+GcrnV1iCeoZbcFdzMjanZMMcAEUNy/6PH5pxZPXpaZLOR7whlzXiuzx0L9EKZbH7zpdRw==}
+
+  '@tiptap/core@2.27.2':
+    resolution: {integrity: sha512-ABL1N6eoxzDzC1bYvkMbvyexHacszsKdVPYqhl5GwHLOvpZcv9VE9QaKwDILTyz5voCA0lGcAAXZp+qnXOk5lQ==}
+    peerDependencies:
+      '@tiptap/pm': ^2.7.0
 
   '@tiptap/core@3.27.4':
     resolution: {integrity: sha512-8W/GwlEn0JwNdpyVfTWcXwHYUpj9BWwO++YxtizmgjJzlwigSh7/xLVJMwVykuQHQ2fCq5rkUvmBRtpHOMLUQA==}
@@ -2309,6 +2317,9 @@ packages:
   tiptap-extension-global-drag-handle@0.1.18:
     resolution: {integrity: sha512-jwFuy1K8DP3a4bFy76Hpc63w1Sil0B7uZ3mvhQomVvUFCU787Lg2FowNhn7NFzeyok761qY2VG+PZ/FDthWUdg==}
 
+  tiptap-extension-line-height@1.0.0:
+    resolution: {integrity: sha512-tNQeBRgNKqPtMQ1/F8mB8r+v0bfdQX+Iw+Qg3CZu+7rcnnY57U+LcS9uxyINwCCAb5F6XnSuLBvbRVKJX5c6fg==}
+
   tiptap-markdown@0.9.0:
     resolution: {integrity: sha512-dKLQ9iiuGNgrlGVjrNauF/UBzWu4LYOx5pkD0jNkmQt/GOwfCJsBuzZTsf1jZ204ANHOm572mZ9PYvGh1S7tpQ==}
     peerDependencies:
@@ -3295,6 +3306,10 @@ snapshots:
   '@tauri-apps/plugin-window-state@2.4.1':
     dependencies:
       '@tauri-apps/api': 2.11.1
+
+  '@tiptap/core@2.27.2(@tiptap/pm@3.27.4)':
+    dependencies:
+      '@tiptap/pm': 3.27.4
 
   '@tiptap/core@3.27.4(@tiptap/pm@3.27.4)':
     dependencies:
@@ -4580,6 +4595,12 @@ snapshots:
       picomatch: 4.0.5
 
   tiptap-extension-global-drag-handle@0.1.18: {}
+
+  tiptap-extension-line-height@1.0.0(@tiptap/pm@3.27.4):
+    dependencies:
+      '@tiptap/core': 2.27.2(@tiptap/pm@3.27.4)
+    transitivePeerDependencies:
+      - '@tiptap/pm'
 
   tiptap-markdown@0.9.0(@tiptap/core@3.27.4(@tiptap/pm@3.27.4)):
     dependencies:

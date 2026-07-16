@@ -86,7 +86,11 @@ export function ListsPanel() {
   const [editFolderTarget, setEditFolderTarget] = useState<Folder | undefined>();
 
   // Note state
-  const [activeNote, setActiveNote] = useState<Note | null>(null);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const activeNote = useMemo(() => {
+    if (!activeNoteId) return null;
+    return store.data.notes.find(n => n.id === activeNoteId) || null;
+  }, [store.data.notes, activeNoteId]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [listMenuOpen, setListMenuOpen] = useState(false);
@@ -157,7 +161,7 @@ export function ListsPanel() {
 
   useEffect(() => {
     if (activeListId) {
-      setActiveNote(null);
+      setActiveNoteId(null);
       setIsDrawerOpen(false);
       localStorage.setItem('lists-active-list-id', activeListId);
     } else {
@@ -327,7 +331,7 @@ export function ListsPanel() {
       content: '',
     });
     setNewNoteTitle('');
-    setActiveNote(newNote);
+    setActiveNoteId(newNote.id);
     setIsDrawerOpen(true);
   };
 
@@ -406,7 +410,6 @@ export function ListsPanel() {
 
   const handlePinNote = (note: Note) => {
     store.updateNote(note.id, { isPinned: !note.isPinned });
-    if (activeNote?.id === note.id) setActiveNote({ ...activeNote, isPinned: !note.isPinned });
   };
 
   const handleDuplicateNote = (note: Note) => {
@@ -415,7 +418,7 @@ export function ListsPanel() {
       title: note.title + ' (副本)',
       content: note.content,
     });
-    setActiveNote(newNote);
+    setActiveNoteId(newNote.id);
     setIsDrawerOpen(true);
   };
 
@@ -426,8 +429,8 @@ export function ListsPanel() {
 
   const handleDeleteNote = (note: Note) => {
     store.deleteNote(note.id);
-    if (activeNote?.id === note.id) {
-      setActiveNote(null);
+    if (activeNoteId === note.id) {
+      setActiveNoteId(null);
       setIsDrawerOpen(false);
     }
   };
@@ -444,11 +447,10 @@ export function ListsPanel() {
   };
 
   const handleSelectTemplate = (template: Template) => {
-    if (!activeNote) return;
+    if (!activeNoteId) return;
     const htmlContent = ensureHtmlFormat(template.content);
-    store.updateNote(activeNote.id, { content: htmlContent });
+    store.updateNote(activeNoteId, { content: htmlContent });
     setIsTemplateModalOpen(false);
-    setActiveNote({ ...activeNote, content: htmlContent });
   };
 
   const handleEditTemplate = (id: string, name: string, content: string) => {
@@ -483,8 +485,8 @@ export function ListsPanel() {
 
   const handleMoveNote = (note: Note, targetListId: string) => {
     store.updateNote(note.id, { listId: targetListId, groupId: null });
-    if (activeNote?.id === note.id && activeListId !== targetListId) {
-      setActiveNote(null);
+    if (activeNoteId === note.id && activeListId !== targetListId) {
+      setActiveNoteId(null);
       setIsDrawerOpen(false);
     }
   };
@@ -590,7 +592,7 @@ export function ListsPanel() {
                               key={note.id}
                               note={note}
                               allLists={lists}
-                              onClick={() => { setActiveNote(note); setIsDrawerOpen(true); }}
+                              onClick={() => { setActiveNoteId(note.id); setIsDrawerOpen(true); }}
                               onPin={handlePinNote}
                               onDuplicate={handleDuplicateNote}
                               onDelete={handleDeleteNote}
@@ -614,7 +616,7 @@ export function ListsPanel() {
                               isDragOverTarget={!!isDragOverTarget}
                               onRenameGroup={handleRenameGroup}
                               onDeleteGroup={handleDeleteGroup}
-                              onNoteClick={(note) => { setActiveNote(note); setIsDrawerOpen(true); }}
+                              onNoteClick={(note) => { setActiveNoteId(note.id); setIsDrawerOpen(true); }}
                               onPinNote={handlePinNote}
                               onDuplicateNote={handleDuplicateNote}
                               onDeleteNote={handleDeleteNote}
@@ -636,7 +638,7 @@ export function ListsPanel() {
                                 isDragOverTarget={!!isDragOverTarget}
                                 onRenameGroup={() => { }}
                                 onDeleteGroup={() => { }}
-                                onNoteClick={(note) => { setActiveNote(note); setIsDrawerOpen(true); }}
+                                onNoteClick={(note) => { setActiveNoteId(note.id); setIsDrawerOpen(true); }}
                                 onPinNote={handlePinNote}
                                 onDuplicateNote={handleDuplicateNote}
                                 onDeleteNote={handleDeleteNote}

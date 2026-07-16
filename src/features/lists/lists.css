@@ -508,7 +508,7 @@
   /* Hidden initially */
   width: 400px;
   height: 100%;
-  background: #ffffff;
+  background: var(--surface-2);
   border-left: 1px solid var(--line-soft);
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.05);
   transition: right 0.3s ease;
@@ -684,6 +684,7 @@
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 6;
+  line-clamp: 6;
   -webkit-box-orient: vertical;
 }
 
@@ -775,7 +776,8 @@
   height: 100%;
   font-size: 15px;
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: 1.42;
+  /* 缩小行间距 */
 }
 
 .ProseMirror {
@@ -786,17 +788,26 @@
 }
 
 /* TipTap content formatting */
-.ProseMirror p {
-  margin: 0 0 1em 0;
+.note-drawer-editor-container .ProseMirror {
+  line-height: 1.42;
+  /* 缩小编辑器内行间距 */
 }
 
-.ProseMirror h1,
-.ProseMirror h2,
-.ProseMirror h3,
-.ProseMirror h4 {
+.note-drawer-editor-container .ProseMirror p {
+  margin: 0 0 0.4em 0;
+  /* 缩小段落间距 */
+}
+
+.note-drawer-editor-container .ProseMirror h1,
+.note-drawer-editor-container .ProseMirror h2,
+.note-drawer-editor-container .ProseMirror h3,
+.note-drawer-editor-container .ProseMirror h4,
+.note-drawer-editor-container .ProseMirror h5,
+.note-drawer-editor-container .ProseMirror h6 {
   color: var(--text-strong);
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
+  margin-top: 0.8em;
+  /* 减小标题上方间距 */
+  margin-bottom: 0.3em;
   font-weight: 600;
 }
 
@@ -810,6 +821,18 @@
 
 .ProseMirror h3 {
   font-size: 1.3em;
+}
+
+.ProseMirror h4 {
+  font-size: 1.1em;
+}
+
+.ProseMirror h5 {
+  font-size: 1.0em;
+}
+
+.ProseMirror h6 {
+  font-size: 0.9em;
 }
 
 .ProseMirror ul,

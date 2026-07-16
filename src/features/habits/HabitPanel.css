@@ -118,6 +118,7 @@
   padding: 1.25rem 1.5rem;
   background-color: #ffffff;
   border-bottom: 1px solid #F1F5F9;
+  -webkit-user-select: none;
   user-select: none;
 }
 .habit-week-grid {
@@ -238,6 +239,7 @@
   font-weight: 600;
   letter-spacing: 0.025em;
   text-transform: uppercase;
+  -webkit-user-select: none;
   user-select: none;
   cursor: pointer;
   background: transparent;
@@ -356,6 +358,7 @@
   align-items: center;
   gap: 0.625rem;
   margin-top: 0.75rem;
+  -webkit-user-select: none;
   user-select: none;
 }
 @media (min-width: 768px) {
@@ -607,6 +610,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 .habit-modal-content {

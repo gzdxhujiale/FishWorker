@@ -7,6 +7,7 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import { Highlight } from '@tiptap/extension-highlight';
 import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
+import LineHeight from 'tiptap-extension-line-height';
 
 interface TiptapConfigOptions {
   enableDragHandle?: boolean;
@@ -26,6 +27,7 @@ export const getTiptapExtensions = (options: TiptapConfigOptions = {}) => {
     TextStyle.configure({}),
     Color.configure({}),
     Highlight.configure({ multicolor: true }),
+    LineHeight.configure({}),
   ];
 
   if (enableMarkdown) {

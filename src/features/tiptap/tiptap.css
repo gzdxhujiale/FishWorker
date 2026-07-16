@@ -7,7 +7,7 @@
   outline: none;
   font-family: inherit;
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .ProseMirror h1,
@@ -22,10 +22,29 @@
   color: var(--text-strong);
 }
 
-.ProseMirror h1 { font-size: 1.8em; }
-.ProseMirror h2 { font-size: 1.5em; }
-.ProseMirror h3 { font-size: 1.3em; }
-.ProseMirror h4 { font-size: 1.1em; }
+.ProseMirror h1 {
+  font-size: 1.8em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.3em;
+}
+
+.ProseMirror h4 {
+  font-size: 1.1em;
+}
+
+.ProseMirror h5 {
+  font-size: 1.0em;
+}
+
+.ProseMirror h6 {
+  font-size: 0.9em;
+}
 
 .ProseMirror p {
   margin-top: 0;
@@ -63,14 +82,14 @@
   margin-bottom: 0.4em;
 }
 
-.ProseMirror ul[data-type="taskList"] li > label {
+.ProseMirror ul[data-type="taskList"] li>label {
   flex: 0 0 auto;
   -webkit-user-select: none;
   user-select: none;
   margin-top: 4px;
 }
 
-.ProseMirror ul[data-type="taskList"] li > div {
+.ProseMirror ul[data-type="taskList"] li>div {
   flex: 1 1 auto;
 }
 
@@ -87,29 +106,7 @@
   margin: 1em 0;
 }
 
-.ProseMirror code {
-  background-color: var(--surface-3, rgba(0, 0, 0, 0.05));
-  border-radius: 4px;
-  font-family: monospace;
-  padding: 0.2em 0.4em;
-  font-size: 0.9em;
-  color: var(--text-strong);
-}
 
-.ProseMirror pre {
-  background: var(--surface-3, #f5f5f5);
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  margin: 1em 0;
-}
-
-.ProseMirror pre code {
-  background: none;
-  color: inherit;
-  padding: 0;
-  font-size: 0.85rem;
-}
 
 /* 2. Tiptap Bubble Menu / Toolbar Styles */
 .tiptap-bubble-menu {
@@ -119,7 +116,8 @@
   gap: 8px;
   padding: 8px 12px;
   border: 1px solid var(--line-soft);
-  background: var(--surface-2); /* Use surface elevated card background */
+  background: var(--surface-2);
+  /* Use surface elevated card background */
   border-radius: 8px;
   box-shadow: var(--shadow-soft, 0 4px 12px rgba(0, 0, 0, 0.1));
   z-index: 1000;
@@ -247,4 +245,32 @@
   height: 0;
   pointer-events: none;
   opacity: 0.5;
+}
+
+/* 4. Compact Editor Spacing Styles */
+.compact-editor .ProseMirror,
+.ProseMirror.compact-editor {
+  line-height: 1.4;
+}
+
+.compact-editor .ProseMirror p,
+.ProseMirror.compact-editor p {
+  margin-top: 0 !important;
+  margin-bottom: 0.4em !important;
+}
+
+.compact-editor .ProseMirror h1,
+.ProseMirror.compact-editor h1,
+.compact-editor .ProseMirror h2,
+.ProseMirror.compact-editor h2,
+.compact-editor .ProseMirror h3,
+.ProseMirror.compact-editor h3,
+.compact-editor .ProseMirror h4,
+.ProseMirror.compact-editor h4,
+.compact-editor .ProseMirror h5,
+.ProseMirror.compact-editor h5,
+.compact-editor .ProseMirror h6,
+.ProseMirror.compact-editor h6 {
+  margin-top: 0.8em !important;
+  margin-bottom: 0.3em !important;
 }

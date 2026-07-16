@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
 import { Template } from './listsTypes';
 import { X, Edit2, Trash2 } from 'lucide-react';
 import { ConfirmBubble } from './ConfirmBubble';
-import { TipTapBubbleMenu } from '../tiptap/TipTapBubbleMenu';
-import { BlockDragHandleMenu } from '../tiptap/BlockDragHandleMenu';
-import { getTiptapExtensions } from '../tiptap/config';
+import { SimpleEditor } from '../tiptap/SimpleEditor';
+import { Editor } from '@tiptap/react';
 
 interface TemplateModalProps {
   templates: Template[];
@@ -21,20 +19,14 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
   const [editContent, setEditContent] = useState('');
   const [deleteConfirmTemplateId, setDeleteConfirmTemplateId] = useState<string | null>(null);
 
-  const editor = useEditor({
-    extensions: getTiptapExtensions({ enableMarkdown: false }),
-    content: editContent,
-    onUpdate: ({ editor }) => {
-      setEditContent(editor.getHTML());
-    },
-  });
+  const [editor, setEditor] = useState<Editor | null>(null);
 
   const startEdit = (e: React.MouseEvent, tpl: Template) => {
     e.stopPropagation();
     setEditingTemplate(tpl);
     setEditName(tpl.name);
     setEditContent(tpl.content);
-    if (editor) {
+    if (editor && !editor.isDestroyed) {
       editor.commands.setContent(tpl.content || '');
     }
   };
@@ -75,14 +67,16 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
                 placeholder="模板名称" 
                 style={{ fontSize: '16px', fontWeight: 'bold', padding: '8px', border: '1px solid var(--line-soft)', borderRadius: '4px' }}
               />
-              <div className="template-editor-wrapper" style={{ border: '1px solid var(--line-soft)', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: '200px' }}>
-                <TipTapBubbleMenu editor={editor} />
-                <BlockDragHandleMenu editor={editor} />
-                <EditorContent 
-                  editor={editor} 
-                  style={{ flex: 1, overflowY: 'auto', padding: '12px' }}
-                />
-              </div>
+              <SimpleEditor
+                content={editContent}
+                onChange={setEditContent}
+                onCreated={setEditor}
+                placeholder=""
+                enableMarkdown={false}
+                className="template-editor-wrapper"
+                style={{ border: '1px solid var(--line-soft)', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: '200px' }}
+                editorStyle={{ flex: 1, overflowY: 'auto', padding: '6px 12px 12px' }}
+              />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button className="list-modal-btn" onClick={() => setEditingTemplate(null)}>取消</button>
                 <button className="list-modal-btn primary" onClick={saveEdit}>保存</button>

@@ -213,9 +213,70 @@ export interface Toast {
 
 ## 6. 前端架构及编辑器配置 (Frontend Architecture & Editor Config)
 
-为了支持全模块和全应用统一的富文本体验，避免 React Strict Mode 下 TipTap 报错 (Duplicate extension names found)，所有 TipTap 编辑器的核心扩展与悬浮菜单都在 `src/features/tiptap` 中进行集中管理：
+为了支持全模块和全应用统一的富文本体验，避免 React Strict Mode 下 TipTap 报错 (Duplicate extension names found)，所有 TipTap 编辑器的核心扩展与悬浮菜单都在 `src/features/tiptap` 中进行集中管理。在 v2.5 中，引入了统一包装的简单编辑器模板组件：
+
 - **`config.ts`**: 暴露 `getTiptapExtensions()` 方法用于每次生成全新独立的扩展实例组，包含 Markdown、Color、TextStyle、Highlight 以及拖拽插件。
+- **`SimpleEditor.tsx`**: 统一包装的 React 编辑器组件，支持通过 Props 自定义行为，并支持将内部 Editor 实例暴露给父组件（用于 Markdown 导入导出）。
 - **`TipTapBubbleMenu.tsx`**: 基于光标选中文字触发的纯图标状态悬浮菜单 (Bubble Menu)。
-- **`BlockDragHandleMenu.tsx`**: 提供块级别拖拽重排序及富文本属性转换（如设为标题、高亮、删除块等）操作的上下文菜单。
+- **`BlockDragHandleMenu.tsx`**: 提供块级别拖拽重排序及富文本属性转换（如设为标题、高亮、删除块等）操作 of 上下文菜单。
+
+### 6.1 `SimpleEditor` API 定义与属性
+
+组件路径：[SimpleEditor.tsx](file:///c:/Users/Admin/Documents/FishWorker/src/features/tiptap/SimpleEditor.tsx)
+
+```typescript
+interface SimpleEditorProps {
+  content: string;                         // 受控或半受控的 HTML 富文本内容
+  onChange: (html: string) => void;        // 内容更新时的回调函数
+  placeholder?: string;                    // 编辑器空白时的占位提示文本
+  editable?: boolean;                      // 是否处于可编辑状态 (默认为 true)
+  className?: string;                      // 附加在最外层容器的 CSS 类名
+  style?: React.CSSProperties;             // 附加在最外层容器的内联样式
+  editorClassName?: string;                // 附加在编辑器内容区 (EditorContent) 的 CSS 类名
+  editorStyle?: React.CSSProperties;       // 附加在编辑器内容区 (EditorContent) 的内联样式
+  enableMarkdown?: boolean;                // 是否启用 Markdown 支持 (默认为 true)
+  enableDragHandle?: boolean;              // 是否启用块级拖拽手柄 (默认为 true)
+  enableBubbleMenu?: boolean;              // 是否启用选中文本悬浮气泡菜单 (默认为 true)
+  enableTopToolbar?: boolean;              // 是否启用顶部固定菜单栏 (默认为 true)
+  dense?: boolean;                         // 是否启用紧凑间距 (默认为 true，缩小行高和段落边距)
+  onCreated?: (editor: Editor) => void;    // 编辑器实例就绪后的回调，可供父组件直接获取句柄以调用其 API
+}
+```
+
+### 6.2 集成指南与使用示例
+
+#### 1) 在笔记详情抽屉集成
+在 [NoteDrawer.tsx](file:///c:/Users/Admin/Documents/FishWorker/src/features/lists/NoteDrawer.tsx) 中引入 `SimpleEditor`，替代原本手写的 `TipTapBubbleMenu` / `BlockDragHandleMenu` / `EditorContent` 代码，并接收 `onCreated={setEditor}` 状态回调，以便在组件内继续使用 `editor` 变量以调用 `commands.setContent` 执行 Markdown 导入及获取 Markdown 文本导出：
+```typescript
+import { SimpleEditor } from '../tiptap/SimpleEditor';
+
+// ...
+const [editor, setEditor] = useState<Editor | null>(null);
+
+// ...
+<SimpleEditor
+  content={content}
+  onChange={setContent}
+  onCreated={setEditor}
+  placeholder=""
+  editorStyle={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column' }}
+  editorClassName="tiptap-editor-wrapper"
+/>
+```
+
+#### 2) 在模板编辑弹窗集成
+在 [TemplateModal.tsx](file:///c:/Users/Admin/Documents/FishWorker/src/features/lists/TemplateModal.tsx) 中引入 `SimpleEditor`，并关闭 Markdown 转换：
+```typescript
+<SimpleEditor
+  content={editContent}
+  onChange={setEditContent}
+  onCreated={setEditor}
+  placeholder=""
+  enableMarkdown={false}
+  className="template-editor-wrapper"
+  style={{ border: '1px solid var(--line-soft)', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: '200px' }}
+  editorStyle={{ flex: 1, overflowY: 'auto', padding: '12px' }}
+/>
+```
 
 

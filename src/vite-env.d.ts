@@ -7,3 +7,6 @@ interface Window {
     close: () => Promise<void>;
   };
 }
+
+declare module 'tiptap-extension-line-height';
+

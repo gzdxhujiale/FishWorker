@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
 import { Note } from './listsTypes';
 import { MoreHorizontal } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { Editor } from '@tiptap/react';
-import { TipTapBubbleMenu } from '../tiptap/TipTapBubbleMenu';
-import { BlockDragHandleMenu } from '../tiptap/BlockDragHandleMenu';
 import { getTiptapExtensions } from '../tiptap/config';
+import { SimpleEditor } from '../tiptap/SimpleEditor';
 
 interface NoteDrawerProps {
   note: Note | null;
@@ -56,24 +54,35 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
     document.body.style.userSelect = '';
   };
 
-  const editor = useEditor({
-    extensions: getTiptapExtensions(),
-    content: note?.content || '',
-    onUpdate: ({ editor }) => {
-      setContent(editor.getHTML());
-    },
-  });
+  const [editor, setEditor] = useState<Editor | null>(null);
+
+  const latestDataRef = useRef({ title, content, note });
+  useEffect(() => {
+    latestDataRef.current = { title, content, note };
+  }, [title, content, note]);
 
   // Sync state and editor content when note changes
   useEffect(() => {
     if (note) {
       setTitle(note.title);
       setContent(note.content);
-      if (editor && editor.getHTML() !== note.content) {
+      if (editor && !editor.isDestroyed && editor.getHTML() !== note.content) {
         editor.commands.setContent(note.content || '');
       }
     }
   }, [note, editor]);
+
+  // Save unsaved changes on note switch or drawer close
+  useEffect(() => {
+    return () => {
+      const currentNote = latestDataRef.current.note;
+      const currentTitle = latestDataRef.current.title;
+      const currentContent = latestDataRef.current.content;
+      if (currentNote && (currentTitle !== currentNote.title || currentContent !== currentNote.content)) {
+        onUpdate(currentNote.id, currentTitle, currentContent);
+      }
+    };
+  }, [note, isOpen, onUpdate]);
 
   // Debounced auto-save effect
   useEffect(() => {
@@ -153,7 +162,7 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
           className="drawer-resize-handle"
           onMouseDown={handleMouseDown}
         />
-        <div className="note-drawer-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="note-drawer-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <input
             type="text"
             className="note-drawer-title-input"
@@ -194,26 +203,26 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
         </div>
 
         <div className="note-drawer-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 0, overflow: 'hidden', position: 'relative' }}>
-          {isContentEmpty && (
-            <div style={{ position: 'absolute', top: '24px', left: '24px', color: 'var(--text-faint)', fontSize: '15px', pointerEvents: 'none', zIndex: 2 }}>
-              记录你的想法，或{' '}
-              <span
-                style={{ pointerEvents: 'auto', color: 'var(--accent)', cursor: 'pointer' }}
-                onClick={onOpenTemplate}
-              >
-                使用模板
-              </span>
-            </div>
-          )}
-          <div className="note-drawer-editor-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}>
-            <TipTapBubbleMenu editor={editor} />
-            <BlockDragHandleMenu editor={editor} />
-            <EditorContent
-              editor={editor}
-              style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column' }}
-              className="tiptap-editor-wrapper"
-            />
-          </div>
+          <SimpleEditor
+            content={content}
+            onChange={setContent}
+            onCreated={setEditor}
+            placeholder=""
+            style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
+            editorStyle={{ flex: 1, overflowY: 'auto', padding: '8px 12px 12px', display: 'flex', flexDirection: 'column', height: 'auto', minHeight: 0 }}
+            editorClassName="tiptap-editor-wrapper"
+            placeholderOverlay={isContentEmpty && (
+              <div style={{ position: 'absolute', top: '8px', left: '12px', color: 'var(--text-faint)', fontSize: '15px', pointerEvents: 'none', zIndex: 2 }}>
+                记录你的想法，或{' '}
+                <span
+                  style={{ pointerEvents: 'auto', color: 'var(--accent)', cursor: 'pointer' }}
+                  onClick={onOpenTemplate}
+                >
+                  使用模板
+                </span>
+              </div>
+            )}
+          />
         </div>
       </div>
     </>
