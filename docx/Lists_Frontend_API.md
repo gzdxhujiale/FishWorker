@@ -44,7 +44,7 @@ export interface Note {
   listId: string;           // 归属的清单 ID
   groupId: string | null;   // 归属的分组 ID，null 为未分组
   title: string;            // 笔记标题
-  content: string;          // 笔记正文内容 (HTML 富文本格式)
+  content: string;          // 笔记正文内容 (HTML 富文本格式，支持多级标题、加粗/斜体/下划线、有序/无序/任务列表，文本颜色，背景高亮等)
   isPinned?: boolean;       // 是否置顶
   sortOrder?: number;       // 用于拖拽排序的连续型整数
   createdAt: number;        // 创建时间 (时间戳)
@@ -71,7 +71,7 @@ export interface NoteGroup {
 export interface Template {
   id: string;               // 唯一标识符
   name: string;             // 模板名称
-  content: string;          // 模板正文内容 (HTML 富文本格式)
+  content: string;          // 模板正文内容 (HTML 富文本格式，支持与笔记相同的富文本排版元素)
 }
 ```
 
@@ -154,7 +154,7 @@ export interface Template {
   * **命令**: `pick_markdown_file`
   * **输入**: 无
   * **输出**: `Promise<string>`
-  * **说明**: 触发系统原生文件打开选择器，限制选择 `.md` 格式文件。确认后返回选中文件的全部 Markdown 字符串。
+  * **说明**: 触发系统原生文件打开选择器，限制选择 `.md` 格式文件。确认后返回选中文件的全部 Markdown 字符串。前端在获取到字符串后，利用 `TipTap` 的 `Editor` 实例及 `tiptap-markdown` 插件将源码解析为对应富文本 HTML 结构，再显示并保存。
 - **导出 Markdown 文件**
   * **命令**: `save_markdown_file`
   * **输入**: `{ defaultName: string, content: string }`
@@ -164,7 +164,7 @@ export interface Template {
   * **命令**: `pick_multiple_markdown_files`
   * **输入**: 无
   * **输出**: `Promise<Array<{ title: string, content: string }>>`
-  * **说明**: 触发系统原生的文件打开选择器（支持多选），限制选择 `.md` 格式。确认后，由后端批量读取选中文件，以文件名（不含扩展名）作为 `title`，文件正文内容作为 `content` 返回给前端数组。
+  * **说明**: 触发系统原生的文件打开选择器（支持多选），限制选择 `.md` 格式。确认后，由后端批量读取选中文件，以文件名（不含扩展名）作为 `title`，文件正文内容作为 `content` 返回给前端数组。前端遍历数组时，会调用 `TipTap Editor` （无头模式）先将 Markdown 文本转化并解析为正规的 HTML，再持久化入库，保障富文本正常渲染。
 - **批量导出 Markdown 文件**
   * **命令**: `save_multiple_markdown_files`
   * **输入**: `{ files: Array<{ title: string, content: string }> }`
@@ -210,5 +210,12 @@ export interface Toast {
 - **`lists-active-list-id`**
   * **类型**: `string` (UUID)
   * **说明**: 记忆最后一次点击并激活的清单 ID。切换页面导航再切换回来时，将首先查找并尝试恢复该 ID 代表的清单，从而保持激活状态不变。若首次启动或记录失效，则降级按第一个文件夹的首个清单规则进行默认初始化。
+
+## 6. 前端架构及编辑器配置 (Frontend Architecture & Editor Config)
+
+为了支持全模块和全应用统一的富文本体验，避免 React Strict Mode 下 TipTap 报错 (Duplicate extension names found)，所有 TipTap 编辑器的核心扩展与悬浮菜单都在 `src/features/tiptap` 中进行集中管理：
+- **`config.ts`**: 暴露 `getTiptapExtensions()` 方法用于每次生成全新独立的扩展实例组，包含 Markdown、Color、TextStyle、Highlight 以及拖拽插件。
+- **`TipTapBubbleMenu.tsx`**: 基于光标选中文字触发的纯图标状态悬浮菜单 (Bubble Menu)。
+- **`BlockDragHandleMenu.tsx`**: 提供块级别拖拽重排序及富文本属性转换（如设为标题、高亮、删除块等）操作的上下文菜单。
 
 

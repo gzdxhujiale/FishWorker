@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
 import { Template } from './listsTypes';
 import { X, Edit2, Trash2 } from 'lucide-react';
 import { ConfirmBubble } from './ConfirmBubble';
+import { TipTapBubbleMenu } from '../tiptap/TipTapBubbleMenu';
+import { BlockDragHandleMenu } from '../tiptap/BlockDragHandleMenu';
+import { getTiptapExtensions } from '../tiptap/config';
 
 interface TemplateModalProps {
   templates: Template[];
@@ -20,7 +22,7 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
   const [deleteConfirmTemplateId, setDeleteConfirmTemplateId] = useState<string | null>(null);
 
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: getTiptapExtensions({ enableMarkdown: false }),
     content: editContent,
     onUpdate: ({ editor }) => {
       setEditContent(editor.getHTML());
@@ -73,10 +75,12 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
                 placeholder="模板名称" 
                 style={{ fontSize: '16px', fontWeight: 'bold', padding: '8px', border: '1px solid var(--line-soft)', borderRadius: '4px' }}
               />
-              <div className="template-editor-wrapper" style={{ border: '1px solid var(--line-soft)', borderRadius: '4px', padding: '12px', minHeight: '200px' }}>
+              <div className="template-editor-wrapper" style={{ border: '1px solid var(--line-soft)', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: '200px' }}>
+                <TipTapBubbleMenu editor={editor} />
+                <BlockDragHandleMenu editor={editor} />
                 <EditorContent 
                   editor={editor} 
-                  className="template-editor-container"
+                  style={{ flex: 1, overflowY: 'auto', padding: '12px' }}
                 />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>

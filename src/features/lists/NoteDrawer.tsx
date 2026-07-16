@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { Markdown } from 'tiptap-markdown';
 import { Note } from './listsTypes';
 import { MoreHorizontal } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { Editor } from '@tiptap/react';
+import { TipTapBubbleMenu } from '../tiptap/TipTapBubbleMenu';
+import { BlockDragHandleMenu } from '../tiptap/BlockDragHandleMenu';
+import { getTiptapExtensions } from '../tiptap/config';
 
 interface NoteDrawerProps {
   note: Note | null;
@@ -25,11 +27,37 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const [drawerWidth, setDrawerWidth] = useState(600);
+  const isResizing = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isResizing.current = true;
+    startX.current = e.clientX;
+    startWidth.current = drawerWidth;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    // Prevent text selection while dragging
+    document.body.style.userSelect = 'none';
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isResizing.current) return;
+    const deltaX = startX.current - e.clientX;
+    const newWidth = Math.min(Math.max(400, startWidth.current + deltaX), window.innerWidth - 200);
+    setDrawerWidth(newWidth);
+  };
+
+  const handleMouseUp = () => {
+    isResizing.current = false;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.body.style.userSelect = '';
+  };
+
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Markdown,
-    ],
+    extensions: getTiptapExtensions(),
     content: note?.content || '',
     onUpdate: ({ editor }) => {
       setContent(editor.getHTML());
@@ -77,7 +105,17 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
     try {
       const mdContent = await invoke<string>('pick_markdown_file');
       if (editor) {
-        editor.commands.setContent(mdContent);
+        try {
+          const tempEditor = new Editor({
+            extensions: getTiptapExtensions({ enableDragHandle: false }),
+            content: mdContent,
+          });
+          editor.commands.setContent(tempEditor.getHTML());
+          tempEditor.destroy();
+        } catch (e) {
+          console.error('Failed to parse markdown:', e);
+          editor.commands.setContent(mdContent);
+        }
       }
       if (showToast) showToast('导入成功！');
     } catch (err) {
@@ -107,44 +145,31 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
           onClick={() => onClose()}
         />
       )}
-      <div className={`note-drawer ${isOpen ? 'open' : ''}`}>
-        <div className="note-drawer-header">
+      <div
+        className={`note-drawer ${isOpen ? 'open' : ''}`}
+        style={{ width: drawerWidth, right: isOpen ? 0 : -drawerWidth }}
+      >
+        <div
+          className="drawer-resize-handle"
+          onMouseDown={handleMouseDown}
+        />
+        <div className="note-drawer-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <input
             type="text"
             className="note-drawer-title-input"
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="笔记标题"
+            style={{ flex: 1, marginRight: '16px' }}
           />
-        </div>
-
-        <div className="note-drawer-content" style={{ position: 'relative' }}>
-          {isContentEmpty && (
-            <div style={{ position: 'absolute', top: '24px', left: '24px', color: 'var(--text-faint)', fontSize: '15px', pointerEvents: 'none', zIndex: 2 }}>
-              记录你的想法，或{' '}
-              <span
-                style={{ pointerEvents: 'auto', color: 'var(--accent)', cursor: 'pointer' }}
-                onClick={onOpenTemplate}
-              >
-                使用模板
-              </span>
-            </div>
-          )}
-          <EditorContent
-            editor={editor}
-            className="note-drawer-editor-container"
-          />
-        </div>
-
-        <div className="note-drawer-footer">
-          <div style={{ position: 'relative' }} ref={menuRef}>
+          <div style={{ position: 'relative', flexShrink: 0 }} ref={menuRef}>
             <MoreHorizontal
               size={20}
               style={{ cursor: 'pointer', color: 'var(--text-muted)' }}
               onClick={() => setMenuOpen(!menuOpen)}
             />
             {menuOpen && (
-              <div className="lists-dropdown-menu" style={{ bottom: '100%', top: 'auto', right: 0, marginBottom: '8px' }}>
+              <div className="lists-dropdown-menu" style={{ top: '100%', right: 0, marginTop: '8px' }}>
                 <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); onPin(note); }}>{note.isPinned ? '取消置顶' : '置顶'}</div>
                 <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); onDuplicate(note); }}>创建副本</div>
                 <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); onSaveAsTemplate(note); }}>保存为模板</div>
@@ -165,6 +190,29 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="note-drawer-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 0, overflow: 'hidden', position: 'relative' }}>
+          {isContentEmpty && (
+            <div style={{ position: 'absolute', top: '24px', left: '24px', color: 'var(--text-faint)', fontSize: '15px', pointerEvents: 'none', zIndex: 2 }}>
+              记录你的想法，或{' '}
+              <span
+                style={{ pointerEvents: 'auto', color: 'var(--accent)', cursor: 'pointer' }}
+                onClick={onOpenTemplate}
+              >
+                使用模板
+              </span>
+            </div>
+          )}
+          <div className="note-drawer-editor-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}>
+            <TipTapBubbleMenu editor={editor} />
+            <BlockDragHandleMenu editor={editor} />
+            <EditorContent
+              editor={editor}
+              style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column' }}
+              className="tiptap-editor-wrapper"
+            />
           </div>
         </div>
       </div>

@@ -91,9 +91,7 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
     }, false); // false = not high freq
   };
 
-  const handleMoveTask = (taskId: string, newQuadrant: QuadrantType) => {
-    updateTask(taskId, { quadrant: newQuadrant }, false);
-  };
+
 
   const handleAddTaskToQuadrant = (title: string, quadrant: QuadrantType, deadline?: number) => {
     const task = addTask(title, quadrant, undefined);
@@ -301,11 +299,11 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
                 <DailyQuadrants
                   tasks={tasks}
                   onToggleComplete={handleToggleComplete}
-                  onMoveTask={handleMoveTask}
                   onAddTask={handleAddTaskToQuadrant}
                   hideCompleted={hideCompleted}
                   onDeleteTask={handleDeleteTask}
                   onEditTask={(task) => setEditingTask(task)}
+                  onUpdateTask={handleUpdateTask}
                 />
               )}
             </div>

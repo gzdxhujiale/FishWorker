@@ -14,6 +14,9 @@ import { sortableKeyboardCoordinates, SortableContext, verticalListSortingStrate
 import { SortableItem } from './SortableItem';
 import { invoke } from '@tauri-apps/api/core';
 import { BatchExportModal } from './BatchExportModal';
+import { Editor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Markdown } from 'tiptap-markdown';
 import './lists.css';
 
 export function ListsPanel() {
@@ -334,11 +337,21 @@ export function ListsPanel() {
       const importedFiles = await invoke<Array<{ title: string; content: string }>>('pick_multiple_markdown_files');
       for (const file of importedFiles) {
         let htmlContent = file.content;
-        if (!htmlContent.trim().startsWith('<')) {
-          htmlContent = htmlContent
-            .split('\n\n')
-            .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
-            .join('');
+        try {
+          const editor = new Editor({
+            extensions: [StarterKit, Markdown],
+            content: file.content,
+          });
+          htmlContent = editor.getHTML();
+          editor.destroy();
+        } catch (e) {
+          console.error('Failed to parse markdown:', e);
+          if (!htmlContent.trim().startsWith('<')) {
+            htmlContent = htmlContent
+              .split('\n\n')
+              .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
+              .join('');
+          }
         }
         store.addNote({
           listId: activeListId,

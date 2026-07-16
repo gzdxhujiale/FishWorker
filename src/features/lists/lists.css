@@ -517,12 +517,27 @@
   flex-direction: column;
 }
 
+.drawer-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 100;
+  transition: background 0.2s;
+}
+
+.drawer-resize-handle:hover {
+  background: var(--line-soft);
+}
+
 .note-drawer.open {
   right: 0;
 }
 
 .note-drawer-header {
-  padding: 24px;
+  padding: 12px;
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -544,6 +559,18 @@
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--text-faint);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.tiptap-editor-wrapper .ProseMirror {
+  flex: 1;
 }
 
 .note-drawer-textarea {
@@ -773,9 +800,17 @@
   font-weight: 600;
 }
 
-.ProseMirror h1 { font-size: 1.8em; }
-.ProseMirror h2 { font-size: 1.5em; }
-.ProseMirror h3 { font-size: 1.3em; }
+.ProseMirror h1 {
+  font-size: 1.8em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.3em;
+}
 
 .ProseMirror ul,
 .ProseMirror ol {
@@ -890,6 +925,7 @@
     transform: translateY(-20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -901,5 +937,72 @@
   transform: translateY(-20px);
 }
 
+/* TipTap Toolbar / Bubble Menu Styles */
+.tiptap-bubble-menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-0);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
 
-
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--line-soft);
+  margin: 0 4px;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+
+.toolbar-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-0);
+  color: var(--text-strong);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+.toolbar-select:hover {
+  border-color: var(--text-muted);
+}
