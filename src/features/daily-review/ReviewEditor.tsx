@@ -89,8 +89,8 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay,
         <div className="editor-date-selector" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button onClick={onPrevDay} title="前一天" style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><ChevronLeft size={20} /></button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <DatePicker 
-              value={date} 
+            <DatePicker
+              value={date}
               onChange={(val) => {
                 if (val) onSelectDate(val);
               }}
@@ -105,14 +105,14 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay,
         </div>
       </div>
 
-      <div className="editor-content" style={{ position: 'relative' }}>
+      <div className="editor-content" style={{ position: 'relative', padding: '0 0px' }}>
         <SimpleEditor
           content={content}
           onChange={setContent}
           placeholder="今天学到了什么？什么可以改进？明天最重要的一件事？..."
         />
-        
-        <div className="rating-selector">
+
+        <div className="rating-selector" style={{ padding: '16px 12px' }}>
           <span className="stat-label">为今天的状态打分：</span>
           <div className="rating-stars">
             {[1, 2, 3, 4, 5].map((star) => (
