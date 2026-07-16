@@ -103,3 +103,18 @@ interface SimpleEditorProps {
 ### 6.2 依赖与配置文件调整
 - 调整 `src/features/tiptap/config.ts` 中的 `getTiptapExtensions` 以确保对各类场景（如 markdown 渲染 and 拖拽菜单）支持更灵活。
 - 在 `src/index.css` 中使用 `@import` 整合样式，减少模块样式相互引用的混乱。
+
+### 6.3 编辑器高级功能与官方拖拽插件迁移 (v2.6 新增)
+为了解决原三方拖拽插件 `tiptap-extension-global-drag-handle` 在列表、段落边缘等复杂布局下可能出现的定位漂移、重合以及不可控等体验问题，在 v2.6 中对编辑器架构进行如下升级：
+
+#### 1) 拖拽手柄官方化迁移
+- **依赖替换**：卸载三方插件 `tiptap-extension-global-drag-handle`，迁移至官方第一方开源扩展 **`@tiptap/extension-drag-handle`**。
+- **自定义手柄渲染**：使用官方提供的 `render` API 动态创建包含 `.drag-handle` 类的 DOM 节点，并配置 svg Grip 图标，以此无缝复用原有的 CSS 样式规范，确保对 `BlockDragHandleMenu` 组件的选中和唤醒流程零侵入。
+- **嵌套深度支持**：启用 `nested: true` 属性，保障嵌套列表和多级块元素在拖拽时的精准抓取与排序。
+
+#### 2) 代码块语法高亮 (`lowlight`)
+- **高亮引擎**：集成 `@tiptap/extension-code-block-lowlight` 和 `lowlight`，用以替代 StarterKit 默认的无高亮代码块。支持主流开发语言的智能高亮，并配套 VS Code 风格的 `.hljs-*` 主题样式。
+
+#### 3) Notion 风格的斜杠快捷命令菜单 (`SlashCommands`)
+- **交互规范**：通过键盘输入 `/` 时拉起命令气泡面板，支持键盘 `ArrowUp`/`ArrowDown` 进行导航切换，`Enter` 键确认执行。支持的快速块类型包括：正文、标题 1/2/3、无序列表、有序列表、待办任务列表、引用块和高亮代码块。
+

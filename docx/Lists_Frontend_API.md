@@ -213,12 +213,13 @@ export interface Toast {
 
 ## 6. 前端架构及编辑器配置 (Frontend Architecture & Editor Config)
 
-为了支持全模块和全应用统一的富文本体验，避免 React Strict Mode 下 TipTap 报错 (Duplicate extension names found)，所有 TipTap 编辑器的核心扩展与悬浮菜单都在 `src/features/tiptap` 中进行集中管理。在 v2.5 中，引入了统一包装的简单编辑器模板组件：
+为了支持全模块和全应用统一的富文本体验，避免 React Strict Mode 下 TipTap 报错 (Duplicate extension names found)，所有 TipTap 编辑器的核心扩展与悬浮菜单都在 `src/features/tiptap` 中进行集中管理。在 v2.5/v2.6 中，引入了统一包装的简单编辑器模板组件和高级功能模块：
 
-- **`config.ts`**: 暴露 `getTiptapExtensions()` 方法用于每次生成全新独立的扩展实例组，包含 Markdown、Color、TextStyle、Highlight 以及拖拽插件。
+- **`config.ts`**: 暴露 `getTiptapExtensions()` 方法用于每次生成全新独立的扩展实例组，包含 Markdown、Color、TextStyle、Highlight、官方的 `@tiptap/extension-drag-handle` 拖拽插件、代码块语法高亮插件及斜杠快捷菜单扩展。
 - **`SimpleEditor.tsx`**: 统一包装的 React 编辑器组件，支持通过 Props 自定义行为，并支持将内部 Editor 实例暴露给父组件（用于 Markdown 导入导出）。
 - **`TipTapBubbleMenu.tsx`**: 基于光标选中文字触发的纯图标状态悬浮菜单 (Bubble Menu)。
 - **`BlockDragHandleMenu.tsx`**: 提供块级别拖拽重排序及富文本属性转换（如设为标题、高亮、删除块等）操作 of 上下文菜单。
+- **`SlashCommands.ts` / `SlashCommandsList.tsx`**: 实现用户通过输入 `/` 触发悬浮命令面板，便捷切换编辑器内各种节点区块的插入。
 
 ### 6.1 `SimpleEditor` API 定义与属性
 
