@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DailyReview } from './dailyReviewTypes';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
-import { DatePicker } from '@arco-design/web-react';
 import { SimpleEditor } from '../tiptap/SimpleEditor';
 
 interface Props {
@@ -89,13 +88,28 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay,
         <div className="editor-date-selector" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button onClick={onPrevDay} title="前一天" style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><ChevronLeft size={20} /></button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <DatePicker
+            <input
+              type="date"
               value={date}
-              onChange={(val) => {
-                if (val) onSelectDate(val);
+              max={(() => {
+                const today = new Date();
+                return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+              })()}
+              onChange={(e) => {
+                if (e.target.value) onSelectDate(e.target.value);
               }}
-              allowClear={false}
-              style={{ width: 140, fontWeight: 'bold' }}
+              style={{
+                width: 140,
+                fontWeight: 'bold',
+                fontSize: '14px',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                border: '1px solid var(--color-border, var(--line-soft))',
+                background: 'var(--color-bg-elevated, var(--surface-2))',
+                color: 'var(--color-text, var(--text-strong))',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
             />
             {isToday() && <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>(今天)</span>}
           </div>
@@ -105,11 +119,14 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave, onPrevDay,
         </div>
       </div>
 
-      <div className="editor-content" style={{ position: 'relative', padding: '0 0px' }}>
+      <div className="editor-content" style={{ position: 'relative', padding: '0 0px', display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         <SimpleEditor
           content={content}
           onChange={setContent}
           placeholder="今天学到了什么？什么可以改进？明天最重要的一件事？..."
+          style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
+          editorStyle={{ flex: 1, overflowY: 'auto', padding: '8px 12px 12px 20px', display: 'flex', flexDirection: 'column', height: 'auto', minHeight: 0 }}
+          editorClassName="tiptap-editor-wrapper"
         />
 
         <div className="rating-selector" style={{ padding: '16px 12px' }}>

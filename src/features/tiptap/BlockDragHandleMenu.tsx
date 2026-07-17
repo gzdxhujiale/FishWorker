@@ -95,19 +95,25 @@ export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
   useEffect(() => {
     if (!editor) return;
 
+    // Capture editor reference at effect start time so cleanup is safe
+    const editorRef = editor;
+
     if (isOpen) {
-      if (typeof (editor.commands as any).lockDragHandle === 'function') {
-        (editor.commands as any).lockDragHandle();
+      if (typeof (editorRef.commands as any).lockDragHandle === 'function') {
+        (editorRef.commands as any).lockDragHandle();
       }
     } else {
-      if (typeof (editor.commands as any).unlockDragHandle === 'function') {
-        (editor.commands as any).unlockDragHandle();
+      if (typeof (editorRef.commands as any).unlockDragHandle === 'function') {
+        (editorRef.commands as any).unlockDragHandle();
       }
     }
 
     return () => {
-      if (typeof (editor.commands as any).unlockDragHandle === 'function') {
-        (editor.commands as any).unlockDragHandle();
+      // Guard: editor may have been destroyed by the time cleanup runs
+      if (editorRef && !editorRef.isDestroyed) {
+        if (typeof (editorRef.commands as any).unlockDragHandle === 'function') {
+          (editorRef.commands as any).unlockDragHandle();
+        }
       }
     };
   }, [isOpen, editor]);
