@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Role, Task, QuadrantType } from './timeManagementTypes';
-import { timeManagementApi, TimeManagementSyncStatus } from './timeManagementService';
+import { timeManagementApi } from './timeManagementService';
+import { createSyncEngine } from '../../lib/createSyncEngine';
 
 const STORAGE_KEY = 'aistudy_time_management_data';
 
@@ -19,16 +20,7 @@ const defaultData: TimeManagementData = {
 
 interface TimeManagementStore {
   data: TimeManagementData;
-  syncStatus: TimeManagementSyncStatus;
-  
-  // Internal
-  _pendingSaves: Map<string, number>;
-  load: () => void;
-  save: (data: TimeManagementData) => void;
-  setSyncStatus: (status: TimeManagementSyncStatus) => void;
-  triggerRoleSync: (role: Role, isHighFreq?: boolean) => void;
-  triggerTaskSync: (task: Task, isHighFreq?: boolean) => void;
-  
+
   // Public
   syncAllFromDB: () => Promise<void>;
   addRole: (name: string, color?: string) => Role;
@@ -39,105 +31,40 @@ interface TimeManagementStore {
   deleteTask: (taskId: string) => void;
 }
 
+const syncEngine = createSyncEngine();
+
+function saveLocal(data: TimeManagementData): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.error('Failed to save time management data:', err);
+  }
+}
+
+function loadLocal(): TimeManagementData | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as TimeManagementData) : null;
+  } catch (err) {
+    console.error('Failed to load time management data:', err);
+    return null;
+  }
+}
+
 export const useTimeStore = create<TimeManagementStore>((set, get) => ({
   data: defaultData,
-  syncStatus: { state: 'saved', pendingCount: 0 },
-  _pendingSaves: new Map<string, number>(),
-
-  load: () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        set({ data: JSON.parse(stored) as TimeManagementData });
-      }
-    } catch (err) {
-      console.error('Failed to load time management data:', err);
-    }
-  },
-
-  save: (data: TimeManagementData) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      set({ data });
-    } catch (err) {
-      console.error('Failed to save time management data:', err);
-    }
-  },
-
-  setSyncStatus: (status: TimeManagementSyncStatus) => {
-    set({ syncStatus: status });
-  },
 
   syncAllFromDB: async () => {
     try {
-      const state = get();
-      state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size });
       const dbData = await timeManagementApi.loadAll();
       if (dbData) {
-        get().save(dbData);
-      }
-      const newState = get();
-      if (newState._pendingSaves.size === 0) {
-        newState.setSyncStatus({ state: 'saved', pendingCount: 0 });
+        const merged = { ...dbData };
+        saveLocal(merged);
+        set({ data: merged });
       }
     } catch (e) {
-      const state = get();
-      state.setSyncStatus({ state: 'attention', pendingCount: state._pendingSaves.size });
+      console.error('Time management sync from DB failed:', e);
     }
-  },
-
-  triggerRoleSync: (role: Role, isHighFreq: boolean = true) => {
-    const state = get();
-    state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size + 1 });
-    const delay = isHighFreq ? 500 : 300;
-
-    if (state._pendingSaves.has(role.id)) {
-      window.clearTimeout(state._pendingSaves.get(role.id));
-    }
-
-    const timeout = window.setTimeout(async () => {
-      try {
-        await timeManagementApi.upsertRole(role);
-        const latestState = get();
-        latestState._pendingSaves.delete(role.id);
-        if (latestState._pendingSaves.size === 0) {
-          latestState.setSyncStatus({ state: 'saved', pendingCount: 0 });
-        } else {
-          latestState.setSyncStatus({ state: 'saving', pendingCount: latestState._pendingSaves.size });
-        }
-      } catch (e) {
-        const latestState = get();
-        latestState.setSyncStatus({ state: 'attention', pendingCount: latestState._pendingSaves.size });
-      }
-    }, delay);
-    state._pendingSaves.set(role.id, timeout);
-  },
-
-  triggerTaskSync: (task: Task, isHighFreq: boolean = true) => {
-    const state = get();
-    state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size + 1 });
-    const delay = isHighFreq ? 500 : 300;
-
-    if (state._pendingSaves.has(task.id)) {
-      window.clearTimeout(state._pendingSaves.get(task.id));
-    }
-
-    const timeout = window.setTimeout(async () => {
-      try {
-        await timeManagementApi.upsertTask(task);
-        const latestState = get();
-        latestState._pendingSaves.delete(task.id);
-        if (latestState._pendingSaves.size === 0) {
-          latestState.setSyncStatus({ state: 'saved', pendingCount: 0 });
-        } else {
-          latestState.setSyncStatus({ state: 'saving', pendingCount: latestState._pendingSaves.size });
-        }
-      } catch (e) {
-        const latestState = get();
-        latestState.setSyncStatus({ state: 'attention', pendingCount: latestState._pendingSaves.size });
-      }
-    }, delay);
-    state._pendingSaves.set(task.id, timeout);
   },
 
   addRole: (name: string, color?: string): Role => {
@@ -149,8 +76,9 @@ export const useTimeStore = create<TimeManagementStore>((set, get) => ({
       createdAt: Date.now()
     };
     const newData = { ...data, roles: [...data.roles, newRole] };
-    get().save(newData);
-    get().triggerRoleSync(newRole, false);
+    saveLocal(newData);
+    set({ data: newData });
+    syncEngine.schedule(newRole.id, () => timeManagementApi.upsertRole(newRole), 300);
     return newRole;
   },
 
@@ -160,27 +88,24 @@ export const useTimeStore = create<TimeManagementStore>((set, get) => ({
     if (index !== -1) {
       const newRoles = [...data.roles];
       newRoles[index] = { ...newRoles[index], ...updates };
-      get().save({ ...data, roles: newRoles });
-      get().triggerRoleSync(newRoles[index], isHighFreq);
+      const newData = { ...data, roles: newRoles };
+      saveLocal(newData);
+      set({ data: newData });
+      syncEngine.schedule(roleId, () => timeManagementApi.upsertRole(newRoles[index]), isHighFreq ? 500 : 300);
     }
   },
 
   deleteRole: (roleId: string): void => {
     const data = get().data;
     const newRoles = data.roles.filter(r => r.id !== roleId);
-    get().save({ ...data, roles: newRoles });
-    
-    const state = get();
-    state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size + 1 });
-    timeManagementApi.deleteRole(roleId)
-      .then(() => {
-        const latestState = get();
-        if (latestState._pendingSaves.size === 0) latestState.setSyncStatus({ state: 'saved', pendingCount: 0 });
-      })
-      .catch(() => {
-        const latestState = get();
-        latestState.setSyncStatus({ state: 'attention', pendingCount: latestState._pendingSaves.size });
-      });
+    const newData = { ...data, roles: newRoles };
+    saveLocal(newData);
+    set({ data: newData });
+
+    syncEngine.cancel(roleId);
+    timeManagementApi.deleteRole(roleId).catch(e => {
+      console.error('Failed to delete role:', e);
+    });
   },
 
   addTask: (title: string, quadrant: QuadrantType = 'Q2', scheduledDate?: string, roleId?: string): Task => {
@@ -195,8 +120,9 @@ export const useTimeStore = create<TimeManagementStore>((set, get) => ({
       createdAt: Date.now()
     };
     const newData = { ...data, tasks: [...data.tasks, newTask] };
-    get().save(newData);
-    get().triggerTaskSync(newTask, false);
+    saveLocal(newData);
+    set({ data: newData });
+    syncEngine.schedule(newTask.id, () => timeManagementApi.upsertTask(newTask), 300);
     return newTask;
   },
 
@@ -206,29 +132,29 @@ export const useTimeStore = create<TimeManagementStore>((set, get) => ({
     if (index !== -1) {
       const newTasks = [...data.tasks];
       newTasks[index] = { ...newTasks[index], ...updates };
-      get().save({ ...data, tasks: newTasks });
-      get().triggerTaskSync(newTasks[index], isHighFreq);
+      const newData = { ...data, tasks: newTasks };
+      saveLocal(newData);
+      set({ data: newData });
+      syncEngine.schedule(taskId, () => timeManagementApi.upsertTask(newTasks[index]), isHighFreq ? 500 : 300);
     }
   },
 
   deleteTask: (taskId: string): void => {
     const data = get().data;
     const newTasks = data.tasks.filter(t => t.id !== taskId);
-    get().save({ ...data, tasks: newTasks });
+    const newData = { ...data, tasks: newTasks };
+    saveLocal(newData);
+    set({ data: newData });
 
-    const state = get();
-    state.setSyncStatus({ state: 'saving', pendingCount: state._pendingSaves.size + 1 });
-    timeManagementApi.deleteTask(taskId)
-      .then(() => {
-        const latestState = get();
-        if (latestState._pendingSaves.size === 0) latestState.setSyncStatus({ state: 'saved', pendingCount: 0 });
-      })
-      .catch(() => {
-        const latestState = get();
-        latestState.setSyncStatus({ state: 'attention', pendingCount: latestState._pendingSaves.size });
-      });
+    syncEngine.cancel(taskId);
+    timeManagementApi.deleteTask(taskId).catch(e => {
+      console.error('Failed to delete task:', e);
+    });
   }
 }));
 
 // Initialize data
-useTimeStore.getState().load();
+const initial = loadLocal();
+if (initial) {
+  useTimeStore.setState({ data: initial });
+}

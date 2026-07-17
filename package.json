@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },
@@ -72,10 +74,12 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "class-variance-authority": "^0.7.1",
+    "jsdom": "^29.1.1",
     "quill": "file:./scripts/npm-stubs/quill",
     "sass-embedded": "^1.100.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^4.1.10"
   },
   "pnpm.overrides": {
     "quill": "file:./scripts/npm-stubs/quill",

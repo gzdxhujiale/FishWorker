@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { List, Folder, Note, Template, ListsData, NoteGroup } from './listsTypes';
-import { invoke } from '@tauri-apps/api/core';
+import * as listsService from './listsService';
+import { createSyncEngine } from '../../lib/createSyncEngine';
 
 const STORAGE_KEY = 'aistudy_lists_data';
 const MIGRATION_FLAG = 'aistudy_lists_migrated';
@@ -23,17 +24,12 @@ const DEFAULT_TEMPLATES: Template[] = [
   }
 ];
 
-function debounce<T extends (...args: any[]) => void>(fn: T, ms: number): T {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: any[]) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  }) as unknown as T;
-}
-
 function genId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
+
+const HIGH_FREQ_DELAY = 500;
+const LOW_FREQ_DELAY = 300;
 
 interface ListsStoreState {
   data: ListsData;
@@ -80,21 +76,7 @@ interface ListsStoreState {
   deleteTemplate: (id: string) => void;
 }
 
-const debouncedNoteUpdate = debounce((note: Note) => {
-  invoke('list_upsert_note', {
-    note: {
-      id: note.id,
-      listId: note.listId,
-      groupId: note.groupId || null,
-      title: note.title,
-      content: note.content,
-      isPinned: note.isPinned || false,
-      sortOrder: note.sortOrder || 0,
-      createdAt: note.createdAt,
-      updatedAt: note.updatedAt,
-    }
-  }).catch(e => console.error('Failed to sync note update:', e));
-}, 500);
+const syncEngine = createSyncEngine();
 
 export const useListsStore = create<ListsStoreState>((set, get) => ({
   data: {
@@ -126,7 +108,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
               if (!parsed.templates) parsed.templates = DEFAULT_TEMPLATES;
               if (!parsed.noteGroups) parsed.noteGroups = [];
 
-              await invoke('list_migrate_from_local', { data: parsed });
+              await listsService.migrateFromLocal(parsed);
               localStorage.setItem(MIGRATION_FLAG, '1');
             }
           } catch (e) {
@@ -134,19 +116,13 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
           }
         }
 
-        const allData = await invoke<{
-          folders: Array<{ id: string; name: string; isPinned: boolean; sortOrder: number }>;
-          lists: Array<{ id: string; name: string; icon: string; color: string; viewType: string; folderId: string | null; isPinned: boolean; sortOrder: number; itemCount: number }>;
-          noteGroups: Array<{ id: string; listId: string; name: string; sortOrder: number }>;
-          notes: Array<{ id: string; listId: string; groupId: string | null; title: string; content: string; isPinned: boolean; sortOrder: number; createdAt: number; updatedAt: number }>;
-          templates: Array<{ id: string; name: string; content: string }>;
-        }>('list_load_all');
+        const allData = await listsService.loadAll();
 
         let defaultTemplates = allData.templates.length > 0 ? allData.templates : DEFAULT_TEMPLATES;
 
         if (allData.templates.length === 0) {
           for (const t of DEFAULT_TEMPLATES) {
-            await invoke('list_upsert_template', { template: t }).catch(() => {});
+            listsService.upsertTemplate(t).catch(() => {});
           }
         }
 
@@ -203,19 +179,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
     
     set({ data: { ...data, lists: [...data.lists, newList] } });
 
-    invoke('list_upsert_list', {
-      list: {
-        id: newList.id,
-        name: newList.name,
-        icon: newList.icon,
-        color: newList.color,
-        viewType: newList.viewType,
-        folderId: newList.folderId,
-        isPinned: newList.isPinned || false,
-        sortOrder: newList.sortOrder || 0,
-        itemCount: 0,
-      }
-    }).catch(e => console.error('Failed to sync addList:', e));
+    syncEngine.schedule(`list:${newList.id}`, () => listsService.upsertList(newList), LOW_FREQ_DELAY);
 
     return newList;
   },
@@ -229,19 +193,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       set({ data: { ...data, lists: newLists } });
       const list = newLists[index];
 
-      invoke('list_upsert_list', {
-        list: {
-          id: list.id,
-          name: list.name,
-          icon: list.icon,
-          color: list.color,
-          viewType: list.viewType,
-          folderId: list.folderId,
-          isPinned: list.isPinned || false,
-          sortOrder: list.sortOrder || 0,
-          itemCount: list.itemCount || 0,
-        }
-      }).catch(e => console.error('Failed to sync updateList:', e));
+      syncEngine.schedule(`list:${id}`, () => listsService.upsertList(list), HIGH_FREQ_DELAY);
     }
   },
 
@@ -256,7 +208,8 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       }
     });
 
-    invoke('list_delete_list', { id }).catch(e => console.error('Failed to sync deleteList:', e));
+    syncEngine.cancel(`list:${id}`);
+    listsService.deleteList(id).catch(() => {});
   },
 
   duplicateList: (list) => {
@@ -286,20 +239,10 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       });
     });
 
-    invoke('list_duplicate_list', {
-      sourceId: list.id,
-      newList: {
-        id: newList.id,
-        name: newList.name,
-        icon: newList.icon,
-        color: newList.color,
-        viewType: newList.viewType,
-        folderId: newList.folderId,
-        isPinned: newList.isPinned || false,
-        sortOrder: newList.sortOrder || 0,
-        itemCount: 0,
-      }
-    }).catch(e => console.error('Failed to sync duplicateList:', e));
+    syncEngine.cancel(`list:${newList.id}`);
+    get().getNoteGroups(list.id).forEach(g => syncEngine.cancel(`group:${g.id}`));
+    get().getNotesByListId(list.id).forEach(n => syncEngine.cancel(`note:${n.id}`));
+    listsService.duplicateList(list.id, newList).catch(() => {});
 
     return newList;
   },
@@ -308,7 +251,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
     const data = get().data;
     const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
     const items: Array<[string, number]> = [];
-    
+
     const newLists = data.lists.map(l => {
       if (orderMap.has(l.id)) {
         const order = orderMap.get(l.id)!;
@@ -319,7 +262,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
     });
 
     set({ data: { ...data, lists: newLists } });
-    invoke('list_reorder_lists', { items }).catch(e => console.error('Failed to sync reorderLists:', e));
+    syncEngine.schedule('reorder:lists', () => listsService.reorderLists(items), LOW_FREQ_DELAY);
   },
 
   moveList: (listId, folderId, targetIndex) => {
@@ -356,11 +299,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
     set({ data: { ...data, lists: newLists } });
     const updatedList = newLists.find(l => l.id === listId);
 
-    invoke('list_move_list', {
-      listId,
-      folderId,
-      sortOrder: updatedList?.sortOrder || 0
-    }).catch(e => console.error('Failed to sync moveList:', e));
+    syncEngine.schedule(`list:${listId}`, () => listsService.moveList(listId, folderId, updatedList?.sortOrder || 0), LOW_FREQ_DELAY);
   },
 
   // ── Folders ──
@@ -379,17 +318,10 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       name,
       sortOrder: data.folders.length,
     };
-    
+
     set({ data: { ...data, folders: [...data.folders, newFolder] } });
 
-    invoke('list_upsert_folder', {
-      folder: {
-        id: newFolder.id,
-        name: newFolder.name,
-        isPinned: false,
-        sortOrder: newFolder.sortOrder,
-      }
-    }).catch(e => console.error('Failed to sync addFolder:', e));
+    syncEngine.schedule(`folder:${newFolder.id}`, () => listsService.upsertFolder(newFolder), LOW_FREQ_DELAY);
 
     return newFolder;
   },
@@ -403,14 +335,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       set({ data: { ...data, folders: newFolders } });
       const folder = newFolders[index];
 
-      invoke('list_upsert_folder', {
-        folder: {
-          id: folder.id,
-          name: folder.name,
-          isPinned: folder.isPinned || false,
-          sortOrder: folder.sortOrder || 0,
-        }
-      }).catch(e => console.error('Failed to sync updateFolder:', e));
+      syncEngine.schedule(`folder:${id}`, () => listsService.upsertFolder(folder), HIGH_FREQ_DELAY);
     }
   },
 
@@ -418,7 +343,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
     const data = get().data;
     const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
     const items: Array<[string, number]> = [];
-    
+
     const newFolders = data.folders.map(f => {
       if (orderMap.has(f.id)) {
         const order = orderMap.get(f.id)!;
@@ -429,7 +354,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
     });
 
     set({ data: { ...data, folders: newFolders } });
-    invoke('list_reorder_folders', { items }).catch(e => console.error('Failed to sync reorderFolders:', e));
+    syncEngine.schedule('reorder:folders', () => listsService.reorderFolders(items), LOW_FREQ_DELAY);
   },
 
   deleteFolder: (id) => {
@@ -442,7 +367,8 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       }
     });
 
-    invoke('list_delete_folder', { id }).catch(e => console.error('Failed to sync deleteFolder:', e));
+    syncEngine.cancel(`folder:${id}`);
+    listsService.deleteFolder(id).catch(() => {});
   },
 
   // ── Notes ──
@@ -469,7 +395,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
-    
+
     let newLists = [...data.lists];
     const listIndex = newLists.findIndex(l => l.id === note.listId);
     if (listIndex !== -1) {
@@ -478,19 +404,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
 
     set({ data: { ...data, notes: [...data.notes, newNote], lists: newLists } });
 
-    invoke('list_upsert_note', {
-      note: {
-        id: newNote.id,
-        listId: newNote.listId,
-        groupId: newNote.groupId || null,
-        title: newNote.title,
-        content: newNote.content,
-        isPinned: newNote.isPinned || false,
-        sortOrder: newNote.sortOrder || 0,
-        createdAt: newNote.createdAt,
-        updatedAt: newNote.updatedAt,
-      }
-    }).catch(e => console.error('Failed to sync addNote:', e));
+    syncEngine.schedule(`note:${newNote.id}`, () => listsService.upsertNote(newNote), LOW_FREQ_DELAY);
 
     return newNote;
   },
@@ -502,7 +416,8 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       const newNotes = [...data.notes];
       newNotes[index] = { ...newNotes[index], ...updates, updatedAt: Date.now() };
       set({ data: { ...data, notes: newNotes } });
-      debouncedNoteUpdate(newNotes[index]);
+      const note = newNotes[index];
+      syncEngine.schedule(`note:${id}`, () => listsService.upsertNote(note), HIGH_FREQ_DELAY);
     }
   },
 
@@ -524,7 +439,8 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
         }
       });
 
-      invoke('list_delete_note', { id }).catch(e => console.error('Failed to sync deleteNote:', e));
+      syncEngine.cancel(`note:${id}`);
+      listsService.deleteNote(id).catch(() => {});
     }
   },
 
@@ -567,19 +483,14 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
     set({ data: { ...data, notes: newNotes } });
     const updatedNote = newNotes.find(n => n.id === noteId);
 
-    invoke('list_move_note', {
-      noteId,
-      listId: note.listId,
-      groupId,
-      sortOrder: updatedNote?.sortOrder || 0,
-    }).catch(e => console.error('Failed to sync moveNote:', e));
+    syncEngine.schedule(`note:${noteId}`, () => listsService.moveNote(noteId, note.listId, groupId, updatedNote?.sortOrder || 0), LOW_FREQ_DELAY);
   },
 
   reorderNotes: (orderedIds) => {
     const data = get().data;
     const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
     const items: Array<[string, number]> = [];
-    
+
     const newNotes = data.notes.map(n => {
       if (orderMap.has(n.id)) {
         const order = orderMap.get(n.id)!;
@@ -590,7 +501,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
     });
 
     set({ data: { ...data, notes: newNotes } });
-    invoke('list_reorder_notes', { items }).catch(e => console.error('Failed to sync reorderNotes:', e));
+    syncEngine.schedule('reorder:notes', () => listsService.reorderNotes(items), LOW_FREQ_DELAY);
   },
 
   // ── Note Groups ──
@@ -608,17 +519,10 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       name,
       sortOrder: data.noteGroups.filter(g => g.listId === listId).length
     };
-    
+
     set({ data: { ...data, noteGroups: [...data.noteGroups, newGroup] } });
 
-    invoke('list_upsert_group', {
-      group: {
-        id: newGroup.id,
-        listId: newGroup.listId,
-        name: newGroup.name,
-        sortOrder: newGroup.sortOrder || 0,
-      }
-    }).catch(e => console.error('Failed to sync addGroup:', e));
+    syncEngine.schedule(`group:${newGroup.id}`, () => listsService.upsertGroup(newGroup), LOW_FREQ_DELAY);
 
     return newGroup;
   },
@@ -632,14 +536,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       set({ data: { ...data, noteGroups: newGroups } });
       const group = newGroups[index];
 
-      invoke('list_upsert_group', {
-        group: {
-          id: group.id,
-          listId: group.listId,
-          name: group.name,
-          sortOrder: group.sortOrder || 0,
-        }
-      }).catch(e => console.error('Failed to sync updateGroup:', e));
+      syncEngine.schedule(`group:${id}`, () => listsService.upsertGroup(group), HIGH_FREQ_DELAY);
     }
   },
 
@@ -653,7 +550,8 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       }
     });
 
-    invoke('list_delete_group', { id }).catch(e => console.error('Failed to sync deleteGroup:', e));
+    syncEngine.cancel(`group:${id}`);
+    listsService.deleteGroup(id).catch(() => {});
   },
 
   // ── Templates ──
@@ -668,11 +566,10 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       name,
       content
     };
-    
+
     set({ data: { ...data, templates: [...data.templates, newTemplate] } });
 
-    invoke('list_upsert_template', { template: newTemplate })
-      .catch(e => console.error('Failed to sync addTemplate:', e));
+    listsService.upsertTemplate(newTemplate).catch(() => {});
 
     return newTemplate;
   },
@@ -684,9 +581,8 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       const newTemplates = [...data.templates];
       newTemplates[index] = { ...newTemplates[index], ...updates };
       set({ data: { ...data, templates: newTemplates } });
-      
-      invoke('list_upsert_template', { template: newTemplates[index] })
-        .catch(e => console.error('Failed to sync updateTemplate:', e));
+
+      listsService.upsertTemplate(newTemplates[index]).catch(() => {});
     }
   },
 
@@ -699,7 +595,6 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
       }
     });
 
-    invoke('list_delete_template', { id })
-      .catch(e => console.error('Failed to sync deleteTemplate:', e));
+    listsService.deleteTemplate(id).catch(() => {});
   }
 }));

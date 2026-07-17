@@ -3,9 +3,10 @@ import { Plus, Folder as FolderIcon, ChevronDown, MoreHorizontal, BookOpen, Brie
 import { List, Folder } from './listsTypes';
 import { ConfirmBubble } from './ConfirmBubble';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';
 import { useListsStore } from './listsStore';
+import { computeListReorder } from './listsReorder';
 
 function DroppableArea({ id, data, children, className, style, onClick }: any) {
   const { setNodeRef, isOver } = useDroppable({ id, data });
@@ -127,55 +128,39 @@ export function ListsSidebar({
     setDragOverFolderId(null);
 
     const { active, over } = event;
-    if (active.id !== over?.id && over) {
-      // Check if dragging a folder
-      const activeFolder = folders.find(f => f.id === active.id);
-      if (activeFolder) {
-        const overId = String(over.id);
-        const overFolderIndex = folders.findIndex(f => f.id === overId);
-        if (overFolderIndex !== -1) {
-          const oldIndex = folders.findIndex(f => f.id === active.id);
-          const newFolders = arrayMove(folders, oldIndex, overFolderIndex);
-          store.reorderFolders(newFolders.map(f => f.id));
-          onDataChange();
+    if (!over || active.id === over.id) return;
+
+    const overId = String(over.id);
+    const overData = over.data?.current as { type?: string } | undefined;
+
+    let overType: 'folder' | 'standalone' | 'list' | 'other' = 'other';
+    if (overId === 'standalone-area') overType = 'standalone';
+    else if (overData?.type === 'folder' || folders.some(f => f.id === overId)) overType = 'folder';
+    else if (lists.some(l => l.id === overId)) overType = 'list';
+
+    const action = computeListReorder({
+      activeId: String(active.id),
+      overId,
+      lists,
+      folders,
+      overType,
+    });
+
+    switch (action.kind) {
+      case 'reorder': {
+        // 判断是 folder reorder 还是 list reorder：看 activeId 是否在 folders 中
+        if (folders.some(f => f.id === String(active.id))) {
+          store.reorderFolders(action.newOrder);
+        } else {
+          store.reorderLists(action.newOrder);
         }
-        return;
-      }
-
-      const activeList = lists.find(l => l.id === active.id);
-      if (!activeList) return;
-
-      const overId = String(over.id);
-      let targetFolderId: string | null = null;
-      let targetIndex: number | undefined = undefined;
-
-      if (overId === 'standalone-area') {
-        targetFolderId = null;
-      } else if (over.data?.current?.type === 'folder' || folders.some(f => f.id === overId)) {
-        targetFolderId = overId;
-      } else {
-        const overList = lists.find(l => l.id === overId);
-        if (overList) {
-          targetFolderId = overList.folderId;
-          const siblingLists = lists.filter(l => l.folderId === targetFolderId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-          targetIndex = siblingLists.findIndex(l => l.id === overId);
-
-          if (activeList.folderId === targetFolderId) {
-            const oldIndex = siblingLists.findIndex(l => l.id === active.id);
-            if (oldIndex !== -1 && targetIndex !== -1) {
-              const newSiblingLists = arrayMove(siblingLists, oldIndex, targetIndex);
-              store.reorderLists(newSiblingLists.map(l => l.id));
-              onDataChange();
-              return;
-            }
-          }
-        }
-      }
-
-      if (activeList.folderId !== targetFolderId || targetIndex !== undefined) {
-        store.moveList(active.id as string, targetFolderId, targetIndex);
         onDataChange();
+        break;
       }
+      case 'move':
+        store.moveList(String(active.id), action.targetGroup, action.targetIndex);
+        onDataChange();
+        break;
     }
   };
 

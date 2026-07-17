@@ -1,10 +1,9 @@
 import { create } from 'zustand';
 import { DailyReview, DailyReviewData, CompoundStats } from './dailyReviewTypes';
 import { dailyReviewApi } from './dailyReviewService';
+import { createSyncEngine } from '../../lib/createSyncEngine';
 
 const STORAGE_KEY = 'aistudy_daily_review_data';
-
-export type SyncStatus = 'saved' | 'saving' | 'error';
 
 const defaultData: DailyReviewData = {
   reviews: []
@@ -25,15 +24,7 @@ function isReviewEmpty(content: string): boolean {
 
 interface DailyReviewStore {
   data: DailyReviewData;
-  syncStatus: SyncStatus;
-  
-  // Internal/System
-  _pendingSaves: Map<string, number>;
-  load: () => void;
-  save: (data: DailyReviewData) => void;
-  setSyncStatus: (status: SyncStatus) => void;
-  triggerDBSync: (review: DailyReview, isHighFreq?: boolean) => void;
-  
+
   // Public Actions
   syncAllFromDB: () => Promise<void>;
   getAllReviews: () => DailyReview[];
@@ -43,44 +34,37 @@ interface DailyReviewStore {
   deleteReview: (id: string) => void;
 }
 
+const syncEngine = createSyncEngine();
+
+function saveLocal(data: DailyReviewData): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.error('Failed to save daily review data:', err);
+  }
+}
+
+function loadLocal(): DailyReviewData | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as DailyReviewData) : null;
+  } catch (err) {
+    console.error('Failed to load daily review data:', err);
+    return null;
+  }
+}
+
 export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
   data: defaultData,
-  syncStatus: 'saved',
-  _pendingSaves: new Map<string, number>(),
-
-  load: () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        set({ data: JSON.parse(stored) as DailyReviewData });
-      }
-    } catch (err) {
-      console.error('Failed to load daily review data:', err);
-    }
-  },
-
-  save: (data: DailyReviewData) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      set({ data });
-    } catch (err) {
-      console.error('Failed to save daily review data:', err);
-    }
-  },
-
-  setSyncStatus: (status: SyncStatus) => {
-    set({ syncStatus: status });
-  },
 
   syncAllFromDB: async () => {
     try {
-      get().setSyncStatus('saving');
       const dbReviews = await dailyReviewApi.loadAll();
-      
+
       const localData = get().data;
       const mergedMap = new Map<string, DailyReview>();
       localData.reviews.forEach(r => mergedMap.set(r.date, r));
-      
+
       let changed = false;
       dbReviews.forEach(dbR => {
         const localR = mergedMap.get(dbR.date);
@@ -92,39 +76,12 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
 
       if (changed) {
         const newData = { ...localData, reviews: Array.from(mergedMap.values()) };
-        get().save(newData);
+        saveLocal(newData);
+        set({ data: newData });
       }
-      get().setSyncStatus('saved');
     } catch (e) {
-      console.error('Sync failed', e);
-      get().setSyncStatus('error');
+      console.error('Daily review sync from DB failed:', e);
     }
-  },
-
-  triggerDBSync: (review: DailyReview, isHighFreq: boolean = true) => {
-    const state = get();
-    state.setSyncStatus('saving');
-    
-    if (state._pendingSaves.has(review.id)) {
-      window.clearTimeout(state._pendingSaves.get(review.id));
-    }
-
-    const delay = isHighFreq ? 500 : 300;
-
-    const timeout = window.setTimeout(async () => {
-      try {
-        await dailyReviewApi.save(review);
-        const latestState = get();
-        latestState._pendingSaves.delete(review.id);
-        if (latestState._pendingSaves.size === 0) {
-          latestState.setSyncStatus('saved');
-        }
-      } catch (e) {
-        get().setSyncStatus('error');
-      }
-    }, delay);
-    
-    state._pendingSaves.set(review.id, timeout);
   },
 
   getReviewByDate: (date: string): DailyReview | undefined => {
@@ -140,7 +97,7 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
   saveReview: (date: string, content: string, rating?: number, isHighFreq?: boolean): DailyReview => {
     const data = get().data;
     const existingIndex = data.reviews.findIndex(r => r.date === date);
-    
+
     if (isReviewEmpty(content) && (rating === undefined || rating === 0)) {
       if (existingIndex !== -1) {
         const id = data.reviews[existingIndex].id;
@@ -155,10 +112,10 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
         updatedAt: 0
       };
     }
-    
+
     let review: DailyReview;
     const newReviews = [...data.reviews];
-    
+
     if (existingIndex !== -1) {
       review = {
         ...newReviews[existingIndex],
@@ -178,22 +135,24 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
       };
       newReviews.push(review);
     }
-    
-    get().save({ ...data, reviews: newReviews });
-    get().triggerDBSync(review, isHighFreq ?? true);
+
+    const newData = { ...data, reviews: newReviews };
+    saveLocal(newData);
+    set({ data: newData });
+    syncEngine.schedule(review.id, () => dailyReviewApi.save(review), (isHighFreq ?? true) ? 500 : 300);
     return review;
   },
 
   deleteReview: (id: string): void => {
     const data = get().data;
     const newReviews = data.reviews.filter(r => r.id !== id);
-    get().save({ ...data, reviews: newReviews });
+    const newData = { ...data, reviews: newReviews };
+    saveLocal(newData);
+    set({ data: newData });
 
-    get().setSyncStatus('saving');
-    dailyReviewApi.delete(id).then(() => {
-      get().setSyncStatus('saved');
-    }).catch(() => {
-      get().setSyncStatus('error');
+    syncEngine.cancel(id);
+    dailyReviewApi.delete(id).catch(e => {
+      console.error('Failed to delete review:', e);
     });
   },
 
@@ -245,5 +204,8 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
   }
 }));
 
-// Initialize load when imported
-useDailyReviewStore.getState().load();
+// Initialize data
+const initial = loadLocal();
+if (initial) {
+  useDailyReviewStore.setState({ data: initial });
+}

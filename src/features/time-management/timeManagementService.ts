@@ -2,11 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 import type { TimeManagementData } from "./timeManagementStore";
 import type { Role, Task } from "./timeManagementTypes";
 
-export type TimeManagementSyncStatus = {
-  state: "saved" | "saving" | "waiting" | "attention";
-  pendingCount: number;
-};
-
 export const timeManagementApi = {
   loadAll: async (): Promise<TimeManagementData | null> => {
     try {

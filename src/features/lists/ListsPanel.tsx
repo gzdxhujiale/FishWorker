@@ -10,9 +10,10 @@ import { TemplateModal } from './TemplateModal';
 import { NoteItem } from './NoteItem';
 import { NoteGroupView } from './NoteGroupView';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { sortableKeyboardCoordinates, SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { sortableKeyboardCoordinates, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';
-import { invoke } from '@tauri-apps/api/core';
+import * as listsService from './listsService';
+import { computeNoteReorder } from './listsReorder';
 import { BatchExportModal } from './BatchExportModal';
 import { Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -204,41 +205,35 @@ export function ListsPanel() {
     setDragOverGroupId(null);
 
     const { active, over } = event;
-    if (active.id !== over?.id && over) {
-      const activeNoteId = String(active.id);
-      const overId = String(over.id);
+    if (!over || active.id === over.id) return;
 
-      let targetGroupId: string | null = null;
-      let targetIndex: number | undefined = undefined;
+    const overId = String(over.id);
+    const overData = over.data?.current as { type?: string } | undefined;
 
-      if (over.data?.current?.type === 'group') {
-        targetGroupId = overId === 'ungrouped' ? null : overId;
-      } else {
-        const overNote = notes.find(n => n.id === overId);
-        if (overNote) {
-          targetGroupId = overNote.groupId || null;
+    let overType: 'group' | 'note' | 'other' = 'other';
+    let overGroupId: string | null | undefined = undefined;
+    if (overData?.type === 'group') {
+      overType = 'group';
+      overGroupId = overId === 'ungrouped' ? null : overId;
+    } else if (notes.some(n => n.id === overId)) {
+      overType = 'note';
+    }
 
-          const activeNoteData = notes.find(n => n.id === activeNoteId);
-          if (activeNoteData && (activeNoteData.groupId || null) === targetGroupId) {
-            const siblingNotes = notes.filter(n => (n.groupId || null) === targetGroupId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-            const oldIndex = siblingNotes.findIndex(n => n.id === activeNoteId);
-            const newIndex = siblingNotes.findIndex(n => n.id === overId);
-            if (oldIndex !== -1 && newIndex !== -1) {
-              const newSiblingNotes = arrayMove(siblingNotes, oldIndex, newIndex);
-              store.reorderNotes(newSiblingNotes.map(n => n.id));
-              return;
-            }
-          }
+    const action = computeNoteReorder({
+      activeId: String(active.id),
+      overId,
+      notes,
+      overType,
+      overGroupId,
+    });
 
-          const siblingNotes = notes.filter(n => (n.groupId || null) === targetGroupId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-          targetIndex = siblingNotes.findIndex(n => n.id === overId);
-        }
-      }
-
-      const activeNoteData = notes.find(n => n.id === activeNoteId);
-      if (activeNoteData) {
-        store.moveNoteAndReorder(activeNoteId, targetGroupId, targetIndex);
-      }
+    switch (action.kind) {
+      case 'reorder':
+        store.reorderNotes(action.newOrder);
+        break;
+      case 'move':
+        store.moveNoteAndReorder(String(active.id), action.targetGroup, action.targetIndex);
+        break;
     }
   };
 
@@ -338,7 +333,7 @@ export function ListsPanel() {
   const handleBatchImport = async () => {
     if (!activeListId) return;
     try {
-      const importedFiles = await invoke<Array<{ title: string; content: string }>>('pick_multiple_markdown_files');
+      const importedFiles = await listsService.pickMultipleMarkdownFiles();
       for (const file of importedFiles) {
         let htmlContent = file.content;
         try {
@@ -396,7 +391,7 @@ export function ListsPanel() {
     }));
 
     try {
-      await invoke('save_multiple_markdown_files', { files });
+      await listsService.saveMultipleMarkdownFiles(files);
       setBatchExportModalOpen(false);
       showToast(`已成功导出 ${files.length} 条笔记！`);
     } catch (err) {
