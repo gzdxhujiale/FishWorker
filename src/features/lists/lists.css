@@ -780,6 +780,10 @@
   /* 缩小行间距 */
 }
 
+.note-drawer-editor-container .drag-handle {
+  margin-left: -16px;
+}
+
 .ProseMirror {
   outline: none;
   min-height: 100%;

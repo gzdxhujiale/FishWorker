@@ -209,10 +209,10 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
             onCreated={setEditor}
             placeholder=""
             style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
-            editorStyle={{ flex: 1, overflowY: 'auto', padding: '8px 12px 12px', display: 'flex', flexDirection: 'column', height: 'auto', minHeight: 0 }}
+            editorStyle={{ flex: 1, overflowY: 'auto', padding: '8px 12px 12px 20px', display: 'flex', flexDirection: 'column', height: 'auto', minHeight: 0 }}
             editorClassName="tiptap-editor-wrapper"
             placeholderOverlay={isContentEmpty && (
-              <div style={{ position: 'absolute', top: '8px', left: '12px', color: 'var(--text-faint)', fontSize: '15px', pointerEvents: 'none', zIndex: 2 }}>
+              <div style={{ position: 'absolute', top: '8px', left: '20px', color: 'var(--text-faint)', fontSize: '15px', pointerEvents: 'none', zIndex: 2 }}>
                 记录你的想法，或{' '}
                 <span
                   style={{ pointerEvents: 'auto', color: 'var(--accent)', cursor: 'pointer' }}
