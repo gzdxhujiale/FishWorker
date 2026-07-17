@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DailyReview } from './dailyReviewTypes';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { DatePicker } from '@arco-design/web-react';
-import { SimpleEditor } from 'quill/components/tiptap-templates/simple/simple-editor';
+import { SimpleEditor } from '../tiptap/SimpleEditor';
 
 interface Props {
   date: string;

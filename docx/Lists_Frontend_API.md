@@ -280,4 +280,24 @@ const [editor, setEditor] = useState<Editor | null>(null);
 />
 ```
 
+### 6.3 气泡菜单与拖拽块上下文菜单增强规范 (v2.6)
+
+在 v2.6 版本中，对悬浮菜单及上下文指令的定位和作用域范围进行了重构优化，核心规范定义如下：
+
+#### 1) 选中文本气泡菜单 (Bubble Menu)
+- **精简规则**：为保障专注的编辑体验，气泡快捷工具栏移除了多级标题下拉菜单、各种列表类型及撤销重做按钮，**仅保留“加粗” (Bold)、“斜体” (Italic) 以及“下划线” (Underline) 三项基本行内样式排版按钮**。
+
+#### 2) 块级拖拽手柄上下文菜单 (Drag Handle Context Menu)
+- **基于 Floating UI 视口相对定位 (Fixed Positioning via Floating UI)**：
+  - 点击左侧 `drag-handle` 弹出上下文菜单时，菜单元素通过 `@floating-ui/react` 的 `useFloating` 钩子计算位置，并设置 `strategy: 'fixed'` 定位。这使得菜单在拥有 `overflow: hidden` / `overflow: auto` 的侧边抽屉容器（如 `NoteDrawer`）内显示时，完全不受父容器裁剪的影响。
+  - **全局 Portal 挂载**：为了彻底规避复杂的 HTML 祖先节点样式干扰与 z-index 遮挡，整个下拉菜单组件被包装在 `@floating-ui/react` 的 `<FloatingPortal>` 中，将其渲染在最外层 `body` 节点下，同时通过 `floatingStyles` 实现定位的精准同步。
+  - **边界碰撞检查与翻转 (Flipping & Translation)**：系统内置 `flip()` 和 `shift()` 中间件，自动根据视口边界限制来重新定位菜单（例如底部空间不足自动向上翻折，右侧空间不足自动向左偏移）。
+  - **滚动即关闭**：系统在 `window` 上注册了捕获阶段的 `scroll` 事件监听，只要包含编辑器的任何滑动区块或页面发生滚动，菜单将立即关闭并自动销毁，消除遗留脏浮层。
+- **精准操作选区锁定 (Target Block Scope Constraint)**：
+  - 当通过菜单项触发命令时，命令不可直接作用于当前编辑器光标位置，必须首先利用 Hover 期间在 editor 实例中由 `DragHandle` 插件 `onNodeChange` 回调所记录的 `(editor as any)._draggedNodePos` 与 `(editor as any)._draggedNode` 进行选区锁定：
+    - **块级转换/动作** (正文、H1~H6、有序/无序/待办列表、引用、代码块，以及复制、剪切、删除块) ：
+      先通过 `editor.commands.setNodeSelection(pos)` 对该目标节点进行 nodeSelection 锁定，随后执行目标操作（如 `setParagraph` 或 `deleteSelection`），确保命令仅作用于该被拖拽块。
+    - **文字颜色与高亮应用**：
+      由于颜色和高亮作为 inline marks 作用于文本，需先计算目标块内文本字符起止范围：`from = pos + 1`，`to = pos + node.nodeSize - 1`。再通过 `editor.commands.setTextSelection({ from, to })` 精准选取文本区间并执行 `setColor(color)` 或 `toggleHighlight({ color })`，避免污染或破坏外部其他段落。
+
 
