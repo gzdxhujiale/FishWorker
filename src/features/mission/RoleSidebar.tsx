@@ -3,15 +3,52 @@ import { useMissionStore } from "./MissionStore";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Pencil, Trash2, Check, X } from "lucide-react";
 
 const SortableRoleItem: React.FC<{ role: { id: string; name: string; icon: string }; goalCount: number }> = ({ role, goalCount }) => {
   const selectedRoleId = useMissionStore(s => s.selectedRoleId);
   const setSelectedRole = useMissionStore(s => s.setSelectedRole);
+  const updateRole = useMissionStore(s => s.updateRole);
+  const deleteRole = useMissionStore(s => s.deleteRole);
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: role.id });
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(role.name);
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+  };
+
+  const handleClick = () => {
+    if (!isEditing) {
+      setSelectedRole(role.id);
+    }
+  };
+
+  const handleStartEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditName(role.name);
+    setIsEditing(true);
+  };
+
+  const handleConfirmEdit = () => {
+    if (editName.trim()) {
+      updateRole(role.id, { name: editName.trim() });
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditName(role.name);
+    setIsEditing(false);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm(`确定删除角色「${role.name}」？相关目标也会被删除。`)) {
+      deleteRole(role.id);
+    }
   };
 
   return (
@@ -19,13 +56,37 @@ const SortableRoleItem: React.FC<{ role: { id: string; name: string; icon: strin
       ref={setNodeRef}
       style={style}
       className={`role-item ${selectedRoleId === role.id ? "active" : ""}`}
-      onClick={() => setSelectedRole(role.id)}
-      {...attributes}
-      {...listeners}
+      onClick={handleClick}
     >
+      <span className="role-drag-handle" {...attributes} {...listeners}>
+        <GripVertical size={14} />
+      </span>
       <span className="role-icon">{role.icon}</span>
-      <span className="role-name">{role.name}</span>
-      <span className="role-count">{goalCount} 个目标</span>
+      {isEditing ? (
+        <input
+          className="role-edit-input"
+          autoFocus
+          value={editName}
+          onChange={e => setEditName(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter") handleConfirmEdit();
+            if (e.key === "Escape") handleCancelEdit();
+          }}
+          onClick={e => e.stopPropagation()}
+          onBlur={handleConfirmEdit}
+        />
+      ) : (
+        <span className="role-name">{role.name}</span>
+      )}
+      <span className="role-count">{goalCount}</span>
+      <div className="role-actions">
+        <button className="role-action-btn" onClick={handleStartEdit} title="重命名">
+          <Pencil size={12} />
+        </button>
+        <button className="role-action-btn role-action-delete" onClick={handleDelete} title="删除">
+          <Trash2 size={12} />
+        </button>
+      </div>
     </div>
   );
 };

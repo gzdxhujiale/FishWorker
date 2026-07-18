@@ -62,11 +62,11 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
   init: async () => {
     const local = loadLocal();
     if (local) {
-      set({ statement: local.statement, roles: local.roles, goals: local.goals });
+      set({ statement: local.statement, roles: local.roles, goals: local.goals, selectedRoleId: local.roles[0]?.id ?? null });
     }
     try {
       const data = await missionService.loadAll();
-      set({ statement: data.statement, roles: data.roles, goals: data.goals });
+      set({ statement: data.statement, roles: data.roles, goals: data.goals, selectedRoleId: data.roles[0]?.id ?? null });
       saveLocal(data);
     } catch (e) {
       console.error("Mission init failed:", e);

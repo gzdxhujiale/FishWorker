@@ -124,6 +124,68 @@
   color: #666;
 }
 
+.role-drag-handle {
+  cursor: grab;
+  color: #999;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 3px;
+}
+
+.role-drag-handle:hover {
+  background: #e8e8e8;
+  color: #555;
+}
+
+.role-drag-handle:active {
+  cursor: grabbing;
+}
+
+.role-actions {
+  display: none;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.role-item:hover .role-actions {
+  display: flex;
+}
+
+.role-item:hover .role-count {
+  display: none;
+}
+
+.role-action-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.role-action-btn:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.role-action-delete:hover {
+  background: #fce8e6;
+  color: #d93025;
+}
+
+.role-edit-input {
+  flex: 1;
+  padding: 2px 6px;
+  border: 1px solid #1a73e8;
+  border-radius: 3px;
+  font-size: 13px;
+  outline: none;
+}
+
 /* ── Goal Detail ── */
 .goal-detail-panel {
   flex: 1;
