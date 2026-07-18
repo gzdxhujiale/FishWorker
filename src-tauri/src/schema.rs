@@ -127,5 +127,45 @@ pub async fn ensure_tables(pool: &MySqlPool) -> Result<(), sqlx::Error> {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     ).execute(pool).await?;
 
+    // ── Mission module tables ──
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS mission_statement (
+            id VARCHAR(36) NOT NULL,
+            content LONGTEXT NOT NULL DEFAULT '',
+            updated_at DATETIME(3) NOT NULL,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS mission_roles (
+            id VARCHAR(36) NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            icon VARCHAR(20) NOT NULL DEFAULT '',
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME(3) NOT NULL,
+            updated_at DATETIME(3) NOT NULL,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS mission_goals (
+            id VARCHAR(36) NOT NULL,
+            role_id VARCHAR(36) NOT NULL,
+            title VARCHAR(500) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'not_started',
+            time_scope VARCHAR(20) NOT NULL DEFAULT 'long',
+            start_date DATE NULL,
+            end_date DATE NULL,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME(3) NOT NULL,
+            updated_at DATETIME(3) NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_role_order (role_id, sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ).execute(pool).await?;
+
     Ok(())
 }

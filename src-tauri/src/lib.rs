@@ -3,6 +3,7 @@ mod list;
 mod schema;
 mod time_management;
 mod daily_review;
+mod mission;
 
 use tauri::Manager;
 
@@ -146,7 +147,17 @@ pub fn run() {
             list::list_delete_group,
             list::list_upsert_template,
             list::list_delete_template,
-            list::list_migrate_from_local
+            list::list_migrate_from_local,
+            mission::mission_load_all,
+            mission::mission_save_statement,
+            mission::mission_create_role,
+            mission::mission_update_role,
+            mission::mission_delete_role,
+            mission::mission_reorder_roles,
+            mission::mission_create_goal,
+            mission::mission_update_goal,
+            mission::mission_delete_goal,
+            mission::mission_reorder_goals
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
