@@ -5,7 +5,8 @@ import {
   CalendarDays,
   ClipboardList,
   LayoutGrid,
-  Target
+  Target,
+  Navigation
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";
 import { TimeManagementPanel } from "./features/time-management/TimeManagementPanel";
@@ -13,6 +14,7 @@ import { DailyReviewPanel } from "./features/daily-review/DailyReviewPanel";
 import { SettingsModal } from "./features/settings/SettingsModal";
 import { ListsPanel } from "./features/lists/ListsPanel";
 import { HabitPanel } from "./features/habits/HabitPanel";
+import { MissionPanel } from "./features/mission/MissionPanel";
 
 import "./index.css";
 import "@arco-design/web-react/dist/css/arco.css";
@@ -52,7 +54,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   }
 }
 
-type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists" | "habits";
+type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists" | "habits" | "mission";
 
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("lists");
@@ -70,6 +72,7 @@ function App() {
               { id: "four-quadrants", name: "四象限工作台", icon: LayoutGrid, component: () => <></> },
               { id: "daily-review", name: "每日复盘", icon: Clock, component: () => <></> },
               { id: "habits", name: "习惯", icon: Target, component: () => <></> },
+              { id: "mission", name: "人生罗盘", icon: Navigation, component: () => <></> },
             ]}
             activeToolId={activeSection}
             onToolSelect={(id) => setActiveSection(id as AppSection)}
@@ -88,6 +91,8 @@ function App() {
               <ListsPanel />
             ) : activeSection === "habits" ? (
               <HabitPanel />
+            ) : activeSection === "mission" ? (
+              <MissionPanel />
             ) : null}
           </MainContent>
         }
