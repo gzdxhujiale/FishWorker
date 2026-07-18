@@ -3,58 +3,39 @@ schema_version: 1
 locale: zh-CN
 branch: main
 nodes_managed: true
-exported_at: "2026-07-18T06:20:48Z"
+exported_at: "2026-07-18T14:40:59Z"
 modules:
     "":
-        dir_name: FishWorker 单仓根目录（pnpm monorepo）
-        title: FishWorker 单仓根目录（pnpm monorepo）
+        dir_name: FishWorker 桌面应用（Tauri + React + Vite）
+        title: FishWorker 桌面应用（Tauri + React + Vite）
         scope:
+            - .gitignore
+            - 01_initial_page.png
+            - 02_mission_panel_loaded.png
+            - 03_mission_collapsed.png
+            - 04_mission_expanded.png
+            - 05_role_added.png
+            - 06_final_layout.png
             - README.md
+            - architecture-review-daily-review.html
+            - daily-review-focus-flow-screenshot.png
+            - daily-review-fullpage-screenshot.png
+            - daily-review-layout-screenshot.png
+            - daily-review-prototype.html
+            - habit_tracker (1).html
             - index.html
             - package.json
+            - pnpm-lock.yaml
             - pnpm-workspace.yaml
-            - vite.config.js
-            - vite.config.ts
-            - tsconfig.json
-            - tsconfig.node.json
-            - vitest.config.ts
             - test-gen.ts
             - test-gen2.ts
-            - .gitignore
-            - habit_tracker (1).html
-            - pnpm-lock.yaml
+            - tsconfig.json
+            - tsconfig.node.json
             - tsconfig.node.tsbuildinfo
             - tsconfig.tsbuildinfo
-        source_files: []
-        children:
-            - docs
-            - frontend_app
-            - tauri_backend
-        depends_on: []
-        related_to: []
-    docs:
-        dir_name: FishWorker 产品需求与接口文档集
-        title: FishWorker 产品需求与接口文档集
-        scope:
-            - docx/
-        source_files: []
-        children: []
-        depends_on: []
-        related_to: []
-    frontend_app:
-        dir_name: 前端应用壳与业务 Feature 层（React + Tauri）
-        title: 前端应用壳与业务 Feature 层（React + Tauri）
-        scope:
-            - src/
-        source_files: []
-        children: []
-        depends_on: []
-        related_to: []
-    tauri_backend:
-        dir_name: Tauri v2 桌面后端（Rust 命令层）
-        title: Tauri v2 桌面后端（Rust 命令层）
-        scope:
-            - src-tauri/
+            - vite.config.js
+            - vite.config.ts
+            - vitest.config.ts
         source_files: []
         children: []
         depends_on: []

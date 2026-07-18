@@ -1,0 +1,34 @@
+schema_version: 1
+module_path: ""
+title: FishWorker 桌面应用（Tauri + React + Vite）
+scope:
+    - .gitignore
+    - 01_initial_page.png
+    - 02_mission_panel_loaded.png
+    - 03_mission_collapsed.png
+    - 04_mission_expanded.png
+    - 05_role_added.png
+    - 06_final_layout.png
+    - README.md
+    - architecture-review-daily-review.html
+    - daily-review-focus-flow-screenshot.png
+    - daily-review-fullpage-screenshot.png
+    - daily-review-layout-screenshot.png
+    - daily-review-prototype.html
+    - habit_tracker (1).html
+    - index.html
+    - package.json
+    - pnpm-lock.yaml
+    - pnpm-workspace.yaml
+    - test-gen.ts
+    - test-gen2.ts
+    - tsconfig.json
+    - tsconfig.node.json
+    - tsconfig.node.tsbuildinfo
+    - tsconfig.tsbuildinfo
+    - vite.config.js
+    - vite.config.ts
+    - vitest.config.ts
+source_files: []
+depends_on: []
+related_to: []

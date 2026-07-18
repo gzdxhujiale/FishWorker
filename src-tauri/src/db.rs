@@ -78,14 +78,37 @@ pub async fn establish_connection() -> Result<MySqlPool, sqlx::Error> {
 
     let pool = MySqlPoolOptions::new()
         .max_connections(5)
+        .min_connections(2) // 保持至少2个热连接，避免冷启动
         .acquire_timeout(std::time::Duration::from_secs(10))
+        .max_lifetime(std::time::Duration::from_secs(240)) // 4分钟主动回收，在TiDB 5分钟休眠前刷新
+        .idle_timeout(std::time::Duration::from_secs(180)) // 空闲3分钟即回收，防止持有死连接
         .connect_lazy(&url)?;
 
-    let pool_clone = pool.clone();
+    // 连接池预热：立即建立真实连接，而非等到首次查询
+    let pool_warmup = pool.clone();
+    tokio::spawn(async move {
+        if let Err(e) = sqlx::query("SELECT 1").execute(&pool_warmup).await {
+            eprintln!("Failed to warm up connection pool: {}", e);
+        }
+    });
+
+    // 后台心跳：每2分钟 ping 一次，防止 TiDB Serverless 因空闲休眠
+    let pool_keepalive = pool.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(120));
+        loop {
+            interval.tick().await;
+            if let Err(e) = sqlx::query("SELECT 1").execute(&pool_keepalive).await {
+                eprintln!("Keepalive ping failed: {}", e);
+            }
+        }
+    });
+
+    let pool_schema = pool.clone();
     let skip_schema_creation = config.skip_schema_creation.unwrap_or(false);
     tokio::spawn(async move {
         if !skip_schema_creation {
-            if let Err(e) = crate::schema::ensure_tables(&pool_clone).await {
+            if let Err(e) = crate::schema::ensure_tables(&pool_schema).await {
                 eprintln!("Failed to ensure tables in background: {}", e);
             }
         }
