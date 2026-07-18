@@ -3,7 +3,7 @@ import { useMissionStore } from "./MissionStore";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, Trash2, Check, X } from "lucide-react";
+import { GripVertical, Pencil, Trash2 } from "lucide-react";
 
 const SortableRoleItem: React.FC<{ role: { id: string; name: string; icon: string }; goalCount: number }> = ({ role, goalCount }) => {
   const selectedRoleId = useMissionStore(s => s.selectedRoleId);

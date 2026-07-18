@@ -1,13 +1,5 @@
 :root {
-  --color-bg: var(--surface-1);
-  --color-bg-elevated: var(--surface-2);
-  --color-bg-subtle: var(--surface-3);
-  --color-bg-hover: var(--surface-1);
-  --color-border: var(--line-strong);
-  --color-text: var(--text-primary);
-  --color-text-muted: var(--text-muted);
-  --color-primary: var(--accent);
-  --color-primary-hover: #185bab;
+  /* Use global variables - no redefinition needed */
 }
 
 .daily-review-panel {
@@ -78,12 +70,27 @@
   font-size: 2rem;
 }
 
+.stat-value-streak {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Monthly Calendar (Arco Design overrides) */
 .heatmap-container {
-  background-color: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated, var(--surface-2));
+  border: 1px solid var(--color-border, var(--line-strong));
   border-radius: 12px;
   padding: 16px;
+}
+
+.heatmap-header {
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .monthly-calendar-wrapper {
@@ -167,24 +174,55 @@
   gap: 12px;
 }
 
-.editor-date-selector button {
-  background: none;
+.editor-nav-btn {
+  background: transparent;
   border: none;
   cursor: pointer;
+  display: flex;
+  align-items: center;
   padding: 4px;
   border-radius: 4px;
-  color: var(--color-text-muted);
+  color: var(--color-text-muted, var(--text-muted));
 }
 
-.editor-date-selector button:hover {
-  background-color: var(--color-bg-hover);
-  color: var(--color-text);
+.editor-nav-btn:hover {
+  background-color: var(--color-bg-hover, var(--surface-1));
+  color: var(--color-text, var(--text-primary));
 }
 
-.editor-date-selector h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
+.editor-nav-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.editor-date-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-date-input {
+  width: 140px;
+  font-weight: bold;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, var(--line-soft));
+  background: var(--color-bg-elevated, var(--surface-2));
+  color: var(--color-text, var(--text-strong));
+  outline: none;
+  cursor: pointer;
+}
+
+.editor-today-badge {
+  font-size: 14px;
+  color: var(--text-secondary, var(--color-text-muted));
+}
+
+.editor-simple-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .editor-actions {
@@ -244,7 +282,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 24px;
+  position: relative;
+  overflow: hidden;
 }
 
 .editor-textarea {
@@ -266,12 +305,12 @@
 }
 
 .rating-selector {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 16px 12px;
+  margin-top: 0;
+  border-top: 1px solid var(--color-border, var(--line-strong));
 }
 
 .rating-stars {

@@ -31,14 +31,14 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
           </div>
           <div className="stat-item">
             <span className="stat-label">当前连续打卡</span>
-            <span className="stat-value" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span className="stat-value stat-value-streak">
               <Zap size={18} color="#f59e0b" />
               {stats.currentStreak}
             </span>
           </div>
           <div className="stat-item">
             <span className="stat-label">历史最高连续</span>
-            <span className="stat-value" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span className="stat-value stat-value-streak">
               <Award size={18} color="#3b82f6" />
               {stats.longestStreak}
             </span>
@@ -46,8 +46,8 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
         </div>
       </div>
 
-      <div className="heatmap-container" style={{ padding: '16px' }}>
-        <div className="stats-header" style={{ fontSize: '1rem', marginBottom: '8px' }}>
+      <div className="heatmap-container">
+        <div className="heatmap-header">
           <CalendarIcon size={18} />
           <span>当月打卡记录</span>
         </div>

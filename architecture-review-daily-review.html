@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Review 架构审查报告</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .badge-strong { background: #dc2626; color: white; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  .badge-worth { background: #f59e0b; color: white; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  .badge-spec { background: #6b7280; color: white; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 24px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .diagram-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+  .file-tag { background: #eff6ff; color: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-family: monospace; }
+  .warning-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .danger-box { background: #fee2e2; border-left: 4px solid #dc2626; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .top-pick { border: 2px solid #10b981; background: #ecfdf5; }
+  .mermaid { text-align: center; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<div class="max-w-5xl mx-auto p-8">
+
+<!-- Header -->
+<div class="mb-8">
+  <h1 class="text-3xl font-bold mb-2">🔍 Daily Review 架构审查报告</h1>
+  <p class="text-gray-500">生成时间: 2026-07-18 · 模块路径: <code class="file-tag">src/features/daily-review/</code></p>
+</div>
+
+<!-- Module Overview -->
+<div class="card">
+  <h2 class="text-xl font-semibold mb-4">📦 模块现状概览</h2>
+  <div class="grid grid-cols-2 gap-4 mb-4">
+    <div>
+      <p class="text-sm text-gray-500 mb-1">文件数</p>
+      <p class="text-2xl font-bold">7 个文件</p>
+    </div>
+    <div>
+      <p class="text-sm text-gray-500 mb-1">总行数</p>
+      <p class="text-2xl font-bold">~860 行</p>
+    </div>
+    <div>
+      <p class="text-sm text-gray-500 mb-1">测试覆盖</p>
+      <p class="text-2xl font-bold text-red-600">0 个测试</p>
+    </div>
+    <div>
+      <p class="text-sm text-gray-500 mb-1">后端命令</p>
+      <p class="text-2xl font-bold">3 个 Tauri commands</p>
+    </div>
+  </div>
+  <div class="diagram-box">
+    <pre class="mermaid">
+graph LR
+    A[DailyReviewPanel.tsx<br/>67行] --> B[dailyReviewStore.ts<br/>211行]
+    A --> C[CompoundStats.tsx<br/>82行]
+    A --> D[ReviewEditor.tsx<br/>150行]
+    B --> E[dailyReviewService.ts<br/>32行]
+    E --> F[Tauri Backend<br/>daily_review.rs 91行]
+    D --> G[SimpleEditor<br/>复用 tiptap]
+    C --> H[Arco Calendar<br/>第三方组件]
+    </pre>
+  </div>
+</div>
+
+<!-- Candidate 1 -->
+<div class="card top-pick">
+  <div class="flex items-center gap-3 mb-4">
+    <span class="badge-strong">Strong</span>
+    <h2 class="text-xl font-semibold">C1: Store 职责过重 — 业务逻辑与持久化纠缠</h2>
+    <span class="text-green-600 text-sm font-semibold ml-auto">Top Recommendation</span>
+  </div>
+  
+  <div class="mb-4">
+    <p class="text-sm text-gray-500 mb-2">涉及文件</p>
+    <span class="file-tag">dailyReviewStore.ts</span>
+    <span class="file-tag ml-1">dailyReviewTypes.ts</span>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">问题</h3>
+    <p class="text-gray-700 mb-2"><code>dailyReviewStore.ts</code> 211 行，承担了过多职责：</p>
+    <ul class="list-disc list-inside text-gray-600 space-y-1">
+      <li><strong>CRUD 操作</strong>：saveReview / deleteReview / syncAllFromDB</li>
+      <li><strong>复杂业务计算</strong>：getCompoundStats（连续打卡、复利值、最长连续）</li>
+      <li><strong>数据验证</strong>：isReviewEmpty（判断内容是否为空）</li>
+      <li><strong>日期工具</strong>：getDaysDifference</li>
+      <li><strong>本地缓存</strong>：saveLocal / loadLocal</li>
+    </ul>
+    <div class="warning-box">
+      <strong>后果</strong>：无法单独测试复利计算逻辑；修改打卡规则需要动 Store 核心；新增统计维度会让 Store 膨胀。
+    </div>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">建议</h3>
+    <p class="text-gray-700 mb-2">提取纯函数模块 <code>dailyReviewStats.ts</code>：</p>
+    <ul class="list-disc list-inside text-gray-600 space-y-1">
+      <li>将 <code>getCompoundStats</code>、<code>getDaysDifference</code>、<code>isReviewEmpty</code> 提取为纯函数</li>
+      <li>输入: <code>DailyReview[]</code>，输出: <code>CompoundStats</code></li>
+      <li>100% 可测试，无副作用，无 Store 依赖</li>
+    </ul>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4">
+    <div class="diagram-box">
+      <p class="text-sm font-semibold mb-2 text-red-600">Before（当前）</p>
+      <pre class="mermaid">
+graph TD
+    A[dailyReviewStore] --> B[CRUD]
+    A --> C[Stats计算]
+    A --> D[日期工具]
+    A --> E[验证逻辑]
+    A --> F[本地缓存]
+    A --> G[SyncEngine]
+      </pre>
+    </div>
+    <div class="diagram-box">
+      <p class="text-sm font-semibold mb-2 text-green-600">After（重构后）</p>
+      <pre class="mermaid">
+graph TD
+    A[dailyReviewStore] --> B[CRUD]
+    A --> F[本地缓存]
+    A --> G[SyncEngine]
+    H[dailyReviewStats] --> C[Stats计算]
+    H --> D[日期工具]
+    H --> E[验证逻辑]
+    A --> H
+      </pre>
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <h3 class="font-semibold mb-2">收益</h3>
+    <ul class="list-disc list-inside text-gray-600 space-y-1">
+      <li><strong>Locality</strong>：统计逻辑集中在一个文件，修改不波及 Store</li>
+      <li><strong>Leverage</strong>：纯函数可被多个消费者复用（面板、通知、导出）</li>
+      <li><strong>Testability</strong>：可直接对 stats 函数写单元测试</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Candidate 2 -->
+<div class="card">
+  <div class="flex items-center gap-3 mb-4">
+    <span class="badge-strong">Strong</span>
+    <h2 class="text-xl font-semibold">C2: ReviewEditor 状态管理复杂度高 — 4 个 ref 的隐式状态机</h2>
+  </div>
+  
+  <div class="mb-4">
+    <p class="text-sm text-gray-500 mb-2">涉及文件</p>
+    <span class="file-tag">ReviewEditor.tsx</span>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">问题</h3>
+    <p class="text-gray-700 mb-2">组件用 4 个 ref 追踪保存状态，形成隐式状态机：</p>
+    <pre class="bg-gray-100 p-3 rounded-lg text-sm font-mono mb-2">lastSavedContent <--> currentContent
+lastSavedRating  <--> currentRating
+currentDate (用于检测日期切换，触发"保存上一个日期")</pre>
+    <ul class="list-disc list-inside text-gray-600 space-y-1">
+      <li>日期切换时的"自动保存前一日期"逻辑分散在多个 useEffect 中</li>
+      <li><code>isHighFreq</code> 参数在组件内决定 debounce 时长，语义不清晰</li>
+      <li>大量 inline style（~30 处），与 CSS 文件脱节</li>
+    </ul>
+    <div class="danger-box">
+      <strong>风险</strong>：快速切换日期时可能丢失内容；useEffect 依赖链难以推理。
+    </div>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">建议</h3>
+    <ul class="list-disc list-inside text-gray-600 space-y-1">
+      <li>提取 <code>useReviewAutoSave</code> hook — 封装"切换日期时保存 + debounce 自动保存"逻辑</li>
+      <li>将 inline style 迁移到 CSS 类</li>
+      <li>简化为单一 <code>useEffect</code> 监听 <code>[date, content, rating]</code></li>
+    </ul>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4">
+    <div class="diagram-box">
+      <p class="text-sm font-semibold mb-2 text-red-600">Before</p>
+      <pre class="mermaid">
+graph TD
+    A[ReviewEditor] --> B[4个 ref]
+    A --> C[5个 useEffect]
+    A --> D[30处 inline style]
+    A --> E[日期切换保存逻辑]
+      </pre>
+    </div>
+    <div class="diagram-box">
+      <p class="text-sm font-semibold mb-2 text-green-600">After</p>
+      <pre class="mermaid">
+graph TD
+    A[ReviewEditor] --> B[useReviewAutoSave]
+    A --> C[1-2个 useEffect]
+    A --> F[CSS classes]
+    B --> D[日期切换]
+    B --> E[debounce]
+      </pre>
+    </div>
+  </div>
+</div>
+
+<!-- Candidate 3 -->
+<div class="card">
+  <div class="flex items-center gap-3 mb-4">
+    <span class="badge-worth">Worth exploring</span>
+    <h2 class="text-xl font-semibold">C3: 后端 SQL 拼接存在注入风险 + 手动行解析</h2>
+  </div>
+  
+  <div class="mb-4">
+    <p class="text-sm text-gray-500 mb-2">涉及文件</p>
+    <span class="file-tag">src-tauri/src/daily_review.rs</span>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">问题</h3>
+    <div class="danger-box">
+      <strong>安全风险</strong>：<code>daily_review_save</code> 使用 <code>format!()</code> 拼接 SQL：
+      <pre class="bg-red-50 p-2 rounded mt-2 text-sm font-mono">let sql = format!("... {}, NOW(3))", created_at_db);
+// created_at_db 来自 FROM_UNIXTIME(ms / 1000)
+// 虽然当前来源可信，但模式本身不安全</pre>
+    </div>
+    <p class="text-gray-700 mt-2">另外，手动 <code>try_get</code> 逐字段解析（17 行）可简化为 <code>sqlx::FromRow</code> 派生。</p>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">建议</h3>
+    <ul class="list-disc list-inside text-gray-600 space-y-1">
+      <li>用参数化方式处理 <code>created_at</code>，避免字符串拼接</li>
+      <li>为 <code>DailyReviewRow</code> 实现 <code>FromRow</code>，消除手动解析</li>
+      <li>参考 <code>mission.rs</code> 的写法（已用条件绑定模式）</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Candidate 4 -->
+<div class="card">
+  <div class="flex items-center gap-3 mb-4">
+    <span class="badge-worth">Worth exploring</span>
+    <h2 class="text-xl font-semibold">C4: CSS 变量重复定义 + 大量 inline style</h2>
+  </div>
+  
+  <div class="mb-4">
+    <p class="text-sm text-gray-500 mb-2">涉及文件</p>
+    <span class="file-tag">dailyReview.css</span>
+    <span class="file-tag ml-1">ReviewEditor.tsx</span>
+    <span class="file-tag ml-1">CompoundStats.tsx</span>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">问题</h3>
+    <ul class="list-disc list-inside text-gray-600 space-y-1">
+      <li>CSS 文件顶部重新定义了 <code>:root</code> 变量，与全局 SCSS 变量重复</li>
+      <li>ReviewEditor 有 ~30 处 inline style，CompoundStats 有 ~5 处</li>
+      <li>存在未使用的 CSS 类（btn-primary, btn-danger, editor-textarea, empty-state）</li>
+    </ul>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">建议</h3>
+    <ul class="list-disc list-inside text-gray-600 space-y-1">
+      <li>删除 <code>:root</code> 重复定义，直接使用全局变量</li>
+      <li>将 inline style 提取为语义化 CSS 类</li>
+      <li>清理未使用的类</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Candidate 5 -->
+<div class="card">
+  <div class="flex items-center gap-3 mb-4">
+    <span class="badge-spec">Speculative</span>
+    <h2 class="text-xl font-semibold">C5: syncAllFromDB 合并策略与项目其他模块不一致</h2>
+  </div>
+  
+  <div class="mb-4">
+    <p class="text-sm text-gray-500 mb-2">涉及文件</p>
+    <span class="file-tag">dailyReviewStore.ts</span>
+    <span class="file-tag ml-1">mission/MissionStore.ts</span>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">问题</h3>
+    <p class="text-gray-700 mb-2">Daily Review 使用自定义的 <code>syncAllFromDB</code>（手动合并 local + DB），而 Mission 模块使用 <code>createSyncEngine</code>（keyed debounce 乐观同步）。两种模式并存增加认知负担。</p>
+  </div>
+
+  <div class="mb-4">
+    <h3 class="font-semibold mb-2">建议</h3>
+    <p class="text-gray-700">评估是否统一为 <code>createSyncEngine</code> 模式。但注意 Daily Review 的"批量加载 + 按日期合并"语义与 Mission 的"逐条乐观更新"不同，强行统一可能引入复杂度。</p>
+    <div class="warning-box">
+      <strong>注意</strong>：此项优先级较低，建议在 C1-C3 完成后再评估。
+    </div>
+  </div>
+</div>
+
+<!-- Top Recommendation -->
+<div class="card" style="border: 2px solid #10b981; background: linear-gradient(135deg, #ecfdf5, #f0fdf4);">
+  <h2 class="text-xl font-semibold mb-4">推荐执行顺序</h2>
+  <div class="space-y-3">
+    <div class="flex items-start gap-3">
+      <span class="bg-green-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">1</span>
+      <div>
+        <p class="font-semibold">C1: 提取 dailyReviewStats 纯函数模块</p>
+        <p class="text-sm text-gray-500">收益最大、风险最低、立即获得测试覆盖</p>
+      </div>
+    </div>
+    <div class="flex items-start gap-3">
+      <span class="bg-green-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">2</span>
+      <div>
+        <p class="font-semibold">C2: 提取 useReviewAutoSave hook</p>
+        <p class="text-sm text-gray-500">降低 ReviewEditor 复杂度，消除日期切换丢数据风险</p>
+      </div>
+    </div>
+    <div class="flex items-start gap-3">
+      <span class="bg-yellow-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">3</span>
+      <div>
+        <p class="font-semibold">C3: 修复后端 SQL 拼接 + FromRow</p>
+        <p class="text-sm text-gray-500">安全改进，代码量小</p>
+      </div>
+    </div>
+    <div class="flex items-start gap-3">
+      <span class="bg-gray-400 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shrink-0">4</span>
+      <div>
+        <p class="font-semibold">C4: CSS 清理</p>
+        <p class="text-sm text-gray-500">视觉一致性改进，可与其他步骤并行</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+</body>
+</html>
