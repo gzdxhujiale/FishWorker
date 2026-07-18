@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: ""
-title: FishWorker 桌面应用根工程
+title: FishWorker Tauri+React 桌面效率工具根工程
 scope:
     - README.md
     - index.html

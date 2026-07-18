@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: frontend_app
-title: FishWorker 前端应用（Tauri + React 多模块桌面端）
+title: 前端应用壳与功能面板（React + Tauri）
 scope:
     - src/
 source_files: []

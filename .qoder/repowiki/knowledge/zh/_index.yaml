@@ -3,11 +3,11 @@ schema_version: 1
 locale: zh-CN
 branch: main
 nodes_managed: true
-exported_at: "2026-07-18T02:20:11Z"
+exported_at: "2026-07-18T02:46:26Z"
 modules:
     "":
-        dir_name: FishWorker 桌面应用根工程
-        title: FishWorker 桌面应用根工程
+        dir_name: FishWorker Tauri+React 桌面效率工具根工程
+        title: FishWorker Tauri+React 桌面效率工具根工程
         scope:
             - README.md
             - index.html
@@ -42,8 +42,8 @@ modules:
         depends_on: []
         related_to: []
     frontend_app:
-        dir_name: FishWorker 前端应用（Tauri + React 多模块桌面端）
-        title: FishWorker 前端应用（Tauri + React 多模块桌面端）
+        dir_name: 前端应用壳与功能面板（React + Tauri）
+        title: 前端应用壳与功能面板（React + Tauri）
         scope:
             - src/
         source_files: []
@@ -51,8 +51,8 @@ modules:
         depends_on: []
         related_to: []
     tauri_backend:
-        dir_name: FishWorker Tauri 桌面后端
-        title: FishWorker Tauri 桌面后端
+        dir_name: FishWorker Tauri v2 Rust 后端
+        title: FishWorker Tauri v2 Rust 后端
         scope:
             - src-tauri/
         source_files: []
