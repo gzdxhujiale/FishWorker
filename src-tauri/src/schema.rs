@@ -132,7 +132,7 @@ pub async fn ensure_tables(pool: &MySqlPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS mission_statement (
             id VARCHAR(36) NOT NULL,
-            content LONGTEXT NOT NULL DEFAULT '',
+            content LONGTEXT NOT NULL,
             updated_at DATETIME(3) NOT NULL,
             PRIMARY KEY (id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
