@@ -1,0 +1,61 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: main
+nodes_managed: true
+exported_at: "2026-07-18T02:20:11Z"
+modules:
+    "":
+        dir_name: FishWorker 桌面应用根工程
+        title: FishWorker 桌面应用根工程
+        scope:
+            - README.md
+            - index.html
+            - package.json
+            - pnpm-workspace.yaml
+            - vite.config.js
+            - vite.config.ts
+            - tsconfig.json
+            - tsconfig.node.json
+            - vitest.config.ts
+            - test-gen.ts
+            - test-gen2.ts
+            - .gitignore
+            - habit_tracker (1).html
+            - pnpm-lock.yaml
+            - tsconfig.node.tsbuildinfo
+            - tsconfig.tsbuildinfo
+        source_files: []
+        children:
+            - docs
+            - frontend_app
+            - tauri_backend
+        depends_on: []
+        related_to: []
+    docs:
+        dir_name: FishWorker 产品需求与接口文档集
+        title: FishWorker 产品需求与接口文档集
+        scope:
+            - docx/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_app:
+        dir_name: FishWorker 前端应用（Tauri + React 多模块桌面端）
+        title: FishWorker 前端应用（Tauri + React 多模块桌面端）
+        scope:
+            - src/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    tauri_backend:
+        dir_name: FishWorker Tauri 桌面后端
+        title: FishWorker Tauri 桌面后端
+        scope:
+            - src-tauri/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

@@ -119,4 +119,34 @@ describe('computeNoteReorder', () => {
     const r = computeNoteReorder({ activeId: 'N1', overId: 'ghost', notes, overType: 'note' });
     expect(r.kind).toBe('none');
   });
+
+  it('active 不存在 → none', () => {
+    const r = computeNoteReorder({ activeId: 'ghost', overId: 'N1', notes, overType: 'note' });
+    expect(r.kind).toBe('none');
+  });
+
+  it('overType === "other" → none', () => {
+    const r = computeNoteReorder({ activeId: 'N1', overId: 'N2', notes, overType: 'other' });
+    expect(r.kind).toBe('none');
+  });
+
+  it('跨 group 拖到 ungrouped note → move targetGroup=null', () => {
+    const r = computeNoteReorder({ activeId: 'N1', overId: 'N4', notes, overType: 'note' });
+    expect(r).toEqual({ kind: 'move', targetGroup: null, targetIndex: 0 });
+  });
+
+  it('拖到 ungrouped 头部（overGroupId=null）→ move targetGroup=null', () => {
+    const r = computeNoteReorder({ activeId: 'N1', overId: 'ungrouped', notes, overType: 'group', overGroupId: null });
+    expect(r).toEqual({ kind: 'move', targetGroup: null, targetIndex: undefined });
+  });
+
+  it('拖到 ungrouped 头部（overGroupId=undefined）→ move targetGroup=null', () => {
+    const r = computeNoteReorder({ activeId: 'N1', overId: 'ungrouped', notes, overType: 'group' });
+    expect(r).toEqual({ kind: 'move', targetGroup: null, targetIndex: undefined });
+  });
+
+  it('跨 group 拖到目标 group 第一个 note → targetIndex=0', () => {
+    const r = computeNoteReorder({ activeId: 'N4', overId: 'N1', notes, overType: 'note' });
+    expect(r).toEqual({ kind: 'move', targetGroup: 'G1', targetIndex: 0 });
+  });
 });
