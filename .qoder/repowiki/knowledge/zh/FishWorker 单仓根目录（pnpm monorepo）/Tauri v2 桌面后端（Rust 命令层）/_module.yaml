@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: tauri_backend
-title: FishWorker Tauri v2 Rust 后端
+title: Tauri v2 桌面后端（Rust 命令层）
 scope:
     - src-tauri/
 source_files: []

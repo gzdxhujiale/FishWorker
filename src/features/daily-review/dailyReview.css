@@ -1,100 +1,273 @@
-:root {
-  /* Use global variables - no redefinition needed */
-}
+/* ══════════════════════════════════════════════════════════════
+   Daily Review - 焦点流布局
+   顶部日期导航 + 左侧编辑器 + 右侧指标/日历
+   ══════════════════════════════════════════════════════════════ */
 
+/* ── Panel Root ── */
 .daily-review-panel {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   height: 100%;
   width: 100%;
-  gap: 20px;
-  padding: 20px;
-  box-sizing: border-box;
   background-color: var(--color-bg);
   color: var(--color-text);
+  overflow: hidden;
+}
+
+/* ── Top Bar: Date Navigation ── */
+.review-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  background-color: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.top-bar-date-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.top-bar-nav-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  transition: all 0.15s;
+}
+
+.top-bar-nav-btn:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.top-bar-nav-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.top-bar-nav-btn:disabled:hover {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.top-bar-date-display {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.top-bar-today-badge {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background-color: var(--color-bg-hover);
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 4px;
+}
+
+/* ── Main Layout: Left-Right ── */
+.review-main-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Left: Editor Panel ── */
+.review-editor-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.review-editor-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.editor-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.editor-simple-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Editor Footer ── */
+.editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-bg-subtle);
+  flex-shrink: 0;
+}
+
+.rating-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rating-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.rating-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.rating-star {
+  cursor: pointer;
+  color: var(--color-border);
+  transition: color 0.15s, transform 0.1s;
+}
+
+.rating-star:hover {
+  transform: scale(1.15);
+}
+
+.rating-star.active {
+  color: #fbbf24;
+}
+
+.save-status {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ── Right: Stats Panel ── */
+.review-stats-panel {
+  width: 300px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
   overflow-y: auto;
 }
 
-/* Compound Stats (Left Column) */
 .compound-stats-container {
-  flex: 0 0 350px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-}
-
-.stats-card {
-  background-color: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
+  padding: 16px;
   gap: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.stats-header {
-  font-size: 1.25rem;
+/* ── Stats Section ── */
+.stats-section {
+  flex-shrink: 0;
+}
+
+.stats-section-title {
+  font-size: 11px;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  margin-bottom: 12px;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 10px;
 }
 
-.stat-item {
+.stat-card {
+  padding: 12px;
+  background-color: var(--color-bg);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-card-accent {
+  background-color: #fdf3e3;
+}
+
+.stat-card-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.stat-card-accent .stat-card-value {
+  color: #d4943a;
+}
+
+.compound-value {
+  background: linear-gradient(135deg, #e8a849, #d4943a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-card-icon {
+  color: #e8a849;
+}
+
+.stat-card-icon-muted {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.stat-card-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+/* ── Calendar Section ── */
+.calendar-section {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  min-height: 0;
 }
 
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-primary);
-}
-
-.stat-value.compound {
-  color: #10b981; /* Green color for compound growth */
-  font-size: 2rem;
-}
-
-.stat-value-streak {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Monthly Calendar (Arco Design overrides) */
-.heatmap-container {
-  background-color: var(--color-bg-elevated, var(--surface-2));
-  border: 1px solid var(--color-border, var(--line-strong));
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.heatmap-header {
-  font-size: 1rem;
+.calendar-section-title {
+  font-size: 11px;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
   margin-bottom: 8px;
 }
 
 .monthly-calendar-wrapper {
-  margin-top: 10px;
+  flex: 1;
 }
 
 .monthly-calendar-wrapper .arco-calendar-panel {
@@ -103,18 +276,18 @@
 }
 
 .monthly-calendar-wrapper .arco-calendar-date {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   aspect-ratio: 1;
-  margin: 4px auto;
+  margin: 3px auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--color-text);
-  font-size: 0.875rem;
+  font-size: 12px;
   font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.15s;
   box-sizing: border-box;
   background-color: transparent;
 }
@@ -128,17 +301,17 @@
   border-radius: inherit;
 }
 
-/* Hover effects */
+/* Hover */
 .monthly-calendar-wrapper .arco-calendar-cell:hover .arco-calendar-date:not(.arco-calendar-date-selected) {
   background-color: var(--color-bg-hover);
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
-/* Modifiers - Premium Green Palette */
-.monthly-calendar-wrapper .active-level-1:not(.arco-calendar-date-selected) { background-color: #dcfce7; color: #166534; font-weight: 600; }
-.monthly-calendar-wrapper .active-level-2:not(.arco-calendar-date-selected) { background-color: #86efac; color: #14532d; font-weight: 600; }
-.monthly-calendar-wrapper .active-level-3:not(.arco-calendar-date-selected) { background-color: #22c55e; color: white; font-weight: 600; }
-.monthly-calendar-wrapper .active-level-4:not(.arco-calendar-date-selected) { background-color: #15803d; color: white; font-weight: 600; }
+/* Heatmap Levels - Green Palette */
+.monthly-calendar-wrapper .active-level-1:not(.arco-calendar-date-selected) { background-color: #e8f5e9; color: #2e7d32; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-2:not(.arco-calendar-date-selected) { background-color: #a5d6a7; color: #1b5e20; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-3:not(.arco-calendar-date-selected) { background-color: #66bb6a; color: white; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-4:not(.arco-calendar-date-selected) { background-color: #2e7d32; color: white; font-weight: 600; }
 
 .monthly-calendar-wrapper .arco-calendar-date-selected {
   background-color: var(--color-primary) !important;
@@ -148,190 +321,29 @@
   transform: scale(1.05);
 }
 
-/* Editor (Right Column) */
-.review-editor-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.editor-header {
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: var(--color-bg-subtle);
-}
-
-.editor-date-selector {
+/* ── Calendar Legend ── */
+.calendar-legend {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.editor-nav-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  padding: 4px;
-  border-radius: 4px;
-  color: var(--color-text-muted, var(--text-muted));
-}
-
-.editor-nav-btn:hover {
-  background-color: var(--color-bg-hover, var(--surface-1));
-  color: var(--color-text, var(--text-primary));
-}
-
-.editor-nav-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.3;
-}
-
-.editor-date-display {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.editor-date-input {
-  width: 140px;
-  font-weight: bold;
-  font-size: 14px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, var(--line-soft));
-  background: var(--color-bg-elevated, var(--surface-2));
-  color: var(--color-text, var(--text-strong));
-  outline: none;
-  cursor: pointer;
-}
-
-.editor-today-badge {
-  font-size: 14px;
-  color: var(--text-secondary, var(--color-text-muted));
-}
-
-.editor-simple-editor {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.editor-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.btn-primary {
-  background-color: var(--color-primary);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: background-color 0.2s;
-}
-
-.btn-primary:hover {
-  background-color: var(--color-primary-hover);
-}
-
-.btn-secondary {
-  background-color: transparent;
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn-secondary:hover {
-  background-color: var(--color-bg-hover);
-}
-
-.btn-danger {
-  background-color: transparent;
-  color: #ef4444;
-  border: 1px solid #fca5a5;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.btn-danger:hover {
-  background-color: #fee2e2;
-}
-
-.editor-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
-}
-
-.editor-textarea {
-  flex: 1;
-  width: 100%;
-  resize: none;
-  border: none;
-  outline: none;
-  font-family: inherit;
-  font-size: 1rem;
-  line-height: 1.6;
-  color: var(--color-text);
-  background-color: transparent;
-}
-
-.editor-textarea::placeholder {
+  gap: 3px;
+  margin-top: 8px;
+  font-size: 10px;
   color: var(--color-text-muted);
-  opacity: 0.5;
 }
 
-.rating-selector {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 12px;
-  margin-top: 0;
-  border-top: 1px solid var(--color-border, var(--line-strong));
+.legend-box {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
 }
 
-.rating-stars {
-  display: flex;
-  gap: 4px;
-}
+.legend-box.level-0 { background-color: var(--color-bg); border: 1px solid var(--color-border); }
+.legend-box.level-1 { background-color: #e8f5e9; }
+.legend-box.level-2 { background-color: #a5d6a7; }
+.legend-box.level-3 { background-color: #66bb6a; }
+.legend-box.level-4 { background-color: #2e7d32; }
 
-.rating-star {
-  cursor: pointer;
-  color: var(--color-text-muted);
-  transition: color 0.2s, transform 0.1s;
-}
-
-.rating-star:hover {
-  transform: scale(1.2);
-}
-
-.rating-star.active {
-  color: #fbbf24;
-}
-
+/* ── Empty State ── */
 .empty-state {
   display: flex;
   flex-direction: column;
