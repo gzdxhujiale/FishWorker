@@ -215,7 +215,7 @@ src/features/mission/
 
 ```typescript
 // AppSection 类型新增
-type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists" | "habits" | "mission";
+type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists" | "mission";
 
 // Toolbar tools 数组新增
 { id: "mission", name: "人生罗盘", icon: Navigation, component: () => <></> }

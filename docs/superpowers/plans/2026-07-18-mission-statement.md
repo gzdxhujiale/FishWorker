@@ -1518,7 +1518,7 @@ import { MissionPanel } from "./features/mission/MissionPanel";
 修改 `AppSection` 类型：
 
 ```typescript
-type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists" | "habits" | "mission";
+type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists" | "mission";
 ```
 
 在 Toolbar tools 数组末尾追加：
@@ -1546,8 +1546,6 @@ mainContent={
       <DailyReviewPanel />
     ) : activeSection === "lists" ? (
       <ListsPanel />
-    ) : activeSection === "habits" ? (
-      <HabitPanel />
     ) : activeSection === "mission" ? (
       <MissionPanel />
     ) : null}

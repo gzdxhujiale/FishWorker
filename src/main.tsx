@@ -13,7 +13,6 @@ import { TimeManagementPanel } from "./features/time-management/TimeManagementPa
 import { DailyReviewPanel } from "./features/daily-review/DailyReviewPanel";
 import { SettingsModal } from "./features/settings/SettingsModal";
 import { ListsPanel } from "./features/lists/ListsPanel";
-import { HabitPanel } from "./features/habits/HabitPanel";
 import { MissionPanel } from "./features/mission/MissionPanel";
 
 import "./index.css";
@@ -54,7 +53,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   }
 }
 
-type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists" | "habits" | "mission";
+type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists" | "mission";
 
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("lists");
@@ -71,7 +70,6 @@ function App() {
               { id: "weekly-planning", name: "周计划", icon: CalendarDays, component: () => <></> },
               { id: "four-quadrants", name: "四象限工作台", icon: LayoutGrid, component: () => <></> },
               { id: "daily-review", name: "每日复盘", icon: Clock, component: () => <></> },
-              { id: "habits", name: "习惯", icon: Target, component: () => <></> },
               { id: "mission", name: "人生罗盘", icon: Navigation, component: () => <></> },
             ]}
             activeToolId={activeSection}
@@ -89,8 +87,6 @@ function App() {
               <DailyReviewPanel />
             ) : activeSection === "lists" ? (
               <ListsPanel />
-            ) : activeSection === "habits" ? (
-              <HabitPanel />
             ) : activeSection === "mission" ? (
               <MissionPanel />
             ) : null}
