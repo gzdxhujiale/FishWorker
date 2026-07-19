@@ -13,8 +13,6 @@ export default defineConfig(async () => ({
       { find: "quill", replacement: path.resolve(__dirname, "scripts/npm-stubs/quill/index.js") }
     ]
   },
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available

@@ -3,11 +3,11 @@ schema_version: 1
 locale: zh-CN
 branch: main
 nodes_managed: true
-exported_at: "2026-07-18T14:40:59Z"
+exported_at: "2026-07-18T15:11:45Z"
 modules:
     "":
-        dir_name: FishWorker 桌面应用（Tauri + React + Vite）
-        title: FishWorker 桌面应用（Tauri + React + Vite）
+        dir_name: FishWorker 桌面效率工具（前端根工程）
+        title: FishWorker 桌面效率工具（前端根工程）
         scope:
             - .gitignore
             - 01_initial_page.png

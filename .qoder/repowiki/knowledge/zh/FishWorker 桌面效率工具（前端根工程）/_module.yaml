@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: ""
-title: FishWorker 桌面应用（Tauri + React + Vite）
+title: FishWorker 桌面效率工具（前端根工程）
 scope:
     - .gitignore
     - 01_initial_page.png

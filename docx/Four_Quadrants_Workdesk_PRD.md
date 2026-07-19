@@ -161,7 +161,7 @@
    - 支持子节点（Note/Task）的容器外包装。
    - 实现点击触发展开收折的局部 State。
 
-### 6.2 状态管理与计算
+### 6.3 拖拽排序与分类
 在 `DailyQuadrants` 中，对每个象限的任务进行如下分类：
 ```typescript
 const sortedTasks = [...qTasks].sort((a, b) => {
