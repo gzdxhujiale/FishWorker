@@ -16,11 +16,16 @@ if (typeof globalThis !== 'undefined') {
   }
 }
 
-// Intercept console.error for Yjs duplicate import messages
+// Intercept console.error for specific warnings
 const originalConsoleError = console.error;
 console.error = function (...args: any[]) {
-  if (typeof args[0] === 'string' && args[0].includes('Yjs was already imported')) {
-    return;
+  if (typeof args[0] === 'string') {
+    if (args[0].includes('Yjs was already imported')) {
+      return;
+    }
+    if (args[0].includes('Accessing element.ref was removed in React 19')) {
+      return;
+    }
   }
   originalConsoleError.apply(console, args);
 };

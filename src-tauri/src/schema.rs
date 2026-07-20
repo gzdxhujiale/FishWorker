@@ -144,6 +144,34 @@ const DDL_STATEMENTS: &[&str] = &[
         PRIMARY KEY (id),
         KEY idx_role_order (role_id, sort_order)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+    // ── Habit Tracking ──
+    "CREATE TABLE IF NOT EXISTS habits (
+        id VARCHAR(64) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        frequency VARCHAR(50) NULL,
+        goal VARCHAR(50) NULL,
+        start_date VARCHAR(20) NULL,
+        duration VARCHAR(50) NULL,
+        category VARCHAR(50) NULL,
+        reminder VARCHAR(50) NULL,
+        auto_popup_log TINYINT(1) NOT NULL DEFAULT 0,
+        created_at DATETIME(3) NOT NULL,
+        updated_at DATETIME(3) NOT NULL,
+        PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+    "CREATE TABLE IF NOT EXISTS habit_checkins (
+        id VARCHAR(64) NOT NULL,
+        habit_id VARCHAR(64) NOT NULL,
+        date DATE NOT NULL,
+        completed TINYINT(1) NOT NULL DEFAULT 1,
+        created_at DATETIME(3) NOT NULL,
+        updated_at DATETIME(3) NOT NULL,
+        PRIMARY KEY (id),
+        UNIQUE KEY uk_habit_date (habit_id, date),
+        KEY idx_habit_id (habit_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 ];
 
 /// 并行执行所有 DDL，将 12 次串行网络往返压缩为 1 轮并发。
@@ -160,6 +188,15 @@ pub async fn ensure_tables(pool: &MySqlPool) -> Result<(), sqlx::Error> {
         .into_iter()
         .filter_map(|r| r.err())
         .collect();
+
+    // Migrations for newly added columns in habits
+    let _ = sqlx::query("ALTER TABLE habits ADD COLUMN frequency VARCHAR(50) NULL").execute(pool).await;
+    let _ = sqlx::query("ALTER TABLE habits ADD COLUMN goal VARCHAR(50) NULL").execute(pool).await;
+    let _ = sqlx::query("ALTER TABLE habits ADD COLUMN start_date VARCHAR(20) NULL").execute(pool).await;
+    let _ = sqlx::query("ALTER TABLE habits ADD COLUMN duration VARCHAR(50) NULL").execute(pool).await;
+    let _ = sqlx::query("ALTER TABLE habits ADD COLUMN category VARCHAR(50) NULL").execute(pool).await;
+    let _ = sqlx::query("ALTER TABLE habits ADD COLUMN reminder VARCHAR(50) NULL").execute(pool).await;
+    let _ = sqlx::query("ALTER TABLE habits ADD COLUMN auto_popup_log TINYINT(1) NOT NULL DEFAULT 0").execute(pool).await;
 
     if errors.is_empty() {
         Ok(())

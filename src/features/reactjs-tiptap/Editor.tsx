@@ -10,7 +10,6 @@ import { localeActions } from 'reactjs-tiptap-editor/locale-bundle';
 import { Document } from '@tiptap/extension-document';
 import { HardBreak } from '@tiptap/extension-hard-break';
 import { ListItem } from '@tiptap/extension-list';
-import { TaskItem } from '@tiptap/extension-task-item';
 import { Paragraph } from '@tiptap/extension-paragraph';
 import { Text } from '@tiptap/extension-text';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -102,7 +101,6 @@ const extensions = [
   TextStyle,
   HardBreak,
   ListItem,
-  TaskItem,
   Dropcursor,
   Gapcursor,
   Placeholder.configure({

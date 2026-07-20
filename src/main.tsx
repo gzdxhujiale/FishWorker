@@ -6,7 +6,8 @@ import {
   CalendarDays,
   ClipboardList,
   LayoutGrid,
-  Navigation
+  Navigation,
+  Flame
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";
 import { TimeManagementPanel } from "./features/time-management/TimeManagementPanel";
@@ -14,6 +15,7 @@ import { DailyReviewPanel } from "./features/daily-review/DailyReviewPanel";
 import { SettingsModal } from "./features/settings/SettingsModal";
 import { ListsPanel } from "./features/lists/ListsPanel";
 import { MissionPanel } from "./features/mission/MissionPanel";
+import { HabitPanel } from "./features/habit/HabitPanel";
 
 import "./index.css";
 import "@arco-design/web-react/dist/css/arco.css";
@@ -53,7 +55,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   }
 }
 
-type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists" | "mission";
+type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "habit" | "lists" | "mission";
 
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("lists");
@@ -80,6 +82,7 @@ function App() {
               { id: "weekly-planning", name: "周计划", icon: CalendarDays, component: () => <></> },
               { id: "four-quadrants", name: "四象限工作台", icon: LayoutGrid, component: () => <></> },
               { id: "daily-review", name: "每日复盘", icon: Clock, component: () => <></> },
+              { id: "habit", name: "习惯追踪", icon: Flame, component: () => <></> },
               { id: "mission", name: "人生罗盘", icon: Navigation, component: () => <></> },
             ]}
             activeToolId={activeSection}
@@ -107,6 +110,11 @@ function App() {
             {visitedSections.has("daily-review") && (
               <div style={{ display: activeSection === "daily-review" ? "block" : "none", height: "100%" }}>
                 <DailyReviewPanel />
+              </div>
+            )}
+            {visitedSections.has("habit") && (
+              <div style={{ display: activeSection === "habit" ? "block" : "none", height: "100%" }}>
+                <HabitPanel />
               </div>
             )}
             {visitedSections.has("mission") && (

@@ -4,6 +4,7 @@ mod schema;
 mod time_management;
 mod daily_review;
 mod mission;
+mod habit;
 
 use tauri::Manager;
 
@@ -155,7 +156,12 @@ pub fn run() {
             mission::mission_create_goal,
             mission::mission_update_goal,
             mission::mission_delete_goal,
-            mission::mission_reorder_goals
+            mission::mission_reorder_goals,
+            habit::habit_load_all,
+            habit::habit_create,
+            habit::habit_update,
+            habit::habit_delete,
+            habit::habit_toggle_checkin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
