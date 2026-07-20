@@ -6,15 +6,9 @@
 
 时间管理数据主要分为“角色”与“任务”两张实体表，使用外键及关联设计以支持高粒度的数据流转与同步。
 
-### 1.1 角色表 (`time_management_roles`)
+### 1.1 角色数据来源 (联动自「人生罗盘」)
 
-| 字段名 | 数据类型 | 描述 |
-| ------ | -------- | ---- |
-| `id` | `VARCHAR(36)` | 主键 (UUID) |
-| `name` | `VARCHAR(255)` | 角色名称 (例如 "个人成长") |
-| `color` | `VARCHAR(50)` | 角色代表色十六进制 |
-| `created_at` | `BIGINT` | 创建时间戳 (ms) |
-| `updated_at` | `TIMESTAMP` | 记录更新时间 |
+时间管理模块的角色数据表 `time_management_roles` 不再使用，当前全部关联至「人生罗盘」模块的 `mission_roles` 数据库表。角色代表色 `color` 由前端根据排序等规律动态分配渲染，在数据库中不单独存储。
 
 ### 1.2 任务表 (`time_management_tasks`)
 
@@ -22,7 +16,7 @@
 | ------ | -------- | ---- |
 | `id` | `VARCHAR(36)` | 主键 (UUID) |
 | `title` | `VARCHAR(255)` | 任务标题 |
-| `role_id` | `VARCHAR(36)` | 关联的角色 ID，可空 |
+| `role_id` | `VARCHAR(36)` | 关联的「人生罗盘」角色 ID，可空 |
 | `quadrant` | `VARCHAR(10)` | 艾森豪威尔四象限分类 ('Q1'|'Q2'|'Q3'|'Q4') |
 | `scheduled_date` | `VARCHAR(20)` | 排期执行日期字符串 ('YYYY-MM-DD')，可空 |
 | `time_of_day` | `VARCHAR(20)` | 上下午排期标识 ('morning'|'afternoon')，可空 |
@@ -41,27 +35,19 @@
 
 ### 2.1 载入全部时间管理数据 (`tm_load_all`)
 
-应用启动或打开面板时调用，用于获取数据库中所有角色和任务的状态。
+应用启动或打开面板时调用，其中 `roles` 的数据将直接从 `mission_roles` 表加载，`tasks` 的数据来自 `time_management_tasks` 表。
 
 - **Command Name**: `tm_load_all`
 - **Request Payload**: 无参数 `{}`
 - **Response**: `Promise<{ roles: Role[], tasks: Task[] }>`
 
-### 2.2 保存/更新角色 (`tm_upsert_role`)
+### 2.2 保存/更新角色 (`tm_upsert_role` - 已弃用)
 
-添加或修改角色属性。
+周计划内不单独管理角色。角色添加与更新请使用人生罗盘模块对应的接口（如 `mission_create_role`）。
 
-- **Command Name**: `tm_upsert_role`
-- **Request Payload**: `{ role: Role }`
-- **Response**: `Promise<void>`
+### 2.3 删除角色 (`tm_delete_role` - 已弃用)
 
-### 2.3 删除角色 (`tm_delete_role`)
-
-物理删除该角色。并自动将相关所有关联任务的 `roleId` 字段设为 `null`。
-
-- **Command Name**: `tm_delete_role`
-- **Request Payload**: `{ id: string }`
-- **Response**: `Promise<void>`
+周计划内不单独管理角色。删除请使用人生罗盘模块对应的 `mission_delete_role`。在人生罗盘中删除角色后，系统会自动更新本模块任务，使相关所有关联任务的 `role_id` 字段设为 `NULL`。
 
 ### 2.4 保存/更新任务 (`tm_upsert_task`)
 

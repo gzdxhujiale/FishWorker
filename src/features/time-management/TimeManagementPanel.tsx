@@ -24,9 +24,7 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
     syncAllFromDB,
     updateTask,
     addTask,
-    deleteTask,
-    addRole,
-    deleteRole
+    deleteTask
   } = useTimeStore();
 
   const hideCompletedStr = usePreferencesStore(state => state.getPreference('tm-hide-completed', 'false'));
@@ -36,7 +34,6 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
 
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
 
-  const [draftRoleName, setDraftRoleName] = React.useState('');
   const [draftTasks, setDraftTasks] = React.useState<Record<string, string>>({});
   const [menuOpen, setMenuOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -100,17 +97,6 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
     }
   };
 
-  const handleAddRole = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && draftRoleName.trim()) {
-      const randomColor = PREDEFINED_COLORS[Math.floor(Math.random() * PREDEFINED_COLORS.length)];
-      addRole(draftRoleName.trim(), randomColor);
-      setDraftRoleName('');
-    }
-  };
-
-  const handleDeleteRole = (roleId: string) => {
-    deleteRole(roleId);
-  };
 
   const handleAddTaskToRole = (e: React.KeyboardEvent<HTMLInputElement>, roleId: string) => {
     if (e.key === 'Enter') {
@@ -231,9 +217,6 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
                           <User size={16} color={role.color} />
                           <strong style={{ color: role.color }}>{role.name}</strong>
                         </div>
-                        <button className="icon-button tm-role-delete" onClick={() => handleDeleteRole(role.id)}>
-                          <Trash2 size={14} />
-                        </button>
                       </div>
 
                       <div className="tm-role-tasks">
@@ -270,16 +253,6 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
                     </div>
                   );
                 })}
-              </div>
-
-              <div className="tm-add-role-input">
-                <input
-                  type="text"
-                  placeholder="+ 添加新角色 (按 Enter 保存)"
-                  value={draftRoleName}
-                  onChange={(e) => setDraftRoleName(e.target.value)}
-                  onKeyDown={handleAddRole}
-                />
               </div>
             </aside>
           )}

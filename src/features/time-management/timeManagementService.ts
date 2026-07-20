@@ -13,23 +13,6 @@ export const timeManagementApi = {
     }
   },
   
-  upsertRole: async (role: Role): Promise<void> => {
-    try {
-      await invoke("tm_upsert_role", { role });
-    } catch (e) {
-      console.error("Failed to upsert role:", e);
-      throw e;
-    }
-  },
-
-  deleteRole: async (id: string): Promise<void> => {
-    try {
-      await invoke("tm_delete_role", { id });
-    } catch (e) {
-      console.error("Failed to delete role:", e);
-      throw e;
-    }
-  },
 
   upsertTask: async (task: Task): Promise<void> => {
     try {

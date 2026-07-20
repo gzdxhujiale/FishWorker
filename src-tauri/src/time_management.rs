@@ -36,7 +36,7 @@ pub struct TimeManagementData {
 
 #[tauri::command]
 pub async fn tm_load_all(pool: State<'_, MySqlPool>) -> Result<TimeManagementData, String> {
-    let roles_rows = sqlx::query("SELECT id, name, color, created_at FROM time_management_roles")
+    let roles_rows = sqlx::query("SELECT id, name, CAST(UNIX_TIMESTAMP(created_at) * 1000 AS SIGNED) AS created_at FROM mission_roles ORDER BY sort_order")
         .fetch_all(&*pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -46,7 +46,7 @@ pub async fn tm_load_all(pool: State<'_, MySqlPool>) -> Result<TimeManagementDat
         roles.push(Role {
             id: row.try_get("id").unwrap_or_default(),
             name: row.try_get("name").unwrap_or_default(),
-            color: row.try_get("color").unwrap_or_default(),
+            color: None,
             created_at: row.try_get("created_at").unwrap_or_default(),
         });
     }
@@ -76,40 +76,6 @@ pub async fn tm_load_all(pool: State<'_, MySqlPool>) -> Result<TimeManagementDat
     Ok(TimeManagementData { roles, tasks })
 }
 
-#[tauri::command]
-pub async fn tm_upsert_role(role: Role, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    sqlx::query(
-        "INSERT INTO time_management_roles (id, name, color, created_at) 
-         VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE name = VALUES(name), color = VALUES(color)"
-    )
-    .bind(&role.id)
-    .bind(&role.name)
-    .bind(&role.color)
-    .bind(role.created_at)
-    .execute(&*pool)
-    .await
-    .map_err(|e| e.to_string())?;
-    
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn tm_delete_role(id: String, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    sqlx::query("DELETE FROM time_management_roles WHERE id = ?")
-        .bind(&id)
-        .execute(&*pool)
-        .await
-        .map_err(|e| e.to_string())?;
-        
-    sqlx::query("UPDATE time_management_tasks SET role_id = NULL WHERE role_id = ?")
-        .bind(&id)
-        .execute(&*pool)
-        .await
-        .map_err(|e| e.to_string())?;
-        
-    Ok(())
-}
 
 #[tauri::command]
 pub async fn tm_upsert_task(task: Task, pool: State<'_, MySqlPool>) -> Result<(), String> {
@@ -124,6 +90,7 @@ pub async fn tm_upsert_task(task: Task, pool: State<'_, MySqlPool>) -> Result<()
             scheduled_date = VALUES(scheduled_date), 
             time_of_day = VALUES(time_of_day), 
             completed = VALUES(completed), 
+            created_at = VALUES(created_at), 
             completed_at = VALUES(completed_at), 
             description = VALUES(description), 
             deadline = VALUES(deadline)"

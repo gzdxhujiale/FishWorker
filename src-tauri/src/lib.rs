@@ -123,8 +123,6 @@ pub fn run() {
             db::db_get_preference,
             db::db_set_preference,
             time_management::tm_load_all,
-            time_management::tm_upsert_role,
-            time_management::tm_delete_role,
             time_management::tm_upsert_task,
             time_management::tm_delete_task,
             daily_review::daily_review_load_all,

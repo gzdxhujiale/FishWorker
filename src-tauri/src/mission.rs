@@ -166,6 +166,9 @@ pub async fn mission_delete_role(id: String, pool: State<'_, MySqlPool>) -> Resu
     sqlx::query("DELETE FROM mission_goals WHERE role_id = ?")
         .bind(&id)
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    sqlx::query("UPDATE time_management_tasks SET role_id = NULL WHERE role_id = ?")
+        .bind(&id)
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     sqlx::query("DELETE FROM mission_roles WHERE id = ?")
         .bind(&id)
         .execute(&mut *tx).await.map_err(|e| e.to_string())?;

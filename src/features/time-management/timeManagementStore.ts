@@ -23,9 +23,6 @@ interface TimeManagementStore {
 
   // Public
   syncAllFromDB: () => Promise<void>;
-  addRole: (name: string, color?: string) => Role;
-  updateRole: (roleId: string, updates: Partial<Role>, isHighFreq?: boolean) => void;
-  deleteRole: (roleId: string) => void;
   addTask: (title: string, quadrant?: QuadrantType, scheduledDate?: string, roleId?: string) => Task;
   updateTask: (taskId: string, updates: Partial<Task>, isHighFreq?: boolean) => void;
   deleteTask: (taskId: string) => void;
@@ -58,7 +55,12 @@ export const useTimeStore = create<TimeManagementStore>((set, get) => ({
     try {
       const dbData = await timeManagementApi.loadAll();
       if (dbData) {
-        const merged = { ...dbData };
+        const PREDEFINED_COLORS = ['#1f6fd1', '#25845a', '#d97706', '#7657d6', '#d32f2f', '#0ea5e9'];
+        const mappedRoles = dbData.roles.map((role, index) => ({
+          ...role,
+          color: role.color || PREDEFINED_COLORS[index % PREDEFINED_COLORS.length]
+        }));
+        const merged = { ...dbData, roles: mappedRoles };
         saveLocal(merged);
         set({ data: merged });
       }
@@ -67,46 +69,6 @@ export const useTimeStore = create<TimeManagementStore>((set, get) => ({
     }
   },
 
-  addRole: (name: string, color?: string): Role => {
-    const data = get().data;
-    const newRole: Role = {
-      id: crypto.randomUUID(),
-      name,
-      color: color || '#697381',
-      createdAt: Date.now()
-    };
-    const newData = { ...data, roles: [...data.roles, newRole] };
-    saveLocal(newData);
-    set({ data: newData });
-    syncEngine.schedule(newRole.id, () => timeManagementApi.upsertRole(newRole), 300);
-    return newRole;
-  },
-
-  updateRole: (roleId: string, updates: Partial<Role>, isHighFreq: boolean = true): void => {
-    const data = get().data;
-    const index = data.roles.findIndex(r => r.id === roleId);
-    if (index !== -1) {
-      const newRoles = [...data.roles];
-      newRoles[index] = { ...newRoles[index], ...updates };
-      const newData = { ...data, roles: newRoles };
-      saveLocal(newData);
-      set({ data: newData });
-      syncEngine.schedule(roleId, () => timeManagementApi.upsertRole(newRoles[index]), isHighFreq ? 500 : 300);
-    }
-  },
-
-  deleteRole: (roleId: string): void => {
-    const data = get().data;
-    const newRoles = data.roles.filter(r => r.id !== roleId);
-    const newData = { ...data, roles: newRoles };
-    saveLocal(newData);
-    set({ data: newData });
-
-    syncEngine.cancel(roleId);
-    timeManagementApi.deleteRole(roleId).catch(e => {
-      console.error('Failed to delete role:', e);
-    });
-  },
 
   addTask: (title: string, quadrant: QuadrantType = 'Q2', scheduledDate?: string, roleId?: string): Task => {
     const data = get().data;
@@ -156,5 +118,10 @@ export const useTimeStore = create<TimeManagementStore>((set, get) => ({
 // Initialize data
 const initial = loadLocal();
 if (initial) {
+  const PREDEFINED_COLORS = ['#1f6fd1', '#25845a', '#d97706', '#7657d6', '#d32f2f', '#0ea5e9'];
+  initial.roles = initial.roles.map((role, index) => ({
+    ...role,
+    color: role.color || PREDEFINED_COLORS[index % PREDEFINED_COLORS.length]
+  }));
   useTimeStore.setState({ data: initial });
 }
