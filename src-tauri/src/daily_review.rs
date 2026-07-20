@@ -20,16 +20,16 @@ struct DailyReviewDbRow {
     date: String,
     content: String,
     rating: Option<i32>,
-    created_at_ms: i64,
-    updated_at_ms: i64,
+    created_at_ms: Option<i64>,
+    updated_at_ms: Option<i64>,
 }
 
 #[tauri::command]
 pub async fn daily_review_load_all(pool: State<'_, MySqlPool>) -> Result<Vec<DailyReviewRow>, String> {
     let rows = sqlx::query_as::<_, DailyReviewDbRow>(
         "SELECT id, DATE_FORMAT(date, '%Y-%m-%d') as date, content, rating, 
-         UNIX_TIMESTAMP(created_at) * 1000 as created_at_ms, 
-         UNIX_TIMESTAMP(updated_at) * 1000 as updated_at_ms 
+         CAST(UNIX_TIMESTAMP(created_at) * 1000 AS SIGNED) as created_at_ms, 
+         CAST(UNIX_TIMESTAMP(updated_at) * 1000 AS SIGNED) as updated_at_ms 
          FROM daily_reviews"
     )
     .fetch_all(&*pool)
@@ -43,8 +43,8 @@ pub async fn daily_review_load_all(pool: State<'_, MySqlPool>) -> Result<Vec<Dai
             date: r.date,
             content: r.content,
             rating: r.rating,
-            created_at: Some(r.created_at_ms),
-            updated_at: Some(r.updated_at_ms),
+            created_at: r.created_at_ms,
+            updated_at: r.updated_at_ms,
         })
         .collect())
 }

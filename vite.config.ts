@@ -7,10 +7,14 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  define: {
+    'process.env': {},
+  },
   optimizeDeps: {
     include: ['@tiptap/extension-table'],
   },
   resolve: {
+    dedupe: ['yjs', '@tiptap/pm', 'prosemirror-state', 'prosemirror-model', 'prosemirror-view'],
     alias: [
       { find: /^quill\/(.*)/, replacement: path.resolve(__dirname, "src/$1") },
       { find: "quill", replacement: path.resolve(__dirname, "scripts/npm-stubs/quill/index.js") }

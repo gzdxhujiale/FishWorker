@@ -52,7 +52,7 @@ export interface ImageUploadNodeOptions {
 
 declare module "@tiptap/react" {
   interface Commands<ReturnType> {
-    imageUpload: {
+    imageUploadNode: {
       setImageUploadNode: (options?: ImageUploadNodeOptions) => ReturnType
     }
   }
@@ -118,8 +118,8 @@ export const ImageUploadNode = Node.create<ImageUploadNodeOptions>({
   addCommands() {
     return {
       setImageUploadNode:
-        (options) =>
-        ({ commands }) => {
+        (options?: ImageUploadNodeOptions) =>
+        ({ commands }: { commands: any }) => {
           return commands.insertContent({
             type: this.name,
             attrs: options,

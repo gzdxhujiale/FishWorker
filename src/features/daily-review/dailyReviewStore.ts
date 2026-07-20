@@ -19,7 +19,18 @@ function getDaysDifference(date1: string, date2: string): number {
 }
 
 function isReviewEmpty(content: string): boolean {
-  return !content || content === '<p></p>' || content === '<p></p>\n';
+  if (!content) return true;
+  const trimmed = content.trim();
+  if (
+    trimmed === '' ||
+    trimmed === '<p></p>' ||
+    trimmed === '<p></p>\n' ||
+    trimmed === '<p dir="auto"></p>' ||
+    trimmed === '<p dir="auto"></p>\n'
+  ) {
+    return true;
+  }
+  return false;
 }
 
 interface DailyReviewStore {

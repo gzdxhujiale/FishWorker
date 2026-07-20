@@ -142,7 +142,7 @@ pub async fn list_load_all(pool: State<'_, MySqlPool>) -> Result<ListAllData, St
     // Notes
     let note_rows = sqlx::query(
         "SELECT id, list_id, group_id, title, content, is_pinned, sort_order, 
-                UNIX_TIMESTAMP(created_at)*1000 AS created_at_ms, UNIX_TIMESTAMP(updated_at)*1000 AS updated_at_ms
+                CAST(UNIX_TIMESTAMP(created_at)*1000 AS SIGNED) AS created_at_ms, CAST(UNIX_TIMESTAMP(updated_at)*1000 AS SIGNED) AS updated_at_ms
          FROM list_notes WHERE deleted_at IS NULL
          ORDER BY is_pinned DESC, sort_order, updated_at DESC"
     ).fetch_all(&*pool).await.map_err(|e| e.to_string())?;

@@ -1,3 +1,4 @@
+import "./patchEnv";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -57,6 +58,16 @@ type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "lists
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("lists");
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [visitedSections, setVisitedSections] = React.useState<Set<AppSection>>(() => new Set(["lists"]));
+
+  React.useEffect(() => {
+    setVisitedSections((prev) => {
+      if (prev.has(activeSection)) return prev;
+      const next = new Set(prev);
+      next.add(activeSection);
+      return next;
+    });
+  }, [activeSection]);
 
   return (
     <>
@@ -78,17 +89,31 @@ function App() {
         }
         mainContent={
           <MainContent>
-            {activeSection === "weekly-planning" ? (
-              <TimeManagementPanel mode="weekly" />
-            ) : activeSection === "four-quadrants" ? (
-              <TimeManagementPanel mode="daily" />
-            ) : activeSection === "daily-review" ? (
-              <DailyReviewPanel />
-            ) : activeSection === "lists" ? (
-              <ListsPanel />
-            ) : activeSection === "mission" ? (
-              <MissionPanel />
-            ) : null}
+            {visitedSections.has("lists") && (
+              <div style={{ display: activeSection === "lists" ? "block" : "none", height: "100%" }}>
+                <ListsPanel />
+              </div>
+            )}
+            {visitedSections.has("weekly-planning") && (
+              <div style={{ display: activeSection === "weekly-planning" ? "block" : "none", height: "100%" }}>
+                <TimeManagementPanel mode="weekly" />
+              </div>
+            )}
+            {visitedSections.has("four-quadrants") && (
+              <div style={{ display: activeSection === "four-quadrants" ? "block" : "none", height: "100%" }}>
+                <TimeManagementPanel mode="daily" />
+              </div>
+            )}
+            {visitedSections.has("daily-review") && (
+              <div style={{ display: activeSection === "daily-review" ? "block" : "none", height: "100%" }}>
+                <DailyReviewPanel />
+              </div>
+            )}
+            {visitedSections.has("mission") && (
+              <div style={{ display: activeSection === "mission" ? "block" : "none", height: "100%" }}>
+                <MissionPanel />
+              </div>
+            )}
           </MainContent>
         }
       />

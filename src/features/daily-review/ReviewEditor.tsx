@@ -1,7 +1,7 @@
 import React from 'react';
 import { DailyReview } from './dailyReviewTypes';
 import { Star } from 'lucide-react';
-import { SimpleEditor } from '../../components/tiptap-templates/simple/simple-editor';
+import { ReactjsTiptapEditor } from '../reactjs-tiptap';
 import { useReviewAutoSave } from './useReviewAutoSave';
 
 interface Props {
@@ -22,11 +22,10 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
     <div className="review-editor-container">
       {/* Editor */}
       <div className="editor-content">
-        <SimpleEditor
-          content={content}
+        <ReactjsTiptapEditor
+          initialContent={content}
           onChange={setContent}
-          placeholder="今天学到了什么？什么可以改进？明天最重要的一件事？..."
-          className="editor-simple-editor"
+          className="editor-reactjs-tiptap"
         />
       </div>
 
@@ -51,3 +50,4 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
     </div>
   );
 };
+
