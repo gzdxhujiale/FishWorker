@@ -43,7 +43,14 @@ export default defineConfig(function () { return __awaiter(void 0, void 0, void 
     return __generator(this, function (_a) {
         return [2 /*return*/, ({
                 plugins: [react()],
+                define: {
+                    'process.env': {},
+                },
+                optimizeDeps: {
+                    include: ['@tiptap/extension-table'],
+                },
                 resolve: {
+                    dedupe: ['yjs', '@tiptap/pm', 'prosemirror-state', 'prosemirror-model', 'prosemirror-view'],
                     alias: [
                         { find: /^quill\/(.*)/, replacement: path.resolve(__dirname, "src/$1") },
                         { find: "quill", replacement: path.resolve(__dirname, "scripts/npm-stubs/quill/index.js") }

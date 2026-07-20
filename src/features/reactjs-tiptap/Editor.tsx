@@ -35,7 +35,7 @@ import { Clear, RichTextClear } from 'reactjs-tiptap-editor/clear';
 import { Code, RichTextCode } from 'reactjs-tiptap-editor/code';
 import { CodeBlock, RichTextCodeBlock } from 'reactjs-tiptap-editor/codeblock';
 import { Color, RichTextColor } from 'reactjs-tiptap-editor/color';
-import { Heading, RichTextHeading } from 'reactjs-tiptap-editor/heading';
+import { Heading } from 'reactjs-tiptap-editor/heading';
 import { Highlight, RichTextHighlight } from 'reactjs-tiptap-editor/highlight';
 import {
   History,
@@ -84,7 +84,6 @@ import './reactjs-tiptap.css';
 
 import { EditorContent, useEditor, type Editor } from '@tiptap/react';
 import { CharacterCount } from '@tiptap/extensions';
-import { Count } from './extension/Count';
 
 // create a lowlight instance with standard languages
 const lowlight = createLowlight();
