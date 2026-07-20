@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar, AlignLeft, Type } from 'lucide-react';
 import { Task } from './timeManagementTypes';
 import { DatePicker } from '@arco-design/web-react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
+import { SimpleEditor } from '../tiptap/SimpleEditor';
 import dayjs from 'dayjs';
 
 interface TaskDetailModalProps {
@@ -37,25 +37,10 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
     latestDeadline.current = deadline;
   }, [deadline]);
 
-  // TipTap Editor setup
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: task.description || '',
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      latestDescription.current = html;
-      // Debounce saving of the description (high frequency saving: true)
-      triggerAutoSave({ description: html }, true);
-    },
-  });
-
-  // Keep Tiptap editor content synced if task.description changes from outside
-  useEffect(() => {
-    if (editor && task.description !== undefined && editor.getHTML() !== task.description) {
-      editor.commands.setContent(task.description);
-      latestDescription.current = task.description;
-    }
-  }, [task.description, editor]);
+  const handleDescriptionChange = (html: string) => {
+    latestDescription.current = html;
+    triggerAutoSave({ description: html }, true);
+  };
 
   // Timers map for debounced saves
   const timers = useRef<Record<string, number>>({});
@@ -118,7 +103,7 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
     onSave(task.id, { deadline: newDeadline }, false);
   };
 
-  return (
+  return createPortal(
     <div 
       className="tm-modal-overlay"
       onClick={(e) => {
@@ -193,23 +178,33 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
               format={hasTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD"}
               value={deadline ? dayjs(deadline) : undefined}
               onChange={handleDeadlineChange}
+              disabledDate={(current) => current && current.isBefore(dayjs(), 'day')}
               placeholder="选择截止日期..."
               style={{ width: '100%', borderRadius: '8px', minHeight: '40px' }}
             />
           </div>
-          <div className="tm-form-group">
+          <div className="tm-form-group" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <label>
               <AlignLeft size={14} />
               <span>详细内容</span>
             </label>
-            <div className="note-drawer-editor-container" style={{ border: '1px solid rgba(123, 145, 169, 0.25)', borderRadius: '8px', padding: '10px 12px', minHeight: '120px', background: 'var(--surface-1)' }}>
-              <EditorContent 
-                editor={editor}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '120px', border: '1px solid rgba(123, 145, 169, 0.25)', borderRadius: '8px', overflow: 'hidden', background: 'var(--surface-1)' }}>
+              <SimpleEditor
+                content={task.description || ''}
+                onChange={handleDescriptionChange}
+                placeholder="添加详细内容..."
+                enableDragHandle={false}
+                enableTopToolbar={false}
+                dense={true}
+                style={{ flex: 1, minHeight: 0 }}
+                editorStyle={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}
+                editorClassName="tiptap-editor-wrapper"
               />
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

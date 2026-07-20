@@ -14,18 +14,18 @@ import {
   ListOrdered,
   CheckSquare,
   Quote,
+  SquareCode,
+  Table,
   AlignLeft,
   AlignCenter,
   AlignRight,
   AlignJustify,
-  Code,
+  Highlighter,
   ChevronRight,
-  Palette,
+  Ban,
   Copy,
   Scissors,
-  Trash2,
-  Indent,
-  Outdent
+  Trash2
 } from 'lucide-react';
 
 export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
@@ -164,44 +164,6 @@ export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
     return false;
   };
 
-  const getBlockAlign = () => {
-    const range = getBlockRange();
-    if (!range) return 'left';
-    return range.node.attrs.textAlign || 'left';
-  };
-
-  const getBlockColor = () => {
-    const range = getBlockRange();
-    if (!range) return null;
-    
-    let color: string | null = null;
-    range.node.descendants((childNode: any) => {
-      const colorMark = childNode.marks.find((m: any) => m.type.name === 'textStyle');
-      if (colorMark && colorMark.attrs.color) {
-        color = colorMark.attrs.color;
-        return false; // stop traversal
-      }
-      return true;
-    });
-    return color;
-  };
-
-  const getBlockHighlight = () => {
-    const range = getBlockRange();
-    if (!range) return null;
-    
-    let highlight: string | null = null;
-    range.node.descendants((childNode: any) => {
-      const highlightMark = childNode.marks.find((m: any) => m.type.name === 'highlight');
-      if (highlightMark && highlightMark.attrs.color) {
-        highlight = highlightMark.attrs.color;
-        return false; // stop traversal
-      }
-      return true;
-    });
-    return highlight;
-  };
-
   const runOnSelectedNode = (command: (chain: any) => any) => {
     if (!editor) return;
     const range = getBlockRange();
@@ -221,29 +183,27 @@ export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
     } else {
       command(editor.chain().focus()).run();
     }
-    setIsOpen(false);
   };
 
-  const runColorCommand = (color: string) => {
-    if (!editor) return;
+  const getBlockAlign = () => {
     const range = getBlockRange();
-    if (range) {
-      editor.chain().focus().setTextSelection({ from: range.from, to: range.to }).setColor(color).run();
-    } else {
-      editor.chain().focus().setColor(color).run();
-    }
-    setIsOpen(false);
+    if (!range) return 'left';
+    return range.node.attrs.textAlign || 'left';
   };
 
-  const runUnsetColorCommand = () => {
-    if (!editor) return;
+  const getBlockHighlight = () => {
     const range = getBlockRange();
-    if (range) {
-      editor.chain().focus().setTextSelection({ from: range.from, to: range.to }).unsetColor().run();
-    } else {
-      editor.chain().focus().unsetColor().run();
-    }
-    setIsOpen(false);
+    if (!range) return null;
+    let highlight: string | null = null;
+    range.node.descendants((childNode: any) => {
+      const mark = childNode.marks.find((m: any) => m.type.name === 'highlight');
+      if (mark && mark.attrs.color) {
+        highlight = mark.attrs.color;
+        return false;
+      }
+      return true;
+    });
+    return highlight;
   };
 
   const runHighlightCommand = (color: string) => {
@@ -254,7 +214,6 @@ export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
     } else {
       editor.chain().focus().toggleHighlight({ color }).run();
     }
-    setIsOpen(false);
   };
 
   const runUnsetHighlightCommand = () => {
@@ -265,7 +224,6 @@ export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
     } else {
       editor.chain().focus().unsetHighlight().run();
     }
-    setIsOpen(false);
   };
 
   const handleCopy = async () => {
@@ -317,7 +275,8 @@ export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
       ];
       await navigator.clipboard.write(clipboardData);
 
-      editor.chain().focus().setNodeSelection(range.pos).deleteSelection().run();
+      editor.chain().focus().setNodeSelection(range.pos).run();
+      (editor.commands as any).deleteNodePromoteChildren();
     } catch (err) {
       console.error('Failed to cut block content:', err);
     }
@@ -447,84 +406,73 @@ export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
           </button>
           <button
             type="button"
-            className="block-menu-btn"
-            onClick={() => { setShowAlignMenu(!showAlignMenu); setShowColorMenu(false); }}
-            title="缩进和对齐"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '4px', border: 'none', background: (showAlignMenu || getBlockAlign() !== 'left') ? 'var(--surface-3)' : 'transparent', color: (showAlignMenu || getBlockAlign() !== 'left') ? 'var(--accent, #6366f1)' : 'var(--text-strong)', cursor: 'pointer' }}
-          >
-            <AlignLeft size={16} />
-          </button>
-          <button
-            type="button"
-            className="block-menu-btn"
-            onClick={() => { setShowColorMenu(!showColorMenu); setShowAlignMenu(false); }}
-            title="段落颜色"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '4px', border: 'none', background: (showColorMenu || getBlockColor() || getBlockHighlight()) ? 'var(--surface-3)' : 'transparent', color: (showColorMenu || getBlockColor() || getBlockHighlight()) ? 'var(--accent, #6366f1)' : 'var(--text-strong)', cursor: 'pointer' }}
-          >
-            <Palette size={16} />
-          </button>
-          <button
-            type="button"
             className={`block-menu-btn ${isBlockActive('codeBlock') ? 'active' : ''}`}
             onClick={() => runOnSelectedNode(c => c.toggleCodeBlock())}
             title="代码块"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
           >
-            <Code size={16} />
+            <SquareCode size={16} />
+          </button>
+          <button
+            type="button"
+            className={`block-menu-btn ${isBlockActive('table') ? 'active' : ''}`}
+            onClick={() => {
+              if (editor) {
+                editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+              }
+              setIsOpen(false);
+            }}
+            title="插入表格"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
+          >
+            <Table size={16} />
           </button>
         </div>
 
         {/* Submenus & Standard items */}
         <div style={{ display: 'flex', flexDirection: 'column', padding: '4px 0' }}>
+          {/* Color Highlight Popover */}
           <div 
             className="lists-dropdown-item" 
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', fontSize: '13px', cursor: 'pointer' }}
             onClick={() => { setShowColorMenu(!showColorMenu); setShowAlignMenu(false); }}
           >
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <Palette size={14} style={{ marginRight: '8px' }} /> 段落颜色
+              <Highlighter size={14} style={{ marginRight: '8px' }} /> 背景高亮
             </div>
             <ChevronRight size={12} style={{ transform: showColorMenu ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', opacity: 0.5 }} />
           </div>
           
           {showColorMenu && (
-            <div style={{ padding: '6px 12px', background: 'var(--surface-3)', display: 'flex', flexDirection: 'column', gap: '6px', borderBottom: '1px solid var(--line-soft)', borderTop: '1px solid var(--line-soft)' }}>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '4px' }}>文字颜色</div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <div onClick={() => runColorCommand('#f5222d')} style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#f5222d', cursor: 'pointer', border: getBlockColor() === '#f5222d' ? '2px solid var(--text-strong)' : 'none', boxSizing: 'border-box' }} title="红色" />
-                  <div onClick={() => runColorCommand('#1890ff')} style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#1890ff', cursor: 'pointer', border: getBlockColor() === '#1890ff' ? '2px solid var(--text-strong)' : 'none', boxSizing: 'border-box' }} title="蓝色" />
-                  <div onClick={() => runColorCommand('#52c41a')} style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#52c41a', cursor: 'pointer', border: getBlockColor() === '#52c41a' ? '2px solid var(--text-strong)' : 'none', boxSizing: 'border-box' }} title="绿色" />
-                  <div onClick={() => runColorCommand('#faad14')} style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#faad14', cursor: 'pointer', border: getBlockColor() === '#faad14' ? '2px solid var(--text-strong)' : 'none', boxSizing: 'border-box' }} title="黄色" />
-                  <div onClick={() => runUnsetColorCommand()} style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'transparent', border: !getBlockColor() ? '2px solid var(--text-strong)' : '1px solid var(--line-soft)', boxSizing: 'border-box', cursor: 'pointer' }} title="默认文字颜色" />
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginBottom: '4px' }}>背景高亮</div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <div onClick={() => runHighlightCommand('#ffccc7')} style={{ width: '18px', height: '18px', borderRadius: '4px', background: '#ffccc7', cursor: 'pointer', border: getBlockHighlight() === '#ffccc7' ? '2px solid var(--text-strong)' : 'none', boxSizing: 'border-box' }} title="红底高亮" />
-                  <div onClick={() => runHighlightCommand('#bae0ff')} style={{ width: '18px', height: '18px', borderRadius: '4px', background: '#bae0ff', cursor: 'pointer', border: getBlockHighlight() === '#bae0ff' ? '2px solid var(--text-strong)' : 'none', boxSizing: 'border-box' }} title="蓝底高亮" />
-                  <div onClick={() => runHighlightCommand('#d9f7be')} style={{ width: '18px', height: '18px', borderRadius: '4px', background: '#d9f7be', cursor: 'pointer', border: getBlockHighlight() === '#d9f7be' ? '2px solid var(--text-strong)' : 'none', boxSizing: 'border-box' }} title="绿底高亮" />
-                  <div onClick={() => runHighlightCommand('#ffe58f')} style={{ width: '18px', height: '18px', borderRadius: '4px', background: '#ffe58f', cursor: 'pointer', border: getBlockHighlight() === '#ffe58f' ? '2px solid var(--text-strong)' : 'none', boxSizing: 'border-box' }} title="黄底高亮" />
-                  <div onClick={() => runUnsetHighlightCommand()} style={{ width: '18px', height: '18px', borderRadius: '4px', background: 'transparent', border: !getBlockHighlight() ? '2px solid var(--text-strong)' : '1px solid var(--line-soft)', boxSizing: 'border-box', cursor: 'pointer' }} title="清除高亮" />
+            <div style={{ padding: '8px 12px', background: 'var(--surface-3)', borderBottom: '1px solid var(--line-soft)', borderTop: '1px solid var(--line-soft)' }}>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <div onClick={() => runHighlightCommand('var(--tt-color-highlight-yellow)')} style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'var(--tt-color-highlight-yellow)', cursor: 'pointer', border: getBlockHighlight() === 'var(--tt-color-highlight-yellow)' ? '2px solid var(--text-strong)' : '1px solid var(--line-soft)', boxSizing: 'border-box' }} title="黄色" />
+                <div onClick={() => runHighlightCommand('var(--tt-color-highlight-green)')} style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'var(--tt-color-highlight-green)', cursor: 'pointer', border: getBlockHighlight() === 'var(--tt-color-highlight-green)' ? '2px solid var(--text-strong)' : '1px solid var(--line-soft)', boxSizing: 'border-box' }} title="绿色" />
+                <div onClick={() => runHighlightCommand('var(--tt-color-highlight-blue)')} style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'var(--tt-color-highlight-blue)', cursor: 'pointer', border: getBlockHighlight() === 'var(--tt-color-highlight-blue)' ? '2px solid var(--text-strong)' : '1px solid var(--line-soft)', boxSizing: 'border-box' }} title="蓝色" />
+                <div onClick={() => runHighlightCommand('var(--tt-color-highlight-purple)')} style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'var(--tt-color-highlight-purple)', cursor: 'pointer', border: getBlockHighlight() === 'var(--tt-color-highlight-purple)' ? '2px solid var(--text-strong)' : '1px solid var(--line-soft)', boxSizing: 'border-box' }} title="紫色" />
+                <div onClick={() => runHighlightCommand('var(--tt-color-highlight-red)')} style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'var(--tt-color-highlight-red)', cursor: 'pointer', border: getBlockHighlight() === 'var(--tt-color-highlight-red)' ? '2px solid var(--text-strong)' : '1px solid var(--line-soft)', boxSizing: 'border-box' }} title="红色" />
+                <div onClick={() => runHighlightCommand('var(--tt-color-highlight-orange)')} style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'var(--tt-color-highlight-orange)', cursor: 'pointer', border: getBlockHighlight() === 'var(--tt-color-highlight-orange)' ? '2px solid var(--text-strong)' : '1px solid var(--line-soft)', boxSizing: 'border-box' }} title="橙色" />
+                <div onClick={() => runUnsetHighlightCommand()} style={{ width: '22px', height: '22px', borderRadius: '4px', background: 'transparent', border: '1px solid var(--line-soft)', boxSizing: 'border-box', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="清除高亮">
+                  <Ban size={12} style={{ opacity: 0.5 }} />
                 </div>
               </div>
             </div>
           )}
 
+          {/* Text Align */}
           <div 
             className="lists-dropdown-item" 
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', fontSize: '13px', cursor: 'pointer' }}
             onClick={() => { setShowAlignMenu(!showAlignMenu); setShowColorMenu(false); }}
           >
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <AlignLeft size={14} style={{ marginRight: '8px' }} /> 缩进和对齐
+              <AlignLeft size={14} style={{ marginRight: '8px' }} /> 文本对齐
             </div>
             <ChevronRight size={12} style={{ transform: showAlignMenu ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', opacity: 0.5 }} />
           </div>
           
           {showAlignMenu && (
-            <div style={{ padding: '6px 12px', background: 'var(--surface-3)', display: 'flex', gap: '6px', flexWrap: 'wrap', borderBottom: '1px solid var(--line-soft)', borderTop: '1px solid var(--line-soft)' }}>
+            <div style={{ padding: '6px 12px', background: 'var(--surface-3)', display: 'flex', gap: '4px', borderBottom: '1px solid var(--line-soft)', borderTop: '1px solid var(--line-soft)' }}>
               <button
                 type="button"
                 className="toolbar-btn"
@@ -561,30 +509,10 @@ export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
               >
                 <AlignJustify size={14} />
               </button>
-              <div style={{ width: '1px', height: '20px', background: 'var(--line-soft)', margin: '4px 2px' }} />
-              <button
-                type="button"
-                className="toolbar-btn"
-                style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}
-                onClick={() => runOnSelectedNode(c => c.sinkListItem('listItem'))}
-                title="增加缩进"
-              >
-                <Indent size={14} />
-              </button>
-              <button
-                type="button"
-                className="toolbar-btn"
-                style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'var(--text-strong)', cursor: 'pointer' }}
-                onClick={() => runOnSelectedNode(c => c.liftListItem('listItem'))}
-                title="减少缩进"
-              >
-                <Outdent size={14} />
-              </button>
             </div>
           )}
 
           <div style={{ height: '1px', background: 'var(--line-soft)', margin: '4px 0' }} />
-
           <div 
             className="lists-dropdown-item" 
             style={{ padding: '6px 12px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
@@ -605,7 +533,8 @@ export function BlockDragHandleMenu({ editor }: { editor: Editor | null }) {
             onClick={() => { 
               const range = getBlockRange();
               if (range) {
-                editor.chain().focus().setNodeSelection(range.pos).deleteSelection().run();
+                editor.chain().focus().setNodeSelection(range.pos).run();
+                (editor.commands as any).deleteNodePromoteChildren();
               } else {
                 editor.chain().focus().deleteSelection().run();
               }

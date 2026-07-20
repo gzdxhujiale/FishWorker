@@ -1,6 +1,6 @@
 import { Editor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
-import { Bold, Italic, Underline } from 'lucide-react';
+import { Bold, Italic, Underline, Strikethrough } from 'lucide-react';
 
 interface TipTapBubbleMenuProps {
   editor: Editor | null;
@@ -32,6 +32,13 @@ export function TipTapBubbleMenu({ editor }: TipTapBubbleMenuProps) {
           title="下划线"
         >
           <Underline size={16} />
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          className={`toolbar-btn ${editor.isActive('strike') ? 'active' : ''}`}
+          title="删除线"
+        >
+          <Strikethrough size={16} />
         </button>
       </div>
     </BubbleMenu>

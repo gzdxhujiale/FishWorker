@@ -1,9 +1,11 @@
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import { getTiptapExtensions } from './config';
 import { TipTapBubbleMenu } from './TipTapBubbleMenu';
 import { BlockDragHandleMenu } from './BlockDragHandleMenu';
 import Placeholder from '@tiptap/extension-placeholder';
+import '../../components/tiptap-node/code-block-node.scss';
+import '../../components/tiptap-node/table-node.scss';
 import {
   Undo2,
   Redo2,
@@ -13,10 +15,12 @@ import {
   Strikethrough,
   Highlighter,
   Code,
+  SquareCode,
   List,
   ListOrdered,
   CheckSquare,
   Quote,
+  Table,
   MoreHorizontal
 } from 'lucide-react';
 
@@ -58,8 +62,11 @@ export function SimpleEditor({
   const lastEmittedHtml = useRef(content);
   const [containerWidth, setContainerWidth] = useState(0);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [tableMenuOpen, setTableMenuOpen] = useState(false);
+  const [tableGridSize, setTableGridSize] = useState({ rows: 0, cols: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const tableMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -77,14 +84,17 @@ export function SimpleEditor({
       if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
         setMoreMenuOpen(false);
       }
+      if (tableMenuRef.current && !tableMenuRef.current.contains(event.target as Node)) {
+        setTableMenuOpen(false);
+      }
     };
-    if (moreMenuOpen) {
+    if (moreMenuOpen || tableMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [moreMenuOpen]);
+  }, [moreMenuOpen, tableMenuOpen]);
 
   const getFoldedState = () => {
     const foldedIds = new Set<string>();
@@ -105,7 +115,9 @@ export function SimpleEditor({
     let remainingWidth = availableWidth - essentialWidth;
     
     const items = [
+      { id: 'table', width: 45 },
       { id: 'blockquote', width: 45 },
+      { id: 'codeBlock', width: 32 },
       { id: 'code', width: 32 },
       { id: 'highlight', width: 32 },
       { id: 'strike', width: 32 },
@@ -158,6 +170,7 @@ export function SimpleEditor({
     extensions,
     content,
     editable,
+    shouldRerenderOnTransaction: true,
     editorProps: {
       attributes: {
         class: `editor-textarea note-drawer-editor-container ${dense ? 'compact-editor' : ''} ${editorClassName}`,
@@ -211,6 +224,14 @@ export function SimpleEditor({
         editor.destroy();
       }
     };
+  }, [editor]);
+
+  const insertTable = useCallback((rows: number, cols: number) => {
+    if (editor) {
+      editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+    }
+    setTableMenuOpen(false);
+    setTableGridSize({ rows: 0, cols: 0 });
   }, [editor]);
 
   return (
@@ -344,6 +365,16 @@ export function SimpleEditor({
                 <Code size={16} />
               </button>
             )}
+            {!foldedIds.has('codeBlock') && (
+              <button
+                type="button"
+                className={`toolbar-btn ${editor.isActive('codeBlock') ? 'active' : ''}`}
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                title="代码块"
+              >
+                <SquareCode size={16} />
+              </button>
+            )}
           </div>
 
           {(!foldedIds.has('bulletList') || !foldedIds.has('orderedList') || !foldedIds.has('taskList')) && (
@@ -396,6 +427,67 @@ export function SimpleEditor({
                 >
                   <Quote size={16} />
                 </button>
+              </div>
+            </>
+          )}
+
+          {!foldedIds.has('table') && (
+            <>
+              <div className="toolbar-divider" />
+              <div className="toolbar-group" style={{ position: 'relative' }} ref={tableMenuRef}>
+                <button
+                  type="button"
+                  className={`toolbar-btn ${editor.isActive('table') ? 'active' : ''}`}
+                  onClick={() => setTableMenuOpen(!tableMenuOpen)}
+                  title="插入表格"
+                >
+                  <Table size={16} />
+                </button>
+                {tableMenuOpen && (
+                  <div
+                    className="tiptap-table-menu"
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      marginTop: '4px',
+                      background: 'var(--surface-2)',
+                      border: '1px solid var(--line-soft)',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      padding: '8px',
+                      zIndex: 1000,
+                      userSelect: 'none'
+                    }}
+                  >
+                    <div style={{ fontSize: '12px', color: 'var(--text-soft)', marginBottom: '6px', textAlign: 'center' }}>
+                      {tableGridSize.rows > 0 ? `${tableGridSize.rows} × ${tableGridSize.cols}` : '选择表格大小'}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '3px' }}>
+                      {Array.from({ length: 36 }, (_, i) => {
+                        const row = Math.floor(i / 6) + 1;
+                        const col = (i % 6) + 1;
+                        const isHighlighted = row <= tableGridSize.rows && col <= tableGridSize.cols;
+                        return (
+                          <div
+                            key={i}
+                            onMouseEnter={() => setTableGridSize({ rows: row, cols: col })}
+                            onClick={() => insertTable(row, col)}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              borderRadius: '3px',
+                              border: '1px solid var(--line-soft)',
+                              background: isHighlighted ? 'var(--brand, #6c63ff)' : 'var(--surface-1)',
+                              cursor: 'pointer',
+                              transition: 'background 0.1s'
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -480,6 +572,16 @@ export function SimpleEditor({
                         <Code size={16} />
                       </button>
                     )}
+                    {foldedIds.has('codeBlock') && (
+                      <button
+                        type="button"
+                        className={`toolbar-btn ${editor.isActive('codeBlock') ? 'active' : ''}`}
+                        onClick={() => { editor.chain().focus().toggleCodeBlock().run(); setMoreMenuOpen(false); }}
+                        title="代码块"
+                      >
+                        <SquareCode size={16} />
+                      </button>
+                    )}
                     {foldedIds.has('bulletList') && (
                       <button
                         type="button"
@@ -518,6 +620,16 @@ export function SimpleEditor({
                         title="引用"
                       >
                         <Quote size={16} />
+                      </button>
+                    )}
+                    {foldedIds.has('table') && (
+                      <button
+                        type="button"
+                        className={`toolbar-btn ${editor.isActive('table') ? 'active' : ''}`}
+                        onClick={() => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); setMoreMenuOpen(false); }}
+                        title="插入表格"
+                      >
+                        <Table size={16} />
                       </button>
                     )}
                   </div>

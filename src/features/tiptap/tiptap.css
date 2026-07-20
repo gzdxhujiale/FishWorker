@@ -363,23 +363,7 @@
 }
 
 /* 6. Code Block Syntax Highlighting (lowlight/hljs) */
-.ProseMirror pre {
-  background: #1e1e1e !important;
-  color: #abb2bf !important;
-  font-family: 'Fira Code', 'Courier New', Courier, monospace;
-  padding: 0.75rem 1rem !important;
-  border-radius: 6px !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  margin: 1em 0;
-}
-
-.ProseMirror pre code {
-  background: none;
-  color: inherit;
-  padding: 0;
-  font-size: 0.85rem;
-}
+/* Base code block styling is provided by code-block-node.scss */
 
 /* Syntax colors */
 .hljs-comment,

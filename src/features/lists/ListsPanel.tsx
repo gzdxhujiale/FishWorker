@@ -16,8 +16,7 @@ import * as listsService from './listsService';
 import { computeNoteReorder } from './listsReorder';
 import { BatchExportModal } from './BatchExportModal';
 import { Editor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { Markdown } from 'tiptap-markdown';
+import { getTiptapExtensions } from '../tiptap/config';
 import './lists.css';
 
 export function ListsPanel() {
@@ -338,7 +337,7 @@ export function ListsPanel() {
         let htmlContent = file.content;
         try {
           const editor = new Editor({
-            extensions: [StarterKit, Markdown],
+            extensions: getTiptapExtensions({ enableDragHandle: false }),
             content: file.content,
           });
           htmlContent = editor.getHTML();

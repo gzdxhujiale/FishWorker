@@ -6,7 +6,7 @@
 }
 
 .lists-sidebar {
-  width: 240px;
+  width: 200px;
   flex: none;
   background: var(--surface-1);
   border-right: 1px solid var(--line-soft);
@@ -865,28 +865,7 @@
   margin: 1em 0;
 }
 
-.ProseMirror code {
-  background-color: var(--surface-2, rgba(0, 0, 0, 0.05));
-  border-radius: 4px;
-  font-family: monospace;
-  padding: 0.2em 0.4em;
-  font-size: 0.9em;
-}
-
-.ProseMirror pre {
-  background: var(--surface-2, #f5f5f5);
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  margin: 1em 0;
-}
-
-.ProseMirror pre code {
-  background: none;
-  color: inherit;
-  padding: 0;
-  font-size: 0.85rem;
-}
+/* Code block & inline code styling provided by code-block-node.scss */
 
 .template-editor-container {
   width: 100%;

@@ -183,7 +183,7 @@ export function ListsSidebar({
   });
 
   return (
-    <aside className={`lists-sidebar ${isCollapsed ? 'collapsed' : ''}`} style={{ width: '200px' }}>
+    <aside className={`lists-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="lists-sidebar-header">
         <span>清单</span>
         <div className="lists-add-btn" onClick={() => onAddClick()}>

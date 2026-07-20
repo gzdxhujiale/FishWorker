@@ -77,15 +77,51 @@ body,
 
 .simple-editor-content .tiptap.ProseMirror.simple-editor {
   flex: 1;
-  padding: 1.5rem 1.5rem 10vh;
+  /* 增大左内边距，为拖拽把手在列表 ::marker 左侧保留独立空间 */
+  padding: 1.5rem 1.5rem 10vh 3rem;
   min-height: 100%;
   outline: none;
 }
 
 @media screen and (max-width: 480px) {
   .simple-editor-content .tiptap.ProseMirror.simple-editor {
-    padding: 1rem 1.5rem 30vh;
+    padding: 1rem 1.5rem 30vh 2rem;
   }
+}
+
+/* ---- Drag Handle：确保把手不被列表 marker 遮挡 ---- */
+.drag-handle {
+  /* 拖拽把手本体样式（颜色和图标通过 JS render() 传入）*/
+  position: absolute;
+  z-index: 20;          /* 高于列表 marker 所在的层叠上下文 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: grab;
+  color: var(--tt-gray-light-400, rgba(166,167,171,1));
+  background: transparent;
+  transition: background-color 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.dark .drag-handle {
+  color: var(--tt-gray-dark-400, rgba(99,99,105,1));
+}
+
+.drag-handle:hover {
+  background: var(--tt-gray-light-a-100, rgba(15,22,36,0.05));
+  color: var(--tt-gray-light-700, rgba(64,65,69,1));
+}
+
+.dark .drag-handle:hover {
+  background: var(--tt-gray-dark-a-100, rgba(231,231,243,0.07));
+  color: var(--tt-gray-dark-700, rgba(192,192,195,1));
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 /* Placeholder Styling */

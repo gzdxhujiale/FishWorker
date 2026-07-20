@@ -5,7 +5,6 @@ import {
   CalendarDays,
   ClipboardList,
   LayoutGrid,
-  Target,
   Navigation
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";

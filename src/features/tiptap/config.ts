@@ -11,8 +11,10 @@ import LineHeight from 'tiptap-extension-line-height';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { joinPoint } from '@tiptap/pm/transform';
+import { Fragment } from '@tiptap/pm/model';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { SlashCommands, getSuggestionItems, renderSuggestion } from './SlashCommands';
 import TextAlign from '@tiptap/extension-text-align';
 
@@ -64,6 +66,94 @@ const AutoJoinAdjacentLists = Extension.create({
   },
 });
 
+// Custom extension: when deleting a list item that has nested child lists,
+// promote the children to the parent level instead of deleting them.
+const SmartListItemDelete = Extension.create({
+  name: 'smartListItemDelete',
+
+  addCommands() {
+    return {
+      deleteNodePromoteChildren: () => ({ state, tr, dispatch }: any) => {
+        const { selection } = state;
+        const node = (selection as any).node;
+        if (!node) return false;
+
+        const listTypes = ['bulletList', 'orderedList', 'taskList'];
+
+        if (node.type.name === 'listItem' || node.type.name === 'taskItem') {
+          // Collect nested list children and their positions within the node
+          const nestedLists: { node: any; pos: number }[] = [];
+          node.forEach((child: any, offset: number) => {
+            if (listTypes.includes(child.type.name)) {
+              nestedLists.push({ node: child, pos: offset });
+            }
+          });
+
+          if (nestedLists.length > 0 && dispatch) {
+            const nodeStart = selection.from;
+
+            // Collect all child list items to promote
+            const itemsToPromote: any[] = [];
+            nestedLists.forEach(({ node: listNode }) => {
+              listNode.forEach((item: any) => {
+                itemsToPromote.push(item);
+              });
+            });
+
+            // Delete the entire list item
+            tr.delete(nodeStart, nodeStart + node.nodeSize);
+
+            // Insert promoted children at the same position
+            if (itemsToPromote.length > 0) {
+              tr.insert(nodeStart, Fragment.from(itemsToPromote));
+            }
+          } else if (dispatch) {
+            tr.delete(selection.from, selection.from + node.nodeSize);
+          }
+          return true;
+        }
+
+        // For non-list-item nodes, default delete
+        if (dispatch) {
+          tr.delete(selection.from, selection.from + node.nodeSize);
+        }
+        return true;
+      },
+    } as any;
+  },
+
+  addProseMirrorPlugins() {
+    const extensionThis = this;
+    return [
+      new Plugin({
+        key: new PluginKey('smartListItemDelete'),
+        props: {
+          handleKeyDown(view, event) {
+            if (event.key !== 'Backspace' && event.key !== 'Delete') return false;
+
+            const { state } = view;
+            const { selection } = state;
+            const node = (selection as any).node;
+            if (!node) return false;
+            if (node.type.name !== 'listItem' && node.type.name !== 'taskItem') return false;
+
+            // Only intercept if the list item has nested list children
+            const listTypes = ['bulletList', 'orderedList', 'taskList'];
+            let hasNestedList = false;
+            node.forEach((child: any) => {
+              if (listTypes.includes(child.type.name)) hasNestedList = true;
+            });
+            if (!hasNestedList) return false;
+
+            // Use the custom command
+            return (extensionThis.editor.commands as any).deleteNodePromoteChildren();
+          },
+        },
+      }),
+    ];
+  },
+});
+
 interface TiptapConfigOptions {
   enableDragHandle?: boolean;
   enableMarkdown?: boolean;
@@ -88,6 +178,12 @@ export const getTiptapExtensions = (options: TiptapConfigOptions = {}) => {
     CodeBlockLowlight.configure({
       lowlight,
     }),
+    Table.configure({
+      resizable: true,
+    }),
+    TableRow,
+    TableCell,
+    TableHeader,
     SlashCommands.configure({
       suggestion: {
         items: getSuggestionItems,
@@ -95,6 +191,7 @@ export const getTiptapExtensions = (options: TiptapConfigOptions = {}) => {
       },
     }),
     AutoJoinAdjacentLists,
+    SmartListItemDelete,
   ];
 
   if (enableMarkdown) {
