@@ -104,7 +104,7 @@ const extensions = [
   Dropcursor,
   Gapcursor,
   Placeholder.configure({
-    placeholder: '请输入内容...',
+    placeholder: '',
   }),
   TrailingNode,
   CharacterCount.configure({
@@ -144,7 +144,7 @@ const extensions = [
   Table,
 ];
 
-const DEFAULT = `<p dir="auto">请输入记录内容...</p>`;
+const DEFAULT = { type: 'doc', content: [{ type: 'paragraph' }] };
 
 function debounce(func: any, wait: number) {
   let timeout: NodeJS.Timeout;
@@ -338,7 +338,21 @@ export function ReactjsTiptapEditor({
   editable = true,
   className = '',
 }: ReactjsTiptapEditorProps) {
-  const [internalContent, setInternalContent] = useState(valueProp ?? initialContent ?? DEFAULT);
+  const parseContent = useCallback((val: any) => {
+    if (!val) return DEFAULT;
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (!trimmed) return DEFAULT;
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return DEFAULT;
+      }
+    }
+    return val;
+  }, []);
+
+  const [internalContent, setInternalContent] = useState(() => parseContent(valueProp ?? initialContent));
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -369,13 +383,13 @@ export function ReactjsTiptapEditor({
 
   const editor = useEditor({
     textDirection: 'auto',
-    content: valueProp !== undefined ? valueProp : internalContent,
+    content: parseContent(valueProp !== undefined ? valueProp : internalContent),
     extensions,
     editable,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      onValueChange(html);
+      const json = editor.getJSON();
+      onValueChange(JSON.stringify(json));
     },
   });
 
@@ -387,12 +401,14 @@ export function ReactjsTiptapEditor({
 
   useEffect(() => {
     if (editor && initialContent !== undefined) {
-      const currentHTML = editor.getHTML();
-      if (currentHTML !== initialContent) {
-        editor.commands.setContent(initialContent);
+      const parsed = parseContent(initialContent);
+      const currentJSON = JSON.stringify(editor.getJSON());
+      const newJSON = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+      if (currentJSON !== newJSON) {
+        editor.commands.setContent(parsed);
       }
     }
-  }, [editor, initialContent]);
+  }, [editor, initialContent, parseContent]);
 
   return (
     <div ref={containerRef} className={`reactjs-tiptap-editor-wrapper flex flex-col h-full w-full flex-1 min-h-0 overflow-hidden rounded-[0.5rem] bg-background !border !border-border ${className}`}>

@@ -12,9 +12,19 @@ export const HabitPanel: React.FC = () => {
   const currentDate = useHabitStore(state => state.currentDate);
   const setCurrentDate = useHabitStore(state => state.setCurrentDate);
   const createHabit = useHabitStore(state => state.createHabit);
+  const habits = useHabitStore(state => state.habits);
   
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (selectedHabit) {
+      const updated = habits.find(h => h.id === selectedHabit.id);
+      if (updated && updated !== selectedHabit) {
+        setSelectedHabit(updated);
+      }
+    }
+  }, [habits, selectedHabit]);
 
   useEffect(() => {
     loadAll();
