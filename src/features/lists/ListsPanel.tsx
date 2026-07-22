@@ -15,7 +15,7 @@ import { SortableItem } from './SortableItem';
 import * as listsService from './listsService';
 import { computeNoteReorder } from './listsReorder';
 import { BatchExportModal } from './BatchExportModal';
-import { convertMarkdownToTipTapJson, convertTipTapJsonToMarkdown } from '../tiptap/jsonMarkdownAdapter';
+import { convertMarkdownToTipTapJson, convertTipTapJsonToMarkdown } from '../reactjs-tiptap-v1';
 import './lists.css';
 
 export function ListsPanel() {

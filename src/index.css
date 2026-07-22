@@ -9,7 +9,6 @@
 @import "./styles/settings.css";
 @import "./styles/dialog.css";
 @import "./features/time-management/timeManagement.css";
-@import "./features/tiptap/tiptap.css";
 @import "./features/reactjs-tiptap-v1/editor.css";
 
 :root {

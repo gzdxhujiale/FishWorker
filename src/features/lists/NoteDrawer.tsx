@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Note } from './listsTypes';
 import { MoreHorizontal } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { ReactjsTiptapEditor } from '../reactjs-tiptap-v1';
-import { convertMarkdownToTipTapJson, convertTipTapJsonToMarkdown } from '../tiptap/jsonMarkdownAdapter';
+import { ReactjsTiptapEditor, convertMarkdownToTipTapJson, convertTipTapJsonToMarkdown } from '../reactjs-tiptap-v1';
+
 
 interface NoteDrawerProps {
   note: Note | null;

@@ -18,7 +18,6 @@ import DragHandle from "@tiptap/extension-drag-handle"
 import { Markdown } from "tiptap-markdown"
 
 // --- Custom Components (ported from features/tiptap) ---
-import { TipTapBubbleMenu } from "../../../features/tiptap/TipTapBubbleMenu"
 import { FloatingPortal } from "@floating-ui/react"
 import { useFloating, autoUpdate, offset, flip, shift } from "@floating-ui/react"
 import { DOMSerializer } from "@tiptap/pm/model"
@@ -676,7 +675,6 @@ interface SimpleEditorProps {
   // --- Ported custom features ---
   enableMarkdown?: boolean       // 开启 Markdown 语法输入解析，默认关闭
   enableDragHandle?: boolean     // 显示拖拽把手和块上下文菜单，默认开启
-  enableBubbleMenu?: boolean     // 文字选中后显示气泡菜单，默认开启
   placeholderOverlay?: React.ReactNode // 叠加在编辑区域上方的任意 JSX
 }
 
@@ -688,7 +686,6 @@ export function SimpleEditor({
   className = "",
   enableMarkdown = false,
   enableDragHandle = true,
-  enableBubbleMenu = true,
   placeholderOverlay,
 }: SimpleEditorProps) {
   const isMobile = useIsBreakpoint()
@@ -864,9 +861,6 @@ export function SimpleEditor({
             />
           )}
         </Toolbar>
-
-        {/* 气泡菜单：文字选中后浮现，复用自定义版 TipTapBubbleMenu */}
-        {enableBubbleMenu && <TipTapBubbleMenu editor={editor} />}
 
         {/* 拖拽块上下文菜单：使用官方 DropdownMenu 原语实现 */}
         {enableDragHandle && <BlockContextMenu editor={editor} />}

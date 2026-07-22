@@ -17,7 +17,7 @@ function parseInlineText(text: string): any[] {
     } else if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
       result.push({ type: 'text', text: part.slice(1, -1), marks: [{ type: 'code' }] });
     } else {
-      result.push({ type: 'text', text: part });
+      result.push({ type: 'text', text });
     }
   }
 

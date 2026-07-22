@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Button } from '../ui/button';
@@ -20,7 +20,6 @@ import {
   Dropcursor,
   Gapcursor,
   Placeholder,
-  TrailingNode,
 } from '@tiptap/extensions';
 
 // build extensions
@@ -147,7 +146,6 @@ const BaseKit = [
   Gapcursor,
   HardBreak,
   Paragraph,
-  TrailingNode,
   ListItem,
   TextStyle,
   Placeholder.configure({
@@ -172,10 +170,10 @@ const extensions = [
     suggestion: {
       items: async ({ query }: any) => {
         const lowerCaseQuery = query?.toLowerCase();
-
-        return EMOJI_LIST.filter(({ name }) =>
+        const results = EMOJI_LIST.filter(({ name }) =>
           name.toLowerCase().includes(lowerCaseQuery),
         );
+        return results.slice(0, 20);
       },
     },
   }),
@@ -254,31 +252,43 @@ const TOOLBAR_ITEMS = [
   { id: 'drawer', component: <RichTextDrawer /> },
 ];
 
-const RichTextToolbar = () => {
+const RichTextToolbar = memo(() => {
   const containerRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+  const itemWidthsRef = useRef<number[] | null>(null);
   const [visibleCount, setVisibleCount] = useState<number>(TOOLBAR_ITEMS.length);
 
   useEffect(() => {
     const container = containerRef.current;
-    const measure = measureRef.current;
-    if (!container || !measure) return;
+    if (!container) return;
+
+    let rafId: number;
 
     const calculateVisibleItems = () => {
       const containerWidth = container.clientWidth;
-      const measureChildren = Array.from(measure.children) as HTMLElement[];
-      if (measureChildren.length === 0) return;
+      if (containerWidth <= 0) return;
+
+      // Measure & cache item widths ONCE on initial mount to eliminate DOM reflow layout thrashing
+      if (!itemWidthsRef.current && measureRef.current) {
+        const measureChildren = Array.from(measureRef.current.children) as HTMLElement[];
+        if (measureChildren.length > 0) {
+          itemWidthsRef.current = measureChildren.map(
+            (child) => child.getBoundingClientRect().width || child.offsetWidth || 32
+          );
+        }
+      }
+
+      const widths = itemWidthsRef.current;
+      if (!widths || widths.length === 0) return;
 
       const gap = 4;
       const MORE_BUTTON_WIDTH = 40;
-
       const totalItems = TOOLBAR_ITEMS.length;
 
       let totalWidthNeeded = 0;
-      measureChildren.forEach((child, index) => {
-        const itemWidth = child.getBoundingClientRect().width || child.offsetWidth;
-        totalWidthNeeded += itemWidth + (index > 0 ? gap : 0);
-      });
+      for (let i = 0; i < widths.length; i++) {
+        totalWidthNeeded += widths[i] + (i > 0 ? gap : 0);
+      }
 
       if (totalWidthNeeded <= containerWidth) {
         setVisibleCount(totalItems);
@@ -289,8 +299,8 @@ const RichTextToolbar = () => {
       let currentWidth = 0;
       let count = 0;
 
-      for (let i = 0; i < measureChildren.length; i++) {
-        const itemWidth = measureChildren[i].getBoundingClientRect().width || measureChildren[i].offsetWidth;
+      for (let i = 0; i < widths.length; i++) {
+        const itemWidth = widths[i];
         const widthWithThisItem = currentWidth + (i > 0 ? gap : 0) + itemWidth;
 
         if (widthWithThisItem <= availableWidth) {
@@ -305,13 +315,15 @@ const RichTextToolbar = () => {
     };
 
     const resizeObserver = new ResizeObserver(() => {
-      calculateVisibleItems();
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(calculateVisibleItems);
     });
 
     resizeObserver.observe(container);
     calculateVisibleItems();
 
     return () => {
+      cancelAnimationFrame(rafId);
       resizeObserver.disconnect();
     };
   }, []);
@@ -370,7 +382,21 @@ const RichTextToolbar = () => {
       </div>
     </div>
   );
-};
+});
+
+const RichTextOverlayBubbles = memo(() => (
+  <>
+    <RichTextBubbleColumns />
+    <RichTextBubbleDrawer />
+    <RichTextBubbleIframe />
+    <RichTextBubbleLink />
+    <RichTextBubbleTable />
+    <RichTextBubbleText />
+    <RichTextBubbleCodeBlock />
+    <SlashCommandList />
+    <RichTextBubbleMenuDragHandle />
+  </>
+));
 
 export interface ReactjsTiptapEditorProps {
   content?: string;
@@ -412,30 +438,38 @@ export function Editor({
   showHeader = false,
   showToolbar = true,
 }: ReactjsTiptapEditorProps = {}) {
-  const [internalContent, setInternalContent] = useState<string>(() => {
-    if (valueProp !== undefined) return valueProp;
-    if (initialContent !== undefined) return initialContent;
-    return DEFAULT;
-  });
+  // Store last emitted content to avoid feedback loops and unnecessary setContent calls
+  const lastEmittedValueRef = useRef<string>('');
 
-  const onValueChangeRef = useRef<((val: string) => void) | null>(null);
+  // Ref to hold the debounced export function
+  const debouncedExportRef = useRef<((ed: any) => void) | null>(null);
 
   useEffect(() => {
-    onValueChangeRef.current = debounce((val: string) => {
-      onChange?.(val);
+    debouncedExportRef.current = debounce((ed: any) => {
+      if (!ed || ed.isDestroyed) return;
+      const jsonStr = JSON.stringify(ed.getJSON());
+      lastEmittedValueRef.current = jsonStr;
+      onChange?.(jsonStr);
     }, 300);
   }, [onChange]);
 
+  // Determine initial content on mount
+  const initialContentRef = useRef<any>(null);
+  if (initialContentRef.current === null) {
+    const raw = valueProp !== undefined ? valueProp : (initialContent !== undefined ? initialContent : DEFAULT);
+    initialContentRef.current = parseContent(raw);
+  }
+
   const editor = useEditor({
     textDirection: 'auto',
-    content: parseContent(valueProp !== undefined ? valueProp : internalContent),
+    content: initialContentRef.current,
     extensions: extensions as any[],
     editable,
     immediatelyRender: false,
-    onUpdate: ({ editor }) => {
-      const jsonStr = JSON.stringify(editor.getJSON());
-      setInternalContent(jsonStr);
-      onValueChangeRef.current?.(jsonStr);
+    onUpdate: ({ editor: ed }) => {
+      // Defer JSON serialization and parent notification to the debounced handler
+      // Zero React state updates on keypress = 0 re-renders of Toolbar/Editor
+      debouncedExportRef.current?.(ed);
     },
   });
 
@@ -448,20 +482,42 @@ export function Editor({
   }, [editor]);
 
   useEffect(() => {
-    if (editor && editor.isEditable !== editable) {
+    if (editor && !editor.isDestroyed && editor.isEditable !== editable) {
       editor.setEditable(editable);
     }
   }, [editor, editable]);
 
+  const isFirstSyncRef = useRef<boolean>(true);
+
   useEffect(() => {
-    const targetContent = valueProp !== undefined ? valueProp : initialContent;
-    if (editor && targetContent !== undefined) {
-      const parsed = parseContent(targetContent);
-      const currentJSON = JSON.stringify(editor.getJSON());
-      const newJSON = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
-      if (currentJSON !== newJSON) {
-        editor.commands.setContent(parsed);
+    if (!editor || editor.isDestroyed) return;
+
+    // Skip redundant setContent on initial mount because useEditor already loaded initialContent
+    // This prevents TipTap's setContent from resetting selection and scrolling to the bottom on open
+    if (isFirstSyncRef.current) {
+      isFirstSyncRef.current = false;
+      const raw = valueProp !== undefined ? valueProp : initialContent;
+      if (raw !== undefined) {
+        const parsed = parseContent(raw);
+        lastEmittedValueRef.current = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
       }
+      return;
+    }
+
+    const targetContent = valueProp !== undefined ? valueProp : initialContent;
+    if (targetContent === undefined) return;
+
+    // Fast-path: if the content coming from parent is what we just exported, ignore it
+    if (lastEmittedValueRef.current && targetContent === lastEmittedValueRef.current) {
+      return;
+    }
+
+    const parsed = parseContent(targetContent);
+    const currentJSON = JSON.stringify(editor.getJSON());
+    const newJSON = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+    if (currentJSON !== newJSON) {
+      editor.commands.setContent(parsed);
+      lastEmittedValueRef.current = typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
     }
   }, [editor, valueProp, initialContent]);
 
@@ -487,19 +543,7 @@ export function Editor({
 
               <EditorContent editor={editor} className="flex-1 overflow-y-auto min-h-0" />
 
-              {/* Bubble */}
-              <RichTextBubbleColumns />
-              <RichTextBubbleDrawer />
-              <RichTextBubbleIframe />
-              <RichTextBubbleLink />
-
-              <RichTextBubbleTable />
-              <RichTextBubbleText />
-              <RichTextBubbleCodeBlock />
-
-              {/* Command List */}
-              <SlashCommandList />
-              <RichTextBubbleMenuDragHandle />
+              <RichTextOverlayBubbles />
             </div>
           </div>
         </RichTextProvider>
@@ -509,3 +553,4 @@ export function Editor({
 }
 
 export default Editor;
+
