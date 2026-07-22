@@ -115,13 +115,17 @@ pub fn run() {
                     .expect("Failed to initialize local SQLite tables");
                 pool
             });
-            app.manage(sqlite_pool);
+            app.manage(sqlite_pool.clone());
 
-            // Async background attempt to connect to remote TiDB
-            tauri::async_runtime::spawn(async {
+            // Async background attempt to connect to remote TiDB and pull cloud data to local SQLite
+            let sqlite_pool_clone = sqlite_pool.clone();
+            tauri::async_runtime::spawn(async move {
                 match db::establish_connection().await {
-                    Ok(_mysql_pool) => {
-                        println!("Remote TiDB database connection established successfully.");
+                    Ok(mysql_pool) => {
+                        println!("Remote TiDB database connected. Syncing cloud data into local SQLite...");
+                        if let Err(e) = local_db::pull_from_tidb(&mysql_pool, &sqlite_pool_clone).await {
+                            eprintln!("Failed to pull data from TiDB: {}", e);
+                        }
                     }
                     Err(e) => {
                         eprintln!("TiDB cloud database unreachable (offline mode): {}", e);

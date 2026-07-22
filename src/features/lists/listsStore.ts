@@ -79,6 +79,23 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
 
     const promise = (async () => {
       try {
+        // One-time migration from legacy localStorage for offline upgrade users
+        const MIGRATION_KEY = 'aistudy_sqlite_migrated_v1';
+        if (!localStorage.getItem(MIGRATION_KEY)) {
+          try {
+            const oldLists = localStorage.getItem('aistudy_lists_data');
+            if (oldLists) {
+              const parsed = JSON.parse(oldLists) as ListsData;
+              if (parsed.folders?.length || parsed.lists?.length || parsed.notes?.length) {
+                await listsService.migrateFromLocal(parsed);
+              }
+            }
+            localStorage.setItem(MIGRATION_KEY, 'true');
+          } catch (mErr) {
+            console.error('Legacy localStorage migration error:', mErr);
+          }
+        }
+
         const allData = await listsService.loadAll();
 
         let defaultTemplates = allData.templates.length > 0 ? allData.templates : DEFAULT_TEMPLATES;
