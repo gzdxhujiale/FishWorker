@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, GripVertical, User, Trash2, X, MoreHorizontal } from 'lucide-react';
+import { Plus, GripVertical, User, X, MoreHorizontal } from 'lucide-react';
 import { useTimeStore } from './timeManagementStore';
 import { QuadrantType, Task } from './timeManagementTypes';
 import { DailyQuadrants } from './DailyQuadrants';
@@ -7,8 +7,6 @@ import { WeeklyPlanning } from './WeeklyPlanning';
 import { TaskDetailModal } from './TaskDetailModal';
 import { usePreferencesStore } from '../settings/preferencesStore';
 import './timeManagement.css';
-
-const PREDEFINED_COLORS = ['#1f6fd1', '#25845a', '#d97706', '#7657d6', '#d32f2f', '#0ea5e9'];
 
 interface TimeManagementPanelProps {
   mode?: 'weekly' | 'daily';

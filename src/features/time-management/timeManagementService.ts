@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { TimeManagementData } from "./timeManagementStore";
-import type { Role, Task } from "./timeManagementTypes";
+import type { Task } from "./timeManagementTypes";
 
 export const timeManagementApi = {
   loadAll: async (): Promise<TimeManagementData | null> => {

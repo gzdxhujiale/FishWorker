@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dropdown, Menu, Modal } from '@arco-design/web-react';
+import { Dropdown, Menu } from '@arco-design/web-react';
 import { MoreHorizontal, Edit, Trash2, Smile } from 'lucide-react';
 import { Habit } from './habitTypes';
 import { useHabitStore } from './habitStore';
