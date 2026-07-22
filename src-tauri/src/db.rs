@@ -86,7 +86,7 @@ pub async fn establish_connection() -> Result<MySqlPool, sqlx::Error> {
 
     // 连接池预热：立即建立真实连接，而非等到首次查询
     let pool_warmup = pool.clone();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         if let Err(e) = sqlx::query("SELECT 1").execute(&pool_warmup).await {
             eprintln!("Failed to warm up connection pool: {}", e);
         }
@@ -94,7 +94,7 @@ pub async fn establish_connection() -> Result<MySqlPool, sqlx::Error> {
 
     // 后台心跳：每2分钟 ping 一次，防止 TiDB Serverless 因空闲休眠
     let pool_keepalive = pool.clone();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(120));
         loop {
             interval.tick().await;
@@ -106,7 +106,7 @@ pub async fn establish_connection() -> Result<MySqlPool, sqlx::Error> {
 
     let pool_schema = pool.clone();
     let skip_schema_creation = config.skip_schema_creation.unwrap_or(false);
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         if !skip_schema_creation {
             if let Err(e) = crate::schema::ensure_tables(&pool_schema).await {
                 eprintln!("Failed to ensure tables in background: {}", e);
@@ -141,7 +141,7 @@ pub async fn db_save_config(config: MysqlConfigJson) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn db_get_preference(key: String, pool: tauri::State<'_, MySqlPool>) -> Result<Option<String>, String> {
+pub async fn db_get_preference(key: String, pool: tauri::State<'_, sqlx::SqlitePool>) -> Result<Option<String>, String> {
     use sqlx::Row;
     let row = sqlx::query("SELECT pref_value FROM app_preferences WHERE pref_key = ?")
         .bind(key)
@@ -158,13 +158,12 @@ pub async fn db_get_preference(key: String, pool: tauri::State<'_, MySqlPool>) -
 }
 
 #[tauri::command]
-pub async fn db_set_preference(key: String, value: String, pool: tauri::State<'_, MySqlPool>) -> Result<(), String> {
+pub async fn db_set_preference(key: String, value: String, pool: tauri::State<'_, sqlx::SqlitePool>) -> Result<(), String> {
     sqlx::query(
-        "INSERT INTO app_preferences (pref_key, pref_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE pref_value = ?"
+        "INSERT INTO app_preferences (pref_key, pref_value) VALUES (?, ?) ON CONFLICT(pref_key) DO UPDATE SET pref_value = excluded.pref_value"
     )
-    .bind(key.clone())
-    .bind(value.clone())
-    .bind(value)
+    .bind(key)
+    .bind(&value)
     .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;

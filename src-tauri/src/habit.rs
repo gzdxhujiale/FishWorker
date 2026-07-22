@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{MySqlPool, Row};
+use sqlx::{SqlitePool, Row};
 use tauri::State;
 use uuid::Uuid;
-use chrono::Utc;
+
+fn now_iso() -> String {
+    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string()
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Habit {
@@ -57,7 +60,7 @@ pub struct HabitData {
 }
 
 #[tauri::command]
-pub async fn habit_load_all(pool: State<'_, MySqlPool>) -> Result<HabitData, String> {
+pub async fn habit_load_all(pool: State<'_, SqlitePool>) -> Result<HabitData, String> {
     let habits_rows = sqlx::query(
         r#"
         SELECT id, name, frequency, goal, start_date, duration, category, reminder, auto_popup_log, created_at, updated_at
@@ -80,9 +83,9 @@ pub async fn habit_load_all(pool: State<'_, MySqlPool>) -> Result<HabitData, Str
             let duration: Option<String> = row.try_get("duration").ok().flatten();
             let group: Option<String> = row.try_get("category").ok().flatten();
             let reminder: Option<String> = row.try_get("reminder").ok().flatten();
-            let auto_popup_log_i8: i8 = row.try_get("auto_popup_log").unwrap_or(0);
-            let created_at: chrono::NaiveDateTime = row.try_get("created_at").unwrap_or_else(|_| Utc::now().naive_utc());
-            let updated_at: chrono::NaiveDateTime = row.try_get("updated_at").unwrap_or_else(|_| Utc::now().naive_utc());
+            let auto_popup_log_i32: i32 = row.try_get("auto_popup_log").unwrap_or(0);
+            let created_at: String = row.try_get("created_at").unwrap_or_default();
+            let updated_at: String = row.try_get("updated_at").unwrap_or_default();
             Habit {
                 id,
                 name,
@@ -92,9 +95,9 @@ pub async fn habit_load_all(pool: State<'_, MySqlPool>) -> Result<HabitData, Str
                 duration,
                 group,
                 reminder,
-                auto_popup_log: auto_popup_log_i8 != 0,
-                created_at: created_at.to_string(),
-                updated_at: updated_at.to_string(),
+                auto_popup_log: auto_popup_log_i32 != 0,
+                created_at,
+                updated_at,
             }
         })
         .collect();
@@ -114,18 +117,18 @@ pub async fn habit_load_all(pool: State<'_, MySqlPool>) -> Result<HabitData, Str
         .map(|row| {
             let id: String = row.try_get("id").unwrap_or_default();
             let habit_id: String = row.try_get("habit_id").unwrap_or_default();
-            let date: chrono::NaiveDate = row.try_get("date").unwrap_or_else(|_| Utc::now().naive_utc().date());
-            let completed: i8 = row.try_get("completed").unwrap_or_default();
-            let created_at: chrono::NaiveDateTime = row.try_get("created_at").unwrap_or_else(|_| Utc::now().naive_utc());
-            let updated_at: chrono::NaiveDateTime = row.try_get("updated_at").unwrap_or_else(|_| Utc::now().naive_utc());
+            let date: String = row.try_get("date").unwrap_or_default();
+            let completed: i32 = row.try_get("completed").unwrap_or_default();
+            let created_at: String = row.try_get("created_at").unwrap_or_default();
+            let updated_at: String = row.try_get("updated_at").unwrap_or_default();
 
             HabitCheckIn {
                 id,
                 habit_id,
-                date: date.to_string(),
+                date,
                 completed: completed != 0,
-                created_at: created_at.to_string(),
-                updated_at: updated_at.to_string(),
+                created_at,
+                updated_at,
             }
         })
         .collect();
@@ -134,10 +137,10 @@ pub async fn habit_load_all(pool: State<'_, MySqlPool>) -> Result<HabitData, Str
 }
 
 #[tauri::command]
-pub async fn habit_create(payload: HabitPayload, pool: State<'_, MySqlPool>) -> Result<Habit, String> {
+pub async fn habit_create(payload: HabitPayload, pool: State<'_, SqlitePool>) -> Result<Habit, String> {
     let id = Uuid::new_v4().to_string();
-    let now = Utc::now().naive_utc();
-    let auto_popup_log_val = if payload.auto_popup_log.unwrap_or(false) { 1i8 } else { 0i8 };
+    let now = now_iso();
+    let auto_popup_log_val = if payload.auto_popup_log.unwrap_or(false) { 1i32 } else { 0i32 };
     let name_val = payload.name.unwrap_or_default();
 
     sqlx::query(
@@ -155,8 +158,8 @@ pub async fn habit_create(payload: HabitPayload, pool: State<'_, MySqlPool>) -> 
     .bind(&payload.group)
     .bind(&payload.reminder)
     .bind(auto_popup_log_val)
-    .bind(now)
-    .bind(now)
+    .bind(&now)
+    .bind(&now)
     .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;
@@ -171,15 +174,15 @@ pub async fn habit_create(payload: HabitPayload, pool: State<'_, MySqlPool>) -> 
         group: payload.group,
         reminder: payload.reminder,
         auto_popup_log: auto_popup_log_val != 0,
-        created_at: now.to_string(),
-        updated_at: now.to_string(),
+        created_at: now.clone(),
+        updated_at: now,
     })
 }
 
 #[tauri::command]
-pub async fn habit_update(id: String, payload: HabitPayload, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = Utc::now().naive_utc();
-    let auto_popup_log_val = if payload.auto_popup_log.unwrap_or(false) { 1i8 } else { 0i8 };
+pub async fn habit_update(id: String, payload: HabitPayload, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
+    let auto_popup_log_val = if payload.auto_popup_log.unwrap_or(false) { 1i32 } else { 0i32 };
 
     sqlx::query(
         r#"
@@ -204,7 +207,7 @@ pub async fn habit_update(id: String, payload: HabitPayload, pool: State<'_, MyS
     .bind(&payload.group)
     .bind(&payload.reminder)
     .bind(auto_popup_log_val)
-    .bind(now)
+    .bind(&now)
     .bind(id)
     .execute(&*pool)
     .await
@@ -214,45 +217,32 @@ pub async fn habit_update(id: String, payload: HabitPayload, pool: State<'_, MyS
 }
 
 #[tauri::command]
-pub async fn habit_delete(id: String, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    // Delete check-ins first due to potential foreign key constraints or just to keep it clean
-    sqlx::query(
-        r#"
-        DELETE FROM habit_checkins WHERE habit_id = ?
-        "#
-    )
-    .bind(&id)
-    .execute(&*pool)
-    .await
-    .map_err(|e| e.to_string())?;
+pub async fn habit_delete(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    sqlx::query("DELETE FROM habit_checkins WHERE habit_id = ?")
+        .bind(&id)
+        .execute(&*pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    sqlx::query(
-        r#"
-        DELETE FROM habits WHERE id = ?
-        "#
-    )
-    .bind(&id)
-    .execute(&*pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    sqlx::query("DELETE FROM habits WHERE id = ?")
+        .bind(&id)
+        .execute(&*pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn habit_toggle_checkin(habit_id: String, date: String, completed: bool, pool: State<'_, MySqlPool>) -> Result<HabitCheckIn, String> {
-    let now = Utc::now().naive_utc();
-    // Assuming date is passing as YYYY-MM-DD
-    let parsed_date = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d").map_err(|e| e.to_string())?;
-    let completed_val = if completed { 1i8 } else { 0i8 };
-    
+pub async fn habit_toggle_checkin(habit_id: String, date: String, completed: bool, pool: State<'_, SqlitePool>) -> Result<HabitCheckIn, String> {
+    let now = now_iso();
+    let completed_val = if completed { 1i32 } else { 0i32 };
+
     let existing = sqlx::query(
-        r#"
-        SELECT id FROM habit_checkins WHERE habit_id = ? AND date = ?
-        "#
+        "SELECT id FROM habit_checkins WHERE habit_id = ? AND date = ?"
     )
     .bind(&habit_id)
-    .bind(parsed_date)
+    .bind(&date)
     .fetch_optional(&*pool)
     .await
     .map_err(|e| e.to_string())?;
@@ -263,32 +253,26 @@ pub async fn habit_toggle_checkin(habit_id: String, date: String, completed: boo
     if let Some(row) = existing {
         checkin_id = row.try_get("id").unwrap_or_default();
         is_insert = false;
-        sqlx::query(
-            r#"
-            UPDATE habit_checkins SET completed = ?, updated_at = ? WHERE id = ?
-            "#
-        )
-        .bind(completed_val)
-        .bind(now)
-        .bind(&checkin_id)
-        .execute(&*pool)
-        .await
-        .map_err(|e| e.to_string())?;
+        sqlx::query("UPDATE habit_checkins SET completed = ?, updated_at = ? WHERE id = ?")
+            .bind(completed_val)
+            .bind(&now)
+            .bind(&checkin_id)
+            .execute(&*pool)
+            .await
+            .map_err(|e| e.to_string())?;
     } else {
         checkin_id = Uuid::new_v4().to_string();
         is_insert = true;
         sqlx::query(
-            r#"
-            INSERT INTO habit_checkins (id, habit_id, date, completed, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            "#
+            "INSERT INTO habit_checkins (id, habit_id, date, completed, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?)"
         )
         .bind(&checkin_id)
         .bind(&habit_id)
-        .bind(parsed_date)
+        .bind(&date)
         .bind(completed_val)
-        .bind(now)
-        .bind(now)
+        .bind(&now)
+        .bind(&now)
         .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -297,9 +281,9 @@ pub async fn habit_toggle_checkin(habit_id: String, date: String, completed: boo
     Ok(HabitCheckIn {
         id: checkin_id,
         habit_id,
-        date: parsed_date.to_string(),
+        date,
         completed,
-        created_at: if is_insert { now.to_string() } else { "".to_string() },
-        updated_at: now.to_string(),
+        created_at: if is_insert { now.clone() } else { "".to_string() },
+        updated_at: now,
     })
 }

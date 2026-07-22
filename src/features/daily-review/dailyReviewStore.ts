@@ -3,7 +3,7 @@ import { DailyReview, DailyReviewData, CompoundStats } from './dailyReviewTypes'
 import { dailyReviewApi } from './dailyReviewService';
 import { createSyncEngine } from '../../lib/createSyncEngine';
 
-const STORAGE_KEY = 'aistudy_daily_review_data';
+
 
 const defaultData: DailyReviewData = {
   reviews: []
@@ -51,23 +51,7 @@ interface DailyReviewStore {
 
 const syncEngine = createSyncEngine();
 
-function saveLocal(data: DailyReviewData): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (err) {
-    console.error('Failed to save daily review data:', err);
-  }
-}
 
-function loadLocal(): DailyReviewData | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as DailyReviewData) : null;
-  } catch (err) {
-    console.error('Failed to load daily review data:', err);
-    return null;
-  }
-}
 
 export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
   data: defaultData,
@@ -75,27 +59,9 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
   syncAllFromDB: async () => {
     try {
       const dbReviews = await dailyReviewApi.loadAll();
-
-      const localData = get().data;
-      const mergedMap = new Map<string, DailyReview>();
-      localData.reviews.forEach(r => mergedMap.set(r.date, r));
-
-      let changed = false;
-      dbReviews.forEach(dbR => {
-        const localR = mergedMap.get(dbR.date);
-        if (!localR || dbR.updatedAt > localR.updatedAt) {
-          mergedMap.set(dbR.date, dbR);
-          changed = true;
-        }
-      });
-
-      if (changed) {
-        const newData = { ...localData, reviews: Array.from(mergedMap.values()) };
-        saveLocal(newData);
-        set({ data: newData });
-      }
+      set({ data: { reviews: dbReviews } });
     } catch (e) {
-      console.error('Daily review sync from DB failed:', e);
+      console.error('Daily review load from SQLite failed:', e);
     }
   },
 
@@ -152,7 +118,6 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
     }
 
     const newData = { ...data, reviews: newReviews };
-    saveLocal(newData);
     set({ data: newData });
     syncEngine.schedule(review.id, () => dailyReviewApi.save(review), (isHighFreq ?? true) ? 500 : 300);
     return review;
@@ -162,7 +127,6 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
     const data = get().data;
     const newReviews = data.reviews.filter(r => r.id !== id);
     const newData = { ...data, reviews: newReviews };
-    saveLocal(newData);
     set({ data: newData });
 
     syncEngine.cancel(id);
@@ -218,9 +182,3 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
     };
   }
 }));
-
-// Initialize data
-const initial = loadLocal();
-if (initial) {
-  useDailyReviewStore.setState({ data: initial });
-}

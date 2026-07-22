@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, MySqlPool};
+use sqlx::{FromRow, SqlitePool, Row};
 use tauri::State;
 
 #[derive(Serialize, Deserialize, Debug, FromRow)]
@@ -13,23 +13,12 @@ pub struct DailyReviewRow {
     pub updated_at: Option<i64>,
 }
 
-/// Helper struct for database row with native datetime types
-#[derive(FromRow)]
-struct DailyReviewDbRow {
-    id: String,
-    date: String,
-    content: String,
-    rating: Option<i32>,
-    created_at_ms: Option<i64>,
-    updated_at_ms: Option<i64>,
-}
-
 #[tauri::command]
-pub async fn daily_review_load_all(pool: State<'_, MySqlPool>) -> Result<Vec<DailyReviewRow>, String> {
-    let rows = sqlx::query_as::<_, DailyReviewDbRow>(
-        "SELECT id, DATE_FORMAT(date, '%Y-%m-%d') as date, content, rating, 
-         CAST(UNIX_TIMESTAMP(created_at) * 1000 AS SIGNED) as created_at_ms, 
-         CAST(UNIX_TIMESTAMP(updated_at) * 1000 AS SIGNED) as updated_at_ms 
+pub async fn daily_review_load_all(pool: State<'_, SqlitePool>) -> Result<Vec<DailyReviewRow>, String> {
+    let rows = sqlx::query(
+        "SELECT id, date, content, rating,
+         CAST(strftime('%s', created_at) * 1000 AS INTEGER) as created_at_ms,
+         CAST(strftime('%s', updated_at) * 1000 AS INTEGER) as updated_at_ms
          FROM daily_reviews"
     )
     .fetch_all(&*pool)
@@ -39,40 +28,45 @@ pub async fn daily_review_load_all(pool: State<'_, MySqlPool>) -> Result<Vec<Dai
     Ok(rows
         .into_iter()
         .map(|r| DailyReviewRow {
-            id: r.id,
-            date: r.date,
-            content: r.content,
-            rating: r.rating,
-            created_at: r.created_at_ms,
-            updated_at: r.updated_at_ms,
+            id: r.try_get("id").unwrap_or_default(),
+            date: r.try_get("date").unwrap_or_default(),
+            content: r.try_get("content").unwrap_or_default(),
+            rating: r.try_get("rating").ok(),
+            created_at: r.try_get::<i64, _>("created_at_ms").ok(),
+            updated_at: r.try_get::<i64, _>("updated_at_ms").ok(),
         })
         .collect())
 }
 
 #[tauri::command]
-pub async fn daily_review_save(review: DailyReviewRow, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    // Use parameterized query - let MySQL handle the timestamp conversion
+pub async fn daily_review_save(review: DailyReviewRow, pool: State<'_, SqlitePool>) -> Result<(), String> {
     let created_at_value = review.created_at.unwrap_or_else(|| {
-        // Current time in milliseconds
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis() as i64
     });
 
+    // Convert ms timestamp to ISO string for SQLite storage
+    let created_iso = chrono::DateTime::from_timestamp_millis(created_at_value)
+        .map(|dt| dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string())
+        .unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string());
+    let now_iso = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
+
     sqlx::query(
         "INSERT INTO daily_reviews (id, date, content, rating, created_at, updated_at)
-         VALUES (?, ?, ?, ?, FROM_UNIXTIME(? / 1000), NOW(3))
-         ON DUPLICATE KEY UPDATE 
-            content = VALUES(content), 
-            rating = VALUES(rating), 
-            updated_at = NOW(3)"
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+            content = excluded.content,
+            rating = excluded.rating,
+            updated_at = excluded.updated_at"
     )
     .bind(&review.id)
     .bind(&review.date)
     .bind(&review.content)
     .bind(review.rating)
-    .bind(created_at_value)
+    .bind(&created_iso)
+    .bind(&now_iso)
     .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;
@@ -81,7 +75,7 @@ pub async fn daily_review_save(review: DailyReviewRow, pool: State<'_, MySqlPool
 }
 
 #[tauri::command]
-pub async fn daily_review_delete(id: String, pool: State<'_, MySqlPool>) -> Result<(), String> {
+pub async fn daily_review_delete(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
     sqlx::query("DELETE FROM daily_reviews WHERE id = ?")
         .bind(id)
         .execute(&*pool)

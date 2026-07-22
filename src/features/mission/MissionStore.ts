@@ -2,8 +2,7 @@ import { create } from "zustand";
 import type { MissionStatement, Role, Goal } from "./MissionTypes";
 import { missionService } from "./MissionService";
 import { createSyncEngine } from "../../lib/createSyncEngine";
-
-const STORAGE_KEY = "aistudy_mission_data";
+import { useTimeStore } from "../time-management/timeManagementStore";
 
 interface MissionStoreState {
   statement: MissionStatement | null;
@@ -35,20 +34,11 @@ interface MissionStoreState {
 
 const syncEngine = createSyncEngine();
 
-function saveLocal(state: { statement: MissionStatement | null; roles: Role[]; goals: Goal[] }) {
+function notifyTimeStoreRoles(roles: Role[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    useTimeStore.getState().setRoles(roles as any);
   } catch (e) {
-    console.error("Failed to save mission data locally:", e);
-  }
-}
-
-function loadLocal(): { statement: MissionStatement | null; roles: Role[]; goals: Goal[] } | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
+    console.error("Failed to sync roles to time store:", e);
   }
 }
 
@@ -60,14 +50,10 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
   isStatementCollapsed: false,
 
   init: async () => {
-    const local = loadLocal();
-    if (local) {
-      set({ statement: local.statement, roles: local.roles, goals: local.goals, selectedRoleId: local.roles[0]?.id ?? null });
-    }
     try {
       const data = await missionService.loadAll();
       set({ statement: data.statement, roles: data.roles, goals: data.goals, selectedRoleId: data.roles[0]?.id ?? null });
-      saveLocal(data);
+      notifyTimeStoreRoles(data.roles);
     } catch (e) {
       console.error("Mission init failed:", e);
     }
@@ -79,7 +65,6 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
   saveStatement: (content) => {
     const stmt: MissionStatement = { id: "default", content, updatedAt: new Date().toISOString() };
     set({ statement: stmt });
-    saveLocal({ statement: stmt, roles: get().roles, goals: get().goals });
     syncEngine.schedule("mission:statement", async () => { await missionService.saveStatement(content); }, 500);
   },
 
@@ -95,14 +80,14 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
     };
     const newRoles = [...roles, newRole];
     set({ roles: newRoles, selectedRoleId: newRole.id });
-    saveLocal({ statement: get().statement, roles: newRoles, goals: get().goals });
+    notifyTimeStoreRoles(newRoles);
     syncEngine.schedule(`role:${newRole.id}`, async () => { await missionService.createRole(name, icon, newRole.sortOrder); }, 300);
   },
 
   updateRole: (id, updates) => {
     const roles = get().roles.map(r => r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r);
     set({ roles });
-    saveLocal({ statement: get().statement, roles, goals: get().goals });
+    notifyTimeStoreRoles(roles);
     const updated = roles.find(r => r.id === id);
     if (updated) {
       syncEngine.schedule(`role:${id}`, () => missionService.updateRole(id, updated.name, updated.icon), 500);
@@ -114,7 +99,7 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
     const goals = get().goals.filter(g => g.roleId !== id);
     const selectedRoleId = get().selectedRoleId === id ? (roles[0]?.id ?? null) : get().selectedRoleId;
     set({ roles, goals, selectedRoleId });
-    saveLocal({ statement: get().statement, roles, goals });
+    notifyTimeStoreRoles(roles);
     syncEngine.cancel(`role:${id}`);
     missionService.deleteRole(id).catch(e => console.error("Failed to delete role:", e));
   },
@@ -122,7 +107,7 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
   reorderRoles: (newOrder) => {
     const roles = [...get().roles].sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
     set({ roles });
-    saveLocal({ statement: get().statement, roles, goals: get().goals });
+    notifyTimeStoreRoles(roles);
     const items: [string, number][] = roles.map((r, i) => [r.id, i]);
     syncEngine.schedule("reorder:roles", () => missionService.reorderRoles(items), 300);
   },
@@ -145,14 +130,12 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
     };
     const goals = [...get().goals, newGoal];
     set({ goals });
-    saveLocal({ statement: get().statement, roles: get().roles, goals });
     syncEngine.schedule(`goal:${newGoal.id}`, async () => { await missionService.createGoal(roleId, title, newGoal.sortOrder); }, 300);
   },
 
   updateGoal: (id, updates) => {
     const goals = get().goals.map(g => g.id === id ? { ...g, ...updates, updatedAt: new Date().toISOString() } : g);
     set({ goals });
-    saveLocal({ statement: get().statement, roles: get().roles, goals });
     const updated = goals.find(g => g.id === id);
     if (updated) {
       syncEngine.schedule(`goal:${id}`, () =>
@@ -169,7 +152,6 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
   deleteGoal: (id) => {
     const goals = get().goals.filter(g => g.id !== id);
     set({ goals });
-    saveLocal({ statement: get().statement, roles: get().roles, goals });
     syncEngine.cancel(`goal:${id}`);
     missionService.deleteGoal(id).catch(e => console.error("Failed to delete goal:", e));
   },
@@ -182,7 +164,6 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
     const sorted = [...roleGoals].sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
     const goals = [...otherGoals, ...sorted];
     set({ goals });
-    saveLocal({ statement: get().statement, roles: get().roles, goals });
     const items: [string, number][] = sorted.map((g, i) => [g.id, i]);
     syncEngine.schedule("reorder:goals", () => missionService.reorderGoals(roleId, items), 300);
   },

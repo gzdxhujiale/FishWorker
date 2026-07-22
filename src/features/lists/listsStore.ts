@@ -5,8 +5,7 @@ import { createSyncEngine } from '../../lib/createSyncEngine';
 import { useTemplateStore } from '../templates/templateStore';
 import { DEFAULT_TEMPLATES } from '../templates/templateTypes';
 
-const STORAGE_KEY = 'aistudy_lists_data';
-const MIGRATION_FLAG = 'aistudy_lists_migrated';
+
 
 function genId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -80,26 +79,6 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
 
     const promise = (async () => {
       try {
-        const migrated = localStorage.getItem(MIGRATION_FLAG);
-        if (!migrated) {
-          try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (!stored) {
-              localStorage.setItem(MIGRATION_FLAG, '1');
-            } else {
-              const parsed = JSON.parse(stored) as ListsData;
-              if (!parsed.notes) parsed.notes = [];
-              if (!parsed.templates) parsed.templates = DEFAULT_TEMPLATES;
-              if (!parsed.noteGroups) parsed.noteGroups = [];
-
-              await listsService.migrateFromLocal(parsed);
-              localStorage.setItem(MIGRATION_FLAG, '1');
-            }
-          } catch (e) {
-            console.error('Migration from localStorage failed:', e);
-          }
-        }
-
         const allData = await listsService.loadAll();
 
         let defaultTemplates = allData.templates.length > 0 ? allData.templates : DEFAULT_TEMPLATES;
@@ -122,21 +101,8 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
           initialized: true
         });
       } catch (e) {
-        console.error('Failed to load from TiDB, falling back to localStorage:', e);
-        try {
-          const stored = localStorage.getItem(STORAGE_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (!parsed.notes) parsed.notes = [];
-            if (!parsed.templates) parsed.templates = DEFAULT_TEMPLATES;
-            if (!parsed.noteGroups) parsed.noteGroups = [];
-            set({ data: parsed, initialized: true });
-          } else {
-            set({ initialized: true });
-          }
-        } catch (e2) {
-          set({ initialized: true });
-        }
+        console.error('Failed to load from SQLite:', e);
+        set({ initialized: true });
       }
     })();
 

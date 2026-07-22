@@ -8,6 +8,8 @@ import { TaskDetailModal } from './TaskDetailModal';
 import { usePreferencesStore } from '../settings/preferencesStore';
 import './timeManagement.css';
 
+import { useMissionStore } from '../mission/MissionStore';
+
 interface TimeManagementPanelProps {
   mode?: 'weekly' | 'daily';
 }
@@ -37,6 +39,7 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
+    useMissionStore.getState().init();
     syncAllFromDB();
   }, [syncAllFromDB]);
 
@@ -241,7 +244,7 @@ export function TimeManagementPanel({ mode = 'weekly' }: TimeManagementPanelProp
                           <Plus size={14} className="text-muted" />
                           <input
                             type="text"
-                            placeholder="添加目标..."
+                            placeholder="添加待办任务..."
                             value={draftTasks[role.id] || ''}
                             onChange={(e) => setDraftTasks(prev => ({ ...prev, [role.id]: e.target.value }))}
                             onKeyDown={(e) => handleAddTaskToRole(e, role.id)}

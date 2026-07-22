@@ -1,4 +1,6 @@
 mod db;
+mod local_db;
+mod local_schema;
 mod list;
 mod schema;
 mod time_management;
@@ -103,14 +105,30 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
-            match tauri::async_runtime::block_on(async { db::establish_connection().await }) {
-                Ok(pool) => {
-                    app.manage(pool);
+            // Establish local SQLite connection (offline-first primary storage)
+            let sqlite_pool = tauri::async_runtime::block_on(async {
+                let pool = local_db::establish_local_connection()
+                    .await
+                    .expect("Failed to connect to local SQLite database");
+                local_schema::ensure_local_tables(&pool)
+                    .await
+                    .expect("Failed to initialize local SQLite tables");
+                pool
+            });
+            app.manage(sqlite_pool);
+
+            // Async background attempt to connect to remote TiDB
+            tauri::async_runtime::spawn(async {
+                match db::establish_connection().await {
+                    Ok(_mysql_pool) => {
+                        println!("Remote TiDB database connection established successfully.");
+                    }
+                    Err(e) => {
+                        eprintln!("TiDB cloud database unreachable (offline mode): {}", e);
+                    }
                 }
-                Err(e) => {
-                    eprintln!("Failed to connect to MySQL database: {}", e);
-                }
-            }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

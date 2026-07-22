@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{MySqlPool, Row};
+use sqlx::{SqlitePool, Row};
 use tauri::State;
 
 // ── Data types ──
@@ -69,20 +69,20 @@ pub struct ListAllData {
     pub templates: Vec<ListTemplate>,
 }
 
-// ── Helper: current timestamp as milliseconds ──
+// ── Helper: current timestamp ──
+
+fn now_iso() -> String {
+    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string()
+}
 
 fn now_ms() -> i64 {
     chrono::Utc::now().timestamp_millis()
 }
 
-fn now_dt() -> chrono::DateTime<chrono::Utc> {
-    chrono::Utc::now()
-}
-
 // ── Load all ──
 
 #[tauri::command]
-pub async fn list_load_all(pool: State<'_, MySqlPool>) -> Result<ListAllData, String> {
+pub async fn list_load_all(pool: State<'_, SqlitePool>) -> Result<ListAllData, String> {
     // Folders
     let folder_rows = sqlx::query(
         "SELECT id, name, is_pinned, sort_order FROM list_folders WHERE deleted_at IS NULL ORDER BY sort_order"
@@ -93,7 +93,7 @@ pub async fn list_load_all(pool: State<'_, MySqlPool>) -> Result<ListAllData, St
         folders.push(ListFolder {
             id: row.try_get("id").unwrap_or_default(),
             name: row.try_get("name").unwrap_or_default(),
-            is_pinned: row.try_get::<i8, _>("is_pinned").map(|v| v != 0).unwrap_or(false),
+            is_pinned: row.try_get::<i32, _>("is_pinned").map(|v| v != 0).unwrap_or(false),
             sort_order: row.try_get("sort_order").unwrap_or(0),
         });
     }
@@ -118,9 +118,9 @@ pub async fn list_load_all(pool: State<'_, MySqlPool>) -> Result<ListAllData, St
             color: row.try_get("color").unwrap_or_default(),
             view_type: row.try_get("view_type").unwrap_or_else(|_| "list".to_string()),
             folder_id: row.try_get("folder_id").unwrap_or(None),
-            is_pinned: row.try_get::<i8, _>("is_pinned").map(|v| v != 0).unwrap_or(false),
+            is_pinned: row.try_get::<i32, _>("is_pinned").map(|v| v != 0).unwrap_or(false),
             sort_order: row.try_get("sort_order").unwrap_or(0),
-            item_count: row.try_get("item_count").unwrap_or(0),
+            item_count: row.try_get::<i32, _>("item_count").unwrap_or(0) as i64,
         });
     }
 
@@ -141,8 +141,9 @@ pub async fn list_load_all(pool: State<'_, MySqlPool>) -> Result<ListAllData, St
 
     // Notes
     let note_rows = sqlx::query(
-        "SELECT id, list_id, group_id, title, content, is_pinned, sort_order, 
-                CAST(UNIX_TIMESTAMP(created_at)*1000 AS SIGNED) AS created_at_ms, CAST(UNIX_TIMESTAMP(updated_at)*1000 AS SIGNED) AS updated_at_ms
+        "SELECT id, list_id, group_id, title, content, is_pinned, sort_order,
+                CAST(strftime('%s', created_at) * 1000 AS INTEGER) AS created_at_ms,
+                CAST(strftime('%s', updated_at) * 1000 AS INTEGER) AS updated_at_ms
          FROM list_notes WHERE deleted_at IS NULL
          ORDER BY is_pinned DESC, sort_order, updated_at DESC"
     ).fetch_all(&*pool).await.map_err(|e| e.to_string())?;
@@ -155,7 +156,7 @@ pub async fn list_load_all(pool: State<'_, MySqlPool>) -> Result<ListAllData, St
             group_id: row.try_get("group_id").unwrap_or(None),
             title: row.try_get("title").unwrap_or_default(),
             content: row.try_get("content").unwrap_or_default(),
-            is_pinned: row.try_get::<i8, _>("is_pinned").map(|v| v != 0).unwrap_or(false),
+            is_pinned: row.try_get::<i32, _>("is_pinned").map(|v| v != 0).unwrap_or(false),
             sort_order: row.try_get("sort_order").unwrap_or(0),
             created_at: row.try_get::<i64, _>("created_at_ms").unwrap_or(0),
             updated_at: row.try_get::<i64, _>("updated_at_ms").unwrap_or(0),
@@ -182,54 +183,52 @@ pub async fn list_load_all(pool: State<'_, MySqlPool>) -> Result<ListAllData, St
 // ── Folder CRUD ──
 
 #[tauri::command]
-pub async fn list_upsert_folder(folder: ListFolder, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    let pinned: i8 = if folder.is_pinned { 1 } else { 0 };
+pub async fn list_upsert_folder(folder: ListFolder, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
+    let pinned: i32 = if folder.is_pinned { 1 } else { 0 };
     sqlx::query(
         "INSERT INTO list_folders (id, name, is_pinned, sort_order, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE name = VALUES(name), is_pinned = VALUES(is_pinned), sort_order = VALUES(sort_order), updated_at = VALUES(updated_at)"
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, is_pinned = excluded.is_pinned, sort_order = excluded.sort_order, updated_at = excluded.updated_at"
     )
     .bind(&folder.id)
     .bind(&folder.name)
     .bind(pinned)
     .bind(folder.sort_order)
-    .bind(now)
-    .bind(now)
+    .bind(&now)
+    .bind(&now)
     .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn list_delete_folder(id: String, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+pub async fn list_delete_folder(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
     // Soft-delete folder
     sqlx::query("UPDATE list_folders SET deleted_at = ? WHERE id = ?")
-        .bind(now).bind(&id)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+        .bind(&now).bind(&id)
+        .execute(&*pool).await.map_err(|e| e.to_string())?;
     // Unlink lists from folder
     sqlx::query("UPDATE list_lists SET folder_id = NULL, updated_at = ? WHERE folder_id = ?")
-        .bind(now).bind(&id)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
-    tx.commit().await.map_err(|e| e.to_string())?;
+        .bind(&now).bind(&id)
+        .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 // ── List CRUD ──
 
 #[tauri::command]
-pub async fn list_upsert_list(list: ListList, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    let pinned: i8 = if list.is_pinned { 1 } else { 0 };
+pub async fn list_upsert_list(list: ListList, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
+    let pinned: i32 = if list.is_pinned { 1 } else { 0 };
     sqlx::query(
         "INSERT INTO list_lists (id, name, icon, color, view_type, folder_id, is_pinned, sort_order, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-            name = VALUES(name), icon = VALUES(icon), color = VALUES(color),
-            view_type = VALUES(view_type), folder_id = VALUES(folder_id),
-            is_pinned = VALUES(is_pinned), sort_order = VALUES(sort_order),
-            updated_at = VALUES(updated_at)"
+         ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name, icon = excluded.icon, color = excluded.color,
+            view_type = excluded.view_type, folder_id = excluded.folder_id,
+            is_pinned = excluded.is_pinned, sort_order = excluded.sort_order,
+            updated_at = excluded.updated_at"
     )
     .bind(&list.id)
     .bind(&list.name)
@@ -239,75 +238,68 @@ pub async fn list_upsert_list(list: ListList, pool: State<'_, MySqlPool>) -> Res
     .bind(&list.folder_id)
     .bind(pinned)
     .bind(list.sort_order)
-    .bind(now)
-    .bind(now)
+    .bind(&now)
+    .bind(&now)
     .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn list_delete_list(id: String, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+pub async fn list_delete_list(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
     // Soft-delete list
     sqlx::query("UPDATE list_lists SET deleted_at = ? WHERE id = ?")
-        .bind(now).bind(&id)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+        .bind(&now).bind(&id)
+        .execute(&*pool).await.map_err(|e| e.to_string())?;
     // Soft-delete associated notes
     sqlx::query("UPDATE list_notes SET deleted_at = ? WHERE list_id = ? AND deleted_at IS NULL")
-        .bind(now).bind(&id)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
-    // Delete associated groups (hard delete – groups have no deleted_at)
+        .bind(&now).bind(&id)
+        .execute(&*pool).await.map_err(|e| e.to_string())?;
+    // Delete associated groups
     sqlx::query("DELETE FROM list_note_groups WHERE list_id = ?")
         .bind(&id)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
-    tx.commit().await.map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn list_reorder_lists(items: Vec<(String, i32)>, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
-    for (id, order) in &items {
-        sqlx::query("UPDATE list_lists SET sort_order = ?, updated_at = ? WHERE id = ?")
-            .bind(order).bind(now).bind(id)
-            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
-    }
-    tx.commit().await.map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn list_reorder_folders(items: Vec<(String, i32)>, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
-    for (id, order) in &items {
-        sqlx::query("UPDATE list_folders SET sort_order = ?, updated_at = ? WHERE id = ?")
-            .bind(order).bind(now).bind(id)
-            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
-    }
-    tx.commit().await.map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn list_move_list(list_id: String, folder_id: Option<String>, sort_order: i32, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    sqlx::query("UPDATE list_lists SET folder_id = ?, sort_order = ?, updated_at = ? WHERE id = ?")
-        .bind(&folder_id).bind(sort_order).bind(now).bind(&list_id)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
+pub async fn list_reorder_lists(items: Vec<(String, i32)>, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
+    for (id, order) in &items {
+        sqlx::query("UPDATE list_lists SET sort_order = ?, updated_at = ? WHERE id = ?")
+            .bind(order).bind(&now).bind(id)
+            .execute(&*pool).await.map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn list_reorder_folders(items: Vec<(String, i32)>, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
+    for (id, order) in &items {
+        sqlx::query("UPDATE list_folders SET sort_order = ?, updated_at = ? WHERE id = ?")
+            .bind(order).bind(&now).bind(id)
+            .execute(&*pool).await.map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn list_move_list(list_id: String, folder_id: Option<String>, sort_order: i32, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
+    sqlx::query("UPDATE list_lists SET folder_id = ?, sort_order = ?, updated_at = ? WHERE id = ?")
+        .bind(&folder_id).bind(sort_order).bind(&now).bind(&list_id)
+        .execute(&*pool).await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
     let now_ms_val = now_ms();
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
 
     // Insert new list
-    let pinned: i8 = if new_list.is_pinned { 1 } else { 0 };
+    let pinned: i32 = if new_list.is_pinned { 1 } else { 0 };
     sqlx::query(
         "INSERT INTO list_lists (id, name, icon, color, view_type, folder_id, is_pinned, sort_order, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -320,14 +312,14 @@ pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: St
     .bind(&new_list.folder_id)
     .bind(pinned)
     .bind(new_list.sort_order)
-    .bind(now)
-    .bind(now)
-    .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+    .bind(&now)
+    .bind(&now)
+    .execute(&*pool).await.map_err(|e| e.to_string())?;
 
-    // Copy groups, building old→new id mapping
+    // Copy groups
     let group_rows = sqlx::query("SELECT id, list_id, name, sort_order FROM list_note_groups WHERE list_id = ?")
         .bind(&source_id)
-        .fetch_all(&mut *tx).await.map_err(|e| e.to_string())?;
+        .fetch_all(&*pool).await.map_err(|e| e.to_string())?;
 
     let mut group_id_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     for row in &group_rows {
@@ -344,9 +336,9 @@ pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: St
         .bind(&new_list.id)
         .bind(&name)
         .bind(sort_order)
-        .bind(now)
-        .bind(now)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+        .bind(&now)
+        .bind(&now)
+        .execute(&*pool).await.map_err(|e| e.to_string())?;
 
         group_id_map.insert(old_id, new_id);
     }
@@ -356,7 +348,7 @@ pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: St
         "SELECT id, group_id, title, content, is_pinned, sort_order FROM list_notes WHERE list_id = ? AND deleted_at IS NULL"
     )
     .bind(&source_id)
-    .fetch_all(&mut *tx).await.map_err(|e| e.to_string())?;
+    .fetch_all(&*pool).await.map_err(|e| e.to_string())?;
 
     for row in &note_rows {
         let old_group_id: Option<String> = row.try_get("group_id").unwrap_or(None);
@@ -364,7 +356,7 @@ pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: St
         let new_note_id = format!("note-{}-{}", now_ms_val, uuid::Uuid::new_v4().to_string().split('-').next().unwrap_or("x"));
         let title: String = row.try_get("title").unwrap_or_default();
         let content: String = row.try_get("content").unwrap_or_default();
-        let is_pinned: i8 = row.try_get::<i8, _>("is_pinned").unwrap_or(0);
+        let is_pinned: i32 = row.try_get::<i32, _>("is_pinned").unwrap_or(0);
         let sort_order: i32 = row.try_get("sort_order").unwrap_or(0);
 
         sqlx::query(
@@ -378,29 +370,28 @@ pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: St
         .bind(&content)
         .bind(is_pinned)
         .bind(sort_order)
-        .bind(now)
-        .bind(now)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+        .bind(&now)
+        .bind(&now)
+        .execute(&*pool).await.map_err(|e| e.to_string())?;
     }
 
-    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 // ── Note CRUD ──
 
 #[tauri::command]
-pub async fn list_upsert_note(note: ListNote, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    let pinned: i8 = if note.is_pinned { 1 } else { 0 };
+pub async fn list_upsert_note(note: ListNote, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
+    let pinned: i32 = if note.is_pinned { 1 } else { 0 };
     sqlx::query(
         "INSERT INTO list_notes (id, list_id, group_id, title, content, is_pinned, sort_order, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-            list_id = VALUES(list_id), group_id = VALUES(group_id),
-            title = VALUES(title), content = VALUES(content),
-            is_pinned = VALUES(is_pinned), sort_order = VALUES(sort_order),
-            updated_at = VALUES(updated_at)"
+         ON CONFLICT(id) DO UPDATE SET
+            list_id = excluded.list_id, group_id = excluded.group_id,
+            title = excluded.title, content = excluded.content,
+            is_pinned = excluded.is_pinned, sort_order = excluded.sort_order,
+            updated_at = excluded.updated_at"
     )
     .bind(&note.id)
     .bind(&note.list_id)
@@ -409,100 +400,96 @@ pub async fn list_upsert_note(note: ListNote, pool: State<'_, MySqlPool>) -> Res
     .bind(&note.content)
     .bind(pinned)
     .bind(note.sort_order)
-    .bind(now)
-    .bind(now)
+    .bind(&now)
+    .bind(&now)
     .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn list_delete_note(id: String, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
+pub async fn list_delete_note(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
     sqlx::query("UPDATE list_notes SET deleted_at = ? WHERE id = ?")
-        .bind(now).bind(&id)
+        .bind(&now).bind(&id)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn list_move_note(note_id: String, list_id: String, group_id: Option<String>, sort_order: i32, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
+pub async fn list_move_note(note_id: String, list_id: String, group_id: Option<String>, sort_order: i32, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
     sqlx::query("UPDATE list_notes SET list_id = ?, group_id = ?, sort_order = ?, updated_at = ? WHERE id = ?")
-        .bind(&list_id).bind(&group_id).bind(sort_order).bind(now).bind(&note_id)
+        .bind(&list_id).bind(&group_id).bind(sort_order).bind(&now).bind(&note_id)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn list_reorder_notes(items: Vec<(String, i32)>, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+pub async fn list_reorder_notes(items: Vec<(String, i32)>, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
     for (id, order) in &items {
         sqlx::query("UPDATE list_notes SET sort_order = ?, updated_at = ? WHERE id = ?")
-            .bind(order).bind(now).bind(id)
-            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+            .bind(order).bind(&now).bind(id)
+            .execute(&*pool).await.map_err(|e| e.to_string())?;
     }
-    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 // ── Note Group CRUD ──
 
 #[tauri::command]
-pub async fn list_upsert_group(group: ListNoteGroup, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
+pub async fn list_upsert_group(group: ListNoteGroup, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
     sqlx::query(
         "INSERT INTO list_note_groups (id, list_id, name, sort_order, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE name = VALUES(name), sort_order = VALUES(sort_order), updated_at = VALUES(updated_at)"
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort_order = excluded.sort_order, updated_at = excluded.updated_at"
     )
     .bind(&group.id)
     .bind(&group.list_id)
     .bind(&group.name)
     .bind(group.sort_order)
-    .bind(now)
-    .bind(now)
+    .bind(&now)
+    .bind(&now)
     .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn list_delete_group(id: String, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+pub async fn list_delete_group(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
     // Move notes in this group to ungrouped
     sqlx::query("UPDATE list_notes SET group_id = NULL, updated_at = ? WHERE group_id = ? AND deleted_at IS NULL")
-        .bind(now).bind(&id)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
+        .bind(&now).bind(&id)
+        .execute(&*pool).await.map_err(|e| e.to_string())?;
     // Hard-delete the group
     sqlx::query("DELETE FROM list_note_groups WHERE id = ?")
         .bind(&id)
-        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
-    tx.commit().await.map_err(|e| e.to_string())?;
+        .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 // ── Template CRUD ──
 
 #[tauri::command]
-pub async fn list_upsert_template(template: ListTemplate, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
+pub async fn list_upsert_template(template: ListTemplate, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
     sqlx::query(
         "INSERT INTO list_templates (id, name, content, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE name = VALUES(name), content = VALUES(content), updated_at = VALUES(updated_at)"
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, content = excluded.content, updated_at = excluded.updated_at"
     )
     .bind(&template.id)
     .bind(&template.name)
     .bind(&template.content)
-    .bind(now)
-    .bind(now)
+    .bind(&now)
+    .bind(&now)
     .execute(&*pool).await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn list_delete_template(id: String, pool: State<'_, MySqlPool>) -> Result<(), String> {
+pub async fn list_delete_template(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
     sqlx::query("DELETE FROM list_templates WHERE id = ?")
         .bind(&id)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
@@ -593,66 +580,68 @@ pub struct MigrationTemplate {
 }
 
 #[tauri::command]
-pub async fn list_migrate_from_local(data: MigrationData, pool: State<'_, MySqlPool>) -> Result<(), String> {
-    let now = now_dt();
+pub async fn list_migrate_from_local(data: MigrationData, pool: State<'_, SqlitePool>) -> Result<(), String> {
+    let now = now_iso();
 
     // Migrate folders
     for f in &data.folders {
-        let pinned: i8 = if f.is_pinned.unwrap_or(false) { 1 } else { 0 };
+        let pinned: i32 = if f.is_pinned.unwrap_or(false) { 1 } else { 0 };
         sqlx::query(
-            "INSERT IGNORE INTO list_folders (id, name, is_pinned, sort_order, created_at, updated_at)
+            "INSERT OR IGNORE INTO list_folders (id, name, is_pinned, sort_order, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?)"
         )
         .bind(&f.id).bind(&f.name).bind(pinned).bind(f.sort_order.unwrap_or(0))
-        .bind(now).bind(now)
+        .bind(&now).bind(&now)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
     }
 
     // Migrate lists
     for l in &data.lists {
-        let pinned: i8 = if l.is_pinned.unwrap_or(false) { 1 } else { 0 };
+        let pinned: i32 = if l.is_pinned.unwrap_or(false) { 1 } else { 0 };
         let icon = l.icon.as_deref().unwrap_or("");
         let color = l.color.as_deref().unwrap_or("#000000");
         let view_type = l.view_type.as_deref().unwrap_or("list");
         sqlx::query(
-            "INSERT IGNORE INTO list_lists (id, name, icon, color, view_type, folder_id, is_pinned, sort_order, created_at, updated_at)
+            "INSERT OR IGNORE INTO list_lists (id, name, icon, color, view_type, folder_id, is_pinned, sort_order, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
         .bind(&l.id).bind(&l.name).bind(icon).bind(color).bind(view_type)
         .bind(&l.folder_id).bind(pinned).bind(l.sort_order.unwrap_or(0))
-        .bind(now).bind(now)
+        .bind(&now).bind(&now)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
     }
 
     // Migrate note groups
     for g in &data.note_groups {
         sqlx::query(
-            "INSERT IGNORE INTO list_note_groups (id, list_id, name, sort_order, created_at, updated_at)
+            "INSERT OR IGNORE INTO list_note_groups (id, list_id, name, sort_order, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?)"
         )
         .bind(&g.id).bind(&g.list_id).bind(&g.name).bind(g.sort_order.unwrap_or(0))
-        .bind(now).bind(now)
+        .bind(&now).bind(&now)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
     }
 
     // Migrate notes
     for n in &data.notes {
-        let pinned: i8 = if n.is_pinned.unwrap_or(false) { 1 } else { 0 };
+        let pinned: i32 = if n.is_pinned.unwrap_or(false) { 1 } else { 0 };
+        let title = n.title.as_deref().unwrap_or("");
+        let content = n.content.as_deref().unwrap_or("");
         let ca = n.created_at.unwrap_or(0);
         let ua = n.updated_at.unwrap_or(0);
         let created = chrono::DateTime::from_timestamp_millis(ca)
-            .unwrap_or_else(|| now);
+            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string())
+            .unwrap_or_else(|| now.clone());
         let updated = chrono::DateTime::from_timestamp_millis(ua)
-            .unwrap_or_else(|| now);
-        let title = n.title.as_deref().unwrap_or("");
-        let content = n.content.as_deref().unwrap_or("");
+            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string())
+            .unwrap_or_else(|| now.clone());
         sqlx::query(
-            "INSERT IGNORE INTO list_notes (id, list_id, group_id, title, content, is_pinned, sort_order, created_at, updated_at)
+            "INSERT OR IGNORE INTO list_notes (id, list_id, group_id, title, content, is_pinned, sort_order, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
         .bind(&n.id).bind(&n.list_id).bind(&n.group_id).bind(title).bind(content)
         .bind(pinned).bind(n.sort_order.unwrap_or(0))
-        .bind(created).bind(updated)
+        .bind(&created).bind(&updated)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
     }
 
@@ -660,14 +649,13 @@ pub async fn list_migrate_from_local(data: MigrationData, pool: State<'_, MySqlP
     for t in &data.templates {
         let content = t.content.as_deref().unwrap_or("");
         sqlx::query(
-            "INSERT IGNORE INTO list_templates (id, name, content, created_at, updated_at)
+            "INSERT OR IGNORE INTO list_templates (id, name, content, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?)"
         )
         .bind(&t.id).bind(&t.name).bind(content)
-        .bind(now).bind(now)
+        .bind(&now).bind(&now)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
     }
 
     Ok(())
 }
-
