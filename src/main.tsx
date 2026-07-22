@@ -7,7 +7,8 @@ import {
   ClipboardList,
   LayoutGrid,
   Navigation,
-  Flame
+  Flame,
+  Timer
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";
 import { TimeManagementPanel } from "./features/time-management/TimeManagementPanel";
@@ -16,6 +17,7 @@ import { SettingsModal } from "./features/settings/SettingsModal";
 import { ListsPanel } from "./features/lists/ListsPanel";
 import { MissionPanel } from "./features/mission/MissionPanel";
 import { HabitPanel } from "./features/habit/HabitPanel";
+import { PomodoroPanel } from "./features/pomodoro/PomodoroPanel";
 
 import "./index.css";
 import "@arco-design/web-react/dist/css/arco.css";
@@ -55,7 +57,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
   }
 }
 
-type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "habit" | "lists" | "mission";
+type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "habit" | "lists" | "mission" | "pomodoro";
 
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("four-quadrants");
@@ -80,6 +82,7 @@ function App() {
             tools={[
               { id: "four-quadrants", name: "四象限工作台", icon: LayoutGrid, component: () => <></> },
 
+              { id: "pomodoro", name: "番茄专注", icon: Timer, component: () => <></> },
               { id: "daily-review", name: "每日复盘", icon: Clock, component: () => <></> },
               { id: "weekly-planning", name: "周计划", icon: CalendarDays, component: () => <></> },
               { id: "mission", name: "人生罗盘", icon: Navigation, component: () => <></> },
@@ -93,6 +96,11 @@ function App() {
         }
         mainContent={
           <MainContent>
+            {visitedSections.has("pomodoro") && (
+              <div style={{ display: activeSection === "pomodoro" ? "block" : "none", height: "100%" }}>
+                <PomodoroPanel />
+              </div>
+            )}
             {visitedSections.has("lists") && (
               <div style={{ display: activeSection === "lists" ? "block" : "none", height: "100%" }}>
                 <ListsPanel />

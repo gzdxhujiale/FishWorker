@@ -10,6 +10,7 @@
 @import "./styles/dialog.css";
 @import "./features/time-management/timeManagement.css";
 @import "./features/reactjs-tiptap-v1/editor.css";
+@import "./features/pomodoro/pomodoro.css";
 
 :root {
   color: #20242a;

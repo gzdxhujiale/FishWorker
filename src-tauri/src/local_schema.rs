@@ -152,6 +152,34 @@ const SQLITE_DDL_STATEMENTS: &[&str] = &[
         UNIQUE (habit_id, date)
     )",
 
+    // ── Pomodoro Focus ──
+    "CREATE TABLE IF NOT EXISTS pomodoro_records (
+        id TEXT NOT NULL PRIMARY KEY,
+        mode TEXT NOT NULL,
+        phase TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        duration_minutes INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        date_label TEXT NOT NULL,
+        time_range_label TEXT NOT NULL,
+        task_id TEXT NULL,
+        linked_target TEXT NULL,
+        created_at TEXT NOT NULL
+    )",
+
+    "CREATE TABLE IF NOT EXISTS pomodoro_favorites (
+        id TEXT NOT NULL PRIMARY KEY,
+        name TEXT NOT NULL,
+        icon TEXT NOT NULL DEFAULT '😊',
+        mode TEXT NOT NULL,
+        duration_minutes INTEGER NOT NULL,
+        accumulated_minutes INTEGER NOT NULL DEFAULT 0,
+        linked_target TEXT NULL,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+    )",
+
     // ── Sync Queue (for Phase 2 cloud sync) ──
     "CREATE TABLE IF NOT EXISTS sync_queue (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

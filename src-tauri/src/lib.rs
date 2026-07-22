@@ -7,6 +7,7 @@ mod time_management;
 mod daily_review;
 mod mission;
 mod habit;
+mod pomodoro;
 
 use tauri::Manager;
 
@@ -183,7 +184,12 @@ pub fn run() {
             habit::habit_create,
             habit::habit_update,
             habit::habit_delete,
-            habit::habit_toggle_checkin
+            habit::habit_toggle_checkin,
+            pomodoro::pomodoro_load_all,
+            pomodoro::pomodoro_upsert_record,
+            pomodoro::pomodoro_delete_record,
+            pomodoro::pomodoro_upsert_favorite,
+            pomodoro::pomodoro_delete_favorite
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
