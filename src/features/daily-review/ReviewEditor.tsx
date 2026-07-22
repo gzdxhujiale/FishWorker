@@ -42,6 +42,7 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
   const handleSelectTemplate = (template: Template) => {
     const jsonContent = ensureJsonFormat(template.content);
     setContent(jsonContent);
+    onSave(date, jsonContent, rating, false);
     setIsTemplateModalOpen(false);
   };
 
@@ -77,6 +78,7 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
       {/* Editor */}
       <div className="editor-content" style={{ position: 'relative' }}>
         <ReactjsTiptapEditor
+          key={date}
           initialContent={content}
           onChange={setContent}
           className="editor-reactjs-tiptap"

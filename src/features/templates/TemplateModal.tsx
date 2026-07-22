@@ -105,6 +105,7 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
               />
               <div style={{ height: '380px', display: 'flex', flexDirection: 'column', border: '1px solid var(--line-soft)', borderRadius: '6px', position: 'relative' }}>
                 <ReactjsTiptapEditor
+                  key={editingTemplate.id}
                   initialContent={editContent}
                   onChange={setEditContent}
                   className="template-reactjs-tiptap"

@@ -47,6 +47,14 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
 
   // Keep refs synchronized
   useEffect(() => {
+    setTitle(task.title);
+    setDeadline(task.deadline);
+    latestTitle.current = task.title;
+    latestDeadline.current = task.deadline;
+    latestDescription.current = task.description || '';
+  }, [task.id, task.title, task.deadline, task.description]);
+
+  useEffect(() => {
     latestTitle.current = title;
   }, [title]);
 
@@ -208,6 +216,7 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
             </label>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '180px', border: '1px solid rgba(123, 145, 169, 0.25)', borderRadius: '8px', overflow: 'hidden', background: 'var(--surface-1)' }}>
               <ReactjsTiptapEditor
+                key={task.id}
                 initialContent={task.description || ''}
                 onChange={handleDescriptionChange}
                 showToolbar={false}

@@ -42,39 +42,44 @@ export function useReviewAutoSave({
   const [content, setContent] = useState(initialContent);
   const [rating, setRating] = useState(initialRating);
 
-  // Track what was last persisted
-  const lastSavedRef = useRef({ content: initialContent, rating: initialRating });
-  // Track current values for "save on date change"
-  const currentRef = useRef({ content: initialContent, rating: initialRating });
-  // Track which date we're currently editing
-  const currentDateRef = useRef(date);
+  const stateRef = useRef({ content, rating, date });
+  const lastSavedRef = useRef({ content: initialContent, rating: initialRating, date });
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
 
-  // Keep currentRef in sync with state
+  // Keep stateRef up to date with current state
   useEffect(() => {
-    currentRef.current = { content, rating };
-  }, [content, rating]);
+    stateRef.current = { content, rating, date };
+  }, [content, rating, date]);
 
-  // Sync initial values when review/date changes
+  // Sync initial values when date or props change
   useEffect(() => {
-    setContent(initialContent);
-    setRating(initialRating);
-    lastSavedRef.current = { content: initialContent, rating: initialRating };
-    currentRef.current = { content: initialContent, rating: initialRating };
-  }, [initialContent, initialRating, date]);
-
-  // Save previous date's unsaved changes when date switches
-  useEffect(() => {
-    if (currentDateRef.current === date) return;
-
-    const prev = currentRef.current;
+    // 1. Flush unsaved changes for the previous date if switching dates
+    const prev = stateRef.current;
     const last = lastSavedRef.current;
-
-    if (prev.content !== last.content || prev.rating !== last.rating) {
-      onSave(currentDateRef.current, prev.content, prev.rating, false);
+    if (prev.date !== date) {
+      if (prev.content !== last.content || prev.rating !== last.rating) {
+        onSaveRef.current(prev.date, prev.content, prev.rating, false);
+      }
     }
 
-    currentDateRef.current = date;
-  }, [date, onSave]);
+    // 2. Set state for new date
+    setContent(initialContent);
+    setRating(initialRating);
+    lastSavedRef.current = { content: initialContent, rating: initialRating, date };
+    stateRef.current = { content: initialContent, rating: initialRating, date };
+  }, [date, initialContent, initialRating]);
+
+  // Flush unsaved changes on component unmount
+  useEffect(() => {
+    return () => {
+      const current = stateRef.current;
+      const last = lastSavedRef.current;
+      if (current.content !== last.content || current.rating !== last.rating) {
+        onSaveRef.current(current.date, current.content, current.rating, false);
+      }
+    };
+  }, []);
 
   // Debounced auto-save for content changes
   useEffect(() => {
@@ -83,19 +88,20 @@ export function useReviewAutoSave({
     }
 
     const timer = setTimeout(() => {
-      onSave(date, content, rating, true);
-      lastSavedRef.current = { content, rating };
+      onSaveRef.current(date, content, rating, true);
+      lastSavedRef.current = { content, rating, date };
     }, debounceMs);
 
     return () => clearTimeout(timer);
-  }, [content, rating, date, debounceMs, onSave]);
+  }, [content, rating, date, debounceMs]);
 
   // Immediate save when rating changes
   const handleRatingChange = useCallback((newRating: number) => {
     setRating(newRating);
-    onSave(date, content, newRating, false);
-    lastSavedRef.current = { content, rating: newRating };
-  }, [date, content, onSave]);
+    const currentContent = stateRef.current.content;
+    onSaveRef.current(date, currentContent, newRating, false);
+    lastSavedRef.current = { content: currentContent, rating: newRating, date };
+  }, [date]);
 
   return {
     content,

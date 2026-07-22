@@ -105,7 +105,7 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
 
   getAllReviews: (): DailyReview[] => {
     return get().data.reviews
-      .filter(r => !isReviewEmpty(r.content))
+      .filter(r => !isReviewEmpty(r.content) || (r.rating !== undefined && r.rating > 0))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   },
 

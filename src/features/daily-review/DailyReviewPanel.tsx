@@ -20,10 +20,12 @@ export const DailyReviewPanel: React.FC = () => {
   
   const reviewsData = useDailyReviewStore(state => state.data.reviews);
   const getAllReviews = useDailyReviewStore(state => state.getAllReviews);
+  const getReviewByDate = useDailyReviewStore(state => state.getReviewByDate);
   const getCompoundStats = useDailyReviewStore(state => state.getCompoundStats);
   
   const reviews = useMemo(() => getAllReviews(), [reviewsData, getAllReviews]);
   const stats = useMemo(() => getCompoundStats(), [reviewsData, getCompoundStats]);
+  const currentReview = useMemo(() => getReviewByDate(selectedDate), [reviewsData, selectedDate, getReviewByDate]);
   
   const syncAllFromDB = useDailyReviewStore(state => state.syncAllFromDB);
   const saveReview = useDailyReviewStore(state => state.saveReview);
@@ -48,7 +50,6 @@ export const DailyReviewPanel: React.FC = () => {
     setSelectedDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
   };
 
-  const currentReview = reviews.find(r => r.date === selectedDate);
   const isCurrentToday = selectedDate === getTodayStr();
 
   return (
@@ -77,6 +78,7 @@ export const DailyReviewPanel: React.FC = () => {
         {/* Left: Editor */}
         <div className="review-editor-panel">
           <ReviewEditor 
+            key={selectedDate}
             date={selectedDate} 
             review={currentReview} 
             onSave={handleSave}
