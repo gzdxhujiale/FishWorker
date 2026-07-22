@@ -17,7 +17,7 @@
 }
 
 /* ── Editor Card Outer Container ── */
-.reactjs-tiptap-editor-wrapper > div {
+.reactjs-tiptap-editor-wrapper>div {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -65,18 +65,40 @@
   flex: 1;
   height: 100%;
   min-height: 0;
-  padding: 1.25rem 1.5rem;
+  padding: 32px 32px !important;
   outline: none !important;
   overflow-y: auto;
   font-size: 15px;
   line-height: 1.7;
   color: var(--color-text, #374151);
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 /* Custom Scrollbar for Editor Area */
 .reactjs-tiptap-editor-wrapper .ProseMirror::-webkit-scrollbar {
   width: 6px;
   height: 6px;
+}
+
+/* Text Selection Styling (选中文本高亮) */
+::selection,
+::-moz-selection,
+.ProseMirror ::selection,
+.ProseMirror *::selection,
+.reactjs-tiptap-editor-wrapper ::selection,
+.reactjs-tiptap-editor-wrapper *::selection {
+  background-color: #b4d5fe !important;
+  /* 微软/系统经典标准亮蓝色选区 */
+  color: inherit !important;
+}
+
+/* Highlight Mark Styling (高亮标签) */
+.reactjs-tiptap-editor-wrapper .ProseMirror mark {
+  background-color: #fef08a !important;
+  color: #1e293b !important;
+  border-radius: 3px;
+  padding: 0.1em 0.25em;
 }
 
 .reactjs-tiptap-editor-wrapper .ProseMirror::-webkit-scrollbar-thumb {
@@ -116,6 +138,10 @@
 
 .reactjs-tiptap-editor-wrapper .ProseMirror p {
   margin-bottom: 0.5rem;
+}
+
+.reactjs-tiptap-editor-wrapper .ProseMirror>p:first-child {
+  margin-top: 0;
 }
 
 .reactjs-tiptap-editor-wrapper .ProseMirror blockquote {
@@ -161,11 +187,7 @@
 
 /* Placeholder Styling */
 .reactjs-tiptap-editor-wrapper .ProseMirror p.is-editor-empty:first-child::before {
-  color: #9ca3af;
-  content: attr(data-placeholder);
-  float: left;
-  height: 0;
-  pointer-events: none;
+  display: none !important;
 }
 
 /* ── Bottom Character Count ── */
@@ -212,4 +234,29 @@
 .reactjs-tiptap-popover-menu button[data-state="on"] {
   background-color: var(--color-bg-active, rgba(59, 130, 246, 0.1)) !important;
   color: var(--color-primary, #3b82f6) !important;
+}
+
+/* ── Drag Handle Vertical Alignment ── */
+.drag-handle,
+[data-drag-handle],
+.tiptap-drag-handle,
+.reactjs-tiptap-editor-wrapper [data-drag-handle] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+}
+
+/* ── Text Selection Bubble Menu (选中文本浮动格式工具栏) ── */
+.tiptap-bubble-menu,
+[role="tooltip"].tiptap-bubble-menu,
+[data-tiptap-bubble-menu],
+div[class*="bubble-menu"] {
+  background-color: var(--color-bg-elevated, #ffffff) !important;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.12)) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 4px 10px -2px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+  padding: 4px 6px !important;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
 }

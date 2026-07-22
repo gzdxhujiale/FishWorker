@@ -21,16 +21,20 @@ function getDaysDifference(date1: string, date2: string): number {
 function isReviewEmpty(content: string): boolean {
   if (!content) return true;
   const trimmed = content.trim();
-  if (
-    trimmed === '' ||
-    trimmed === '<p></p>' ||
-    trimmed === '<p></p>\n' ||
-    trimmed === '<p dir="auto"></p>' ||
-    trimmed === '<p dir="auto"></p>\n'
-  ) {
+  if (trimmed === '' || trimmed === '{}') {
     return true;
   }
-  return false;
+  try {
+    const json = JSON.parse(trimmed);
+    if (!json.content || !Array.isArray(json.content) || json.content.length === 0) return true;
+    if (json.content.length === 1) {
+      const p = json.content[0];
+      if (p.type === 'paragraph' && (!p.content || p.content.length === 0)) return true;
+    }
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 interface DailyReviewStore {

@@ -26,7 +26,9 @@ export const CreateEditModal: React.FC<CreateEditModalProps> = ({
         goal: initialData.goal || 'today',
         duration: initialData.duration || 'forever',
         group: initialData.group || 'other',
-        autoPopupLog: initialData.autoPopupLog || false
+        autoPopupLog: initialData.autoPopupLog || false,
+        startDate: initialData.startDate,
+        reminder: initialData.reminder
       });
     } else if (visible) {
       form.resetFields();
@@ -35,7 +37,9 @@ export const CreateEditModal: React.FC<CreateEditModalProps> = ({
         goal: 'today',
         duration: 'forever',
         group: 'other',
-        autoPopupLog: false
+        autoPopupLog: false,
+        startDate: undefined,
+        reminder: undefined
       });
     }
   }, [visible, initialData, form]);

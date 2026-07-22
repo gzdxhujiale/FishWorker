@@ -136,11 +136,30 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     }
   },
 
-  getHabitsForDate: (date: string) => {
-    // Currently returns all habits since habits are not date-scoped by creation, 
-    // but we can filter out habits created after this date if needed.
+  getHabitsForDate: (dateStr: string) => {
     const { habits } = get();
-    return habits.filter(h => h.createdAt.slice(0,10) <= date);
+    const queryDate = new Date(dateStr);
+    
+    return habits.filter(habit => {
+      // 1. startDate logic
+      const startDateStr = habit.startDate || habit.createdAt.slice(0, 10);
+      if (dateStr < startDateStr) return false;
+
+      // 2. duration logic
+      if (habit.duration === '21days') {
+        const startDateObj = new Date(startDateStr);
+        const endDateObj = new Date(startDateObj);
+        endDateObj.setDate(startDateObj.getDate() + 20); // 21 days inclusive
+        
+        if (queryDate > endDateObj) {
+          return false;
+        }
+      }
+
+      // 3. frequency logic
+      // Currently, both 'everyday' and 'weekly' pass through if they fall within the valid date range.
+      return true;
+    });
   },
 
   getCheckInStatus: (habitId: string, date: string) => {

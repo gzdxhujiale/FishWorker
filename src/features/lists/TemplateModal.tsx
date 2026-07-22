@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Template } from './listsTypes';
 import { X, Edit2, Trash2 } from 'lucide-react';
 import { ConfirmBubble } from './ConfirmBubble';
-import { SimpleEditor } from '../tiptap/SimpleEditor';
-import { Editor } from '@tiptap/react';
+import { ReactjsTiptapEditor } from '../reactjs-tiptap';
 
 interface TemplateModalProps {
   templates: Template[];
@@ -13,22 +12,39 @@ interface TemplateModalProps {
   onDelete?: (id: string) => void;
 }
 
+function getTemplatePreviewText(content: string): string {
+  if (!content) return '';
+  const trimmed = content.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const json = JSON.parse(trimmed);
+      const extractText = (node: any): string => {
+        if (!node) return '';
+        if (node.text) return node.text;
+        if (Array.isArray(node.content)) {
+          return node.content.map(extractText).join(' ');
+        }
+        return '';
+      };
+      return extractText(json).trim();
+    } catch {
+      return content.replace(/<[^>]+>/g, '');
+    }
+  }
+  return content.replace(/<[^>]+>/g, '');
+}
+
 export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }: TemplateModalProps) {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [editName, setEditName] = useState('');
   const [editContent, setEditContent] = useState('');
   const [deleteConfirmTemplateId, setDeleteConfirmTemplateId] = useState<string | null>(null);
 
-  const [editor, setEditor] = useState<Editor | null>(null);
-
   const startEdit = (e: React.MouseEvent, tpl: Template) => {
     e.stopPropagation();
     setEditingTemplate(tpl);
     setEditName(tpl.name);
     setEditContent(tpl.content);
-    if (editor && !editor.isDestroyed) {
-      editor.commands.setContent(tpl.content || '');
-    }
   };
 
   const saveEdit = () => {
@@ -67,16 +83,13 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
                 placeholder="模板名称" 
                 style={{ fontSize: '16px', fontWeight: 'bold', padding: '8px', border: '1px solid var(--line-soft)', borderRadius: '4px' }}
               />
-              <SimpleEditor
-                content={editContent}
-                onChange={setEditContent}
-                onCreated={setEditor}
-                placeholder=""
-                enableMarkdown={false}
-                className="template-editor-wrapper"
-                style={{ border: '1px solid var(--line-soft)', borderRadius: '4px', display: 'flex', flexDirection: 'column', minHeight: '200px' }}
-                editorStyle={{ flex: 1, overflowY: 'auto', padding: '6px 12px 12px' }}
-              />
+              <div style={{ height: '320px', border: '1px solid var(--line-soft)', borderRadius: '6px', overflow: 'hidden' }}>
+                <ReactjsTiptapEditor
+                  initialContent={editContent}
+                  onChange={setEditContent}
+                  className="template-reactjs-tiptap"
+                />
+              </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button className="list-modal-btn" onClick={() => setEditingTemplate(null)}>取消</button>
                 <button className="list-modal-btn primary" onClick={saveEdit}>保存</button>
@@ -111,7 +124,9 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
                       </ConfirmBubble>
                     </div>
                   </div>
-                  <div className="template-card-preview" dangerouslySetInnerHTML={{ __html: tpl.content }} />
+                  <div className="template-card-preview">
+                    {getTemplatePreviewText(tpl.content)}
+                  </div>
                 </div>
               ))}
             </div>
