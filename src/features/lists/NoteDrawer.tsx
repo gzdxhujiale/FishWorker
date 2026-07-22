@@ -128,6 +128,13 @@ function NoteDrawerContent({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Sync external note prop changes (e.g. template selection) into local state
+  useEffect(() => {
+    setTitle(note.title);
+    setContent(note.content || '');
+    latestDataRef.current = { title: note.title, content: note.content || '', note };
+  }, [note.id, note.title, note.content]);
+
   const latestDataRef = useRef({ title, content, note });
   useEffect(() => {
     latestDataRef.current = { title, content, note };
@@ -239,6 +246,7 @@ function NoteDrawerContent({
 
       <div className="note-drawer-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 0, overflow: 'hidden', position: 'relative' }}>
         <ReactjsTiptapEditor
+          content={content}
           initialContent={content}
           onChange={setContent}
           className="note-drawer-reactjs-tiptap"

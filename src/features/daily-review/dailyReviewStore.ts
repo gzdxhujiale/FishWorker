@@ -33,7 +33,7 @@ function isReviewEmpty(content: string): boolean {
     }
     return false;
   } catch {
-    return true;
+    return false;
   }
 }
 
