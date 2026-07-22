@@ -20,6 +20,7 @@ import {
   Dropcursor,
   Gapcursor,
   Placeholder,
+  TrailingNode,
 } from '@tiptap/extensions';
 
 // build extensions
@@ -146,6 +147,7 @@ const BaseKit = [
   Gapcursor,
   HardBreak,
   Paragraph,
+  TrailingNode,
   ListItem,
   TextStyle,
   Placeholder.configure({
@@ -384,7 +386,7 @@ const RichTextToolbar = memo(() => {
   );
 });
 
-const RichTextOverlayBubbles = memo(() => (
+const RichTextOverlayBubbles = () => (
   <>
     <RichTextBubbleColumns />
     <RichTextBubbleDrawer />
@@ -396,7 +398,7 @@ const RichTextOverlayBubbles = memo(() => (
     <SlashCommandList />
     <RichTextBubbleMenuDragHandle />
   </>
-));
+);
 
 export interface ReactjsTiptapEditorProps {
   content?: string;

@@ -36,7 +36,18 @@ div[data-richtext-portal],
   background-color: #ffffff !important;
   color: #1a1a1a !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
-  z-index: 1100 !important;
+  z-index: 11000 !important;
+}
+
+/* Ensure TipTap slash command portal renderer container floats above drawers & modals */
+.react-renderer:has(div[data-richtext-portal]) {
+  z-index: 99999 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+div[data-richtext-portal] {
+  z-index: 99999 !important;
 }
 
 /* Code styling */
