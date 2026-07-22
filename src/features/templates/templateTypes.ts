@@ -53,3 +53,26 @@ export const DEFAULT_TEMPLATES: Template[] = [
     })
   }
 ];
+
+export function getTemplatePreviewText(content: string): string {
+  if (!content) return '';
+  const trimmed = content.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const json = JSON.parse(trimmed);
+      const extractText = (node: any): string => {
+        if (!node) return '';
+        if (node.text) return node.text;
+        if (Array.isArray(node.content)) {
+          return node.content.map(extractText).join(' ');
+        }
+        return '';
+      };
+      return extractText(json).trim();
+    } catch {
+      return content.replace(/<[^>]+>/g, '');
+    }
+  }
+  return content.replace(/<[^>]+>/g, '');
+}
+

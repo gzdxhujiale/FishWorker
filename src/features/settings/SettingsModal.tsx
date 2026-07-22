@@ -1,7 +1,13 @@
-import { Database, Settings, X } from "lucide-react";
+import { useState } from "react";
+import { Database, LayoutTemplate, Settings, X } from "lucide-react";
 import { DatabaseSettingsPanel } from "./components/DatabaseSettingsPanel";
+import { TemplateSettingsPanel } from "./components/TemplateSettingsPanel";
+
+type SettingsTab = "templates" | "database";
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("templates");
+
   return (
     <div 
       className="settings-backdrop" 
@@ -19,7 +25,20 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             <span>设置</span>
           </div>
 
-          <button className="settings-nav-item active" type="button">
+          <button 
+            className={`settings-nav-item ${activeTab === "templates" ? "active" : ""}`} 
+            type="button"
+            onClick={() => setActiveTab("templates")}
+          >
+            <LayoutTemplate size={16} />
+            <span>模板管理</span>
+          </button>
+
+          <button 
+            className={`settings-nav-item ${activeTab === "database" ? "active" : ""}`} 
+            type="button"
+            onClick={() => setActiveTab("database")}
+          >
             <Database size={16} />
             <span>数据库配置</span>
           </button>
@@ -27,17 +46,19 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
         <main className="settings-content">
           <header className="settings-header">
-            <h2>数据库连接配置</h2>
+            <h2>{activeTab === "templates" ? "模板管理" : "数据库连接配置"}</h2>
             <button className="icon-button" title="关闭" aria-label="关闭设置" type="button" onClick={onClose}>
               <X size={17} />
             </button>
           </header>
 
           <div className="settings-panels-wrapper">
-            <DatabaseSettingsPanel />
+            {activeTab === "templates" && <TemplateSettingsPanel />}
+            {activeTab === "database" && <DatabaseSettingsPanel />}
           </div>
         </main>
       </section>
     </div>
   );
 }
+

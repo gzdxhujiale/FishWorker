@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Template } from './templateTypes';
+import { Template, getTemplatePreviewText } from './templateTypes';
 import { X, Edit2, Trash2 } from 'lucide-react';
 import { ConfirmBubble } from './ConfirmBubble';
 import { ReactjsTiptapEditor } from '../reactjs-tiptap-v1';
@@ -12,27 +12,6 @@ interface TemplateModalProps {
   onDelete?: (id: string) => void;
 }
 
-function getTemplatePreviewText(content: string): string {
-  if (!content) return '';
-  const trimmed = content.trim();
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    try {
-      const json = JSON.parse(trimmed);
-      const extractText = (node: any): string => {
-        if (!node) return '';
-        if (node.text) return node.text;
-        if (Array.isArray(node.content)) {
-          return node.content.map(extractText).join(' ');
-        }
-        return '';
-      };
-      return extractText(json).trim();
-    } catch {
-      return content.replace(/<[^>]+>/g, '');
-    }
-  }
-  return content.replace(/<[^>]+>/g, '');
-}
 
 export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }: TemplateModalProps) {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);

@@ -32,6 +32,9 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
     if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
       return trimmed;
     }
+    if (trimmed.startsWith('<')) {
+      return trimmed;
+    }
     const lines = text.split('\n');
     const content = lines.map(line => ({
       type: 'paragraph',
