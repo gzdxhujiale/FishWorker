@@ -58,9 +58,9 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
 type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "habit" | "lists" | "mission";
 
 function App() {
-  const [activeSection, setActiveSection] = React.useState<AppSection>("lists");
+  const [activeSection, setActiveSection] = React.useState<AppSection>("four-quadrants");
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
-  const [visitedSections, setVisitedSections] = React.useState<Set<AppSection>>(() => new Set(["lists"]));
+  const [visitedSections, setVisitedSections] = React.useState<Set<AppSection>>(() => new Set(["four-quadrants"]));
 
   React.useEffect(() => {
     setVisitedSections((prev) => {
@@ -78,12 +78,13 @@ function App() {
         toolbar={
           <Toolbar
             tools={[
-              { id: "lists", name: "清单", icon: ClipboardList, component: () => <></> },
-              { id: "weekly-planning", name: "周计划", icon: CalendarDays, component: () => <></> },
               { id: "four-quadrants", name: "四象限工作台", icon: LayoutGrid, component: () => <></> },
+
               { id: "daily-review", name: "每日复盘", icon: Clock, component: () => <></> },
-              { id: "habit", name: "习惯追踪", icon: Flame, component: () => <></> },
+              { id: "weekly-planning", name: "周计划", icon: CalendarDays, component: () => <></> },
               { id: "mission", name: "人生罗盘", icon: Navigation, component: () => <></> },
+              { id: "habit", name: "习惯追踪", icon: Flame, component: () => <></> },
+              { id: "lists", name: "清单", icon: ClipboardList, component: () => <></> },
             ]}
             activeToolId={activeSection}
             onToolSelect={(id) => setActiveSection(id as AppSection)}

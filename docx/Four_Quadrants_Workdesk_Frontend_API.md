@@ -37,7 +37,7 @@ export interface Task {
   completed: boolean;            // 完成状态
   createdAt: number;             // 创建时间戳 (ms)
   completedAt?: number;          // 完成时间戳 (ms)
-  description?: string;          // 多行详细备注内容 (在详情弹窗中编辑)
+  description?: string;          // 详细备注内容 (在 TaskDetailModal 弹窗中使用 ReactjsTiptapEditor 编辑，隐藏顶部工具栏 showToolbar=false，保留块级拖拽手柄，数据以 TipTap JSON 字符串格式持久化)
   deadline?: number;             // 截止时间戳 (ms)
 }
 ```

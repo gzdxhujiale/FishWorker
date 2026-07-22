@@ -1,0 +1,92 @@
+.reactjs-tiptap-editor,
+.template-reactjs-tiptap,
+.task-detail-reactjs-tiptap,
+.note-drawer-reactjs-tiptap {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background-color: var(--surface-1, #fafbfc);
+}
+
+.reactjs-tiptap-editor .ProseMirror.ProseMirror.ProseMirror {
+  padding: 24px 36px !important;
+  min-height: 100%;
+  box-sizing: border-box;
+  outline: none;
+  background-color: var(--surface-1, #fafbfc);
+  color: var(--text-primary, #2b3139);
+}
+
+/* Hide default tiptap placeholder when custom template prompt is displayed */
+.editor-reactjs-tiptap .ProseMirror p.is-editor-empty:first-child:before,
+.note-drawer-reactjs-tiptap .ProseMirror p.is-editor-empty:first-child:before {
+  display: none !important;
+}
+
+/* Ensure all popovers, dropdown portals and drag handle menus render above modal dialog overlays (z-index 1000) */
+.bg-popover,
+[data-radix-popper-content-wrapper],
+[data-radix-popper-content-wrapper] [role="dialog"],
+[data-radix-popper-content-wrapper] > div,
+div[data-richtext-portal],
+.easydrawer-wrapper {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+  z-index: 1100 !important;
+}
+
+/* Code styling */
+.hljs-comment,
+.hljs-quote {
+  color: #616161;
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attribute,
+.hljs-tag,
+.hljs-regexp,
+.hljs-link,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: #f98181;
+}
+
+.hljs-number,
+.hljs-meta,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params {
+  color: #fbbc88;
+}
+
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet {
+  color: #b9f18d;
+}
+
+.hljs-title,
+.hljs-section {
+  color: #faf594;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: #70cff8;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 700;
+}

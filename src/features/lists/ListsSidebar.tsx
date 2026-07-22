@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, cloneElement, ReactElement, ReactNode } from 'react';
 import { Plus, Folder as FolderIcon, ChevronDown, MoreHorizontal, BookOpen, Briefcase, Home, Package, Activity, Star } from 'lucide-react';
 import { List, Folder } from './listsTypes';
-import { ConfirmBubble } from './ConfirmBubble';
+import { ConfirmBubble } from '../templates';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';

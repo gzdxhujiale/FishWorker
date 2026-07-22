@@ -2,27 +2,11 @@ import { create } from 'zustand';
 import { List, Folder, Note, Template, ListsData, NoteGroup } from './listsTypes';
 import * as listsService from './listsService';
 import { createSyncEngine } from '../../lib/createSyncEngine';
+import { useTemplateStore } from '../templates/templateStore';
+import { DEFAULT_TEMPLATES } from '../templates/templateTypes';
 
 const STORAGE_KEY = 'aistudy_lists_data';
 const MIGRATION_FLAG = 'aistudy_lists_migrated';
-
-const DEFAULT_TEMPLATES: Template[] = [
-  {
-    id: 'tpl-1',
-    name: '会议纪要',
-    content: '<p><strong>主题：</strong></p><p><strong>时间：</strong></p><p><strong>与会人：</strong></p><p></p><p><strong>会议目标：</strong></p><p></p><p><strong>预期成果与关键节点：</strong></p>'
-  },
-  {
-    id: 'tpl-2',
-    name: '阅读笔记',
-    content: '<p><strong>书名：</strong></p><p><strong>作者：</strong></p><p></p><p><strong>灵感摘要：</strong></p><p></p><p><strong>读后感悟：</strong></p>'
-  },
-  {
-    id: 'tpl-3',
-    name: '每周工作总结',
-    content: '<p><strong>本周工作目标及完成度：</strong></p><p></p><p><strong>本周最有成就感的事情：</strong></p><p></p><p><strong>本周遇到的工作上的阻碍：</strong></p><p></p><p><strong>总结与反思：</strong></p>'
-  }
-];
 
 function genId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -119,6 +103,7 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
         const allData = await listsService.loadAll();
 
         let defaultTemplates = allData.templates.length > 0 ? allData.templates : DEFAULT_TEMPLATES;
+        useTemplateStore.getState().setTemplates(defaultTemplates);
 
         if (allData.templates.length === 0) {
           for (const t of DEFAULT_TEMPLATES) {
@@ -554,47 +539,9 @@ export const useListsStore = create<ListsStoreState>((set, get) => ({
     listsService.deleteGroup(id).catch(() => {});
   },
 
-  // ── Templates ──
-  getTemplates: () => {
-    return get().data.templates;
-  },
-
-  addTemplate: (name, content) => {
-    const data = get().data;
-    const newTemplate: Template = {
-      id: genId('tpl'),
-      name,
-      content
-    };
-
-    set({ data: { ...data, templates: [...data.templates, newTemplate] } });
-
-    listsService.upsertTemplate(newTemplate).catch(() => {});
-
-    return newTemplate;
-  },
-
-  updateTemplate: (id, updates) => {
-    const data = get().data;
-    const index = data.templates.findIndex(t => t.id === id);
-    if (index !== -1) {
-      const newTemplates = [...data.templates];
-      newTemplates[index] = { ...newTemplates[index], ...updates };
-      set({ data: { ...data, templates: newTemplates } });
-
-      listsService.upsertTemplate(newTemplates[index]).catch(() => {});
-    }
-  },
-
-  deleteTemplate: (id) => {
-    const data = get().data;
-    set({
-      data: {
-        ...data,
-        templates: data.templates.filter(t => t.id !== id)
-      }
-    });
-
-    listsService.deleteTemplate(id).catch(() => {});
-  }
+  // ── Templates (Delegated to useTemplateStore) ──
+  getTemplates: () => useTemplateStore.getState().getTemplates(),
+  addTemplate: (name, content) => useTemplateStore.getState().addTemplate(name, content),
+  updateTemplate: (id, updates) => useTemplateStore.getState().updateTemplate(id, updates),
+  deleteTemplate: (id) => useTemplateStore.getState().deleteTemplate(id),
 }));

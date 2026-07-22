@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Calendar, AlignLeft, Type } from 'lucide-react';
 import { Task } from './timeManagementTypes';
 import { DatePicker } from '@arco-design/web-react';
-import { SimpleEditor } from '../tiptap/SimpleEditor';
+import { ReactjsTiptapEditor } from '../reactjs-tiptap-v1';
 import dayjs from 'dayjs';
 
 interface TaskDetailModalProps {
@@ -11,6 +11,23 @@ interface TaskDetailModalProps {
   onClose: () => void;
   onSave: (taskId: string, updates: Partial<Task>, isHighFreq?: boolean) => void;
 }
+
+const checkJsonEmpty = (val?: string): boolean => {
+  if (!val) return true;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === '{}') return true;
+  try {
+    const json = JSON.parse(trimmed);
+    if (!json.content || !Array.isArray(json.content) || json.content.length === 0) return true;
+    if (json.content.length === 1) {
+      const p = json.content[0];
+      if (p.type === 'paragraph' && (!p.content || p.content.length === 0)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
 
 export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps) {
   const [title, setTitle] = useState(task.title);
@@ -37,9 +54,9 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
     latestDeadline.current = deadline;
   }, [deadline]);
 
-  const handleDescriptionChange = (html: string) => {
-    latestDescription.current = html;
-    triggerAutoSave({ description: html }, true);
+  const handleDescriptionChange = (jsonStr: string) => {
+    latestDescription.current = jsonStr;
+    triggerAutoSave({ description: jsonStr }, true);
   };
 
   // Timers map for debounced saves
@@ -74,7 +91,8 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
     if (latestDeadline.current !== task.deadline) {
       updates.deadline = latestDeadline.current;
     }
-    const finalDesc = latestDescription.current === '<p></p>' ? '' : latestDescription.current;
+    const isDescEmpty = checkJsonEmpty(latestDescription.current);
+    const finalDesc = isDescEmpty ? '' : latestDescription.current;
     const originalDesc = task.description || '';
     if (finalDesc !== originalDesc) {
       updates.description = finalDesc || undefined;
@@ -188,17 +206,12 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
               <AlignLeft size={14} />
               <span>详细内容</span>
             </label>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '120px', border: '1px solid rgba(123, 145, 169, 0.25)', borderRadius: '8px', overflow: 'hidden', background: 'var(--surface-1)' }}>
-              <SimpleEditor
-                content={task.description || ''}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '180px', border: '1px solid rgba(123, 145, 169, 0.25)', borderRadius: '8px', overflow: 'hidden', background: 'var(--surface-1)' }}>
+              <ReactjsTiptapEditor
+                initialContent={task.description || ''}
                 onChange={handleDescriptionChange}
-                placeholder="添加详细内容..."
-                enableDragHandle={false}
-                enableTopToolbar={false}
-                dense={true}
-                style={{ flex: 1, minHeight: 0 }}
-                editorStyle={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}
-                editorClassName="tiptap-editor-wrapper"
+                showToolbar={false}
+                className="task-detail-reactjs-tiptap"
               />
             </div>
           </div>

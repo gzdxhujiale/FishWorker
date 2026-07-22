@@ -26,6 +26,9 @@ console.error = function (...args: any[]) {
     if (args[0].includes('Accessing element.ref was removed in React 19')) {
       return;
     }
+    if (args[0].includes('A props object containing a "key" prop is being spread into JSX')) {
+      return;
+    }
   }
   originalConsoleError.apply(console, args);
 };

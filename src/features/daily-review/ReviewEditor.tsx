@@ -1,12 +1,10 @@
 import React from 'react';
 import { DailyReview } from './dailyReviewTypes';
 import { Star } from 'lucide-react';
-import { ReactjsTiptapEditor } from '../reactjs-tiptap';
+import { ReactjsTiptapEditor } from '../reactjs-tiptap-v1';
 import { useReviewAutoSave } from './useReviewAutoSave';
 import { useState } from 'react';
-import { useListsStore } from '../lists/listsStore';
-import { TemplateModal } from '../lists/TemplateModal';
-import { Template } from '../lists/listsTypes';
+import { TemplateModal, Template, useTemplateStore } from '../templates';
 
 interface Props {
   date: string;
@@ -23,9 +21,9 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
   });
 
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const templates = useListsStore(state => state.data.templates);
-  const updateTemplate = useListsStore(state => state.updateTemplate);
-  const deleteTemplate = useListsStore(state => state.deleteTemplate);
+  const templates = useTemplateStore(state => state.templates);
+  const updateTemplate = useTemplateStore(state => state.updateTemplate);
+  const deleteTemplate = useTemplateStore(state => state.deleteTemplate);
 
   const ensureJsonFormat = (text: string) => {
     if (!text) return JSON.stringify({ type: 'doc', content: [{ type: 'paragraph' }] });
@@ -84,7 +82,7 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
           className="editor-reactjs-tiptap"
         />
         {isContentEmpty && (
-          <div style={{ position: 'absolute', top: '56px', left: '24px', color: 'var(--text-faint)', fontSize: '15px', lineHeight: '1.7', pointerEvents: 'none', zIndex: 2 }}>
+          <div style={{ position: 'absolute', top: '64px', left: '36px', color: 'var(--text-faint)', fontSize: '15px', lineHeight: '1.7', pointerEvents: 'none', zIndex: 2 }}>
             记录你的想法，或{' '}
             <span
               style={{ pointerEvents: 'auto', color: 'var(--accent)', cursor: 'pointer' }}

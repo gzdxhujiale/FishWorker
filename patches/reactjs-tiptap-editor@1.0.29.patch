@@ -1,0 +1,225 @@
+diff --git a/lib/bubble.js b/lib/bubble.js
+index 04983005343f998ea1caec7178b69a310f523718..13b922738fd188204179201d34e30c8da4daa24d 100644
+--- a/lib/bubble.js
++++ b/lib/bubble.js
+@@ -11013,6 +11013,95 @@ function tg() {
+   const V = (y) => {
+     t && c(y);
+   };
++  const row1Items = [
++    {
++      name: "paragraph",
++      label: n("editor.paragraph.tooltip"),
++      iconName: "HeadingParagraph",
++      active: (i?.type.name === "paragraph" && !e.isActive("bulletList") && !e.isActive("orderedList") && !e.isActive("taskList") && !e.isActive("blockquote") && !e.isActive("codeBlock")),
++      action: () => e.chain().setNodeSelection(r).clearNodes().setParagraph().focus().run()
++    },
++    {
++      name: "heading1",
++      label: n("editor.heading.h1.tooltip"),
++      iconName: "Heading1",
++      active: (i?.type.name === "heading" && i?.attrs?.level === 1) || e.isActive("heading", { level: 1 }),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleHeading({ level: 1 }).focus().run()
++    },
++    {
++      name: "heading2",
++      label: n("editor.heading.h2.tooltip"),
++      iconName: "Heading2",
++      active: (i?.type.name === "heading" && i?.attrs?.level === 2) || e.isActive("heading", { level: 2 }),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleHeading({ level: 2 }).focus().run()
++    },
++    {
++      name: "heading3",
++      label: n("editor.heading.h3.tooltip"),
++      iconName: "Heading3",
++      active: (i?.type.name === "heading" && i?.attrs?.level === 3) || e.isActive("heading", { level: 3 }),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleHeading({ level: 3 }).focus().run()
++    },
++    {
++      name: "heading4",
++      label: n("editor.heading.h4.tooltip"),
++      iconName: "Heading4",
++      active: (i?.type.name === "heading" && i?.attrs?.level === 4) || e.isActive("heading", { level: 4 }),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleHeading({ level: 4 }).focus().run()
++    },
++    {
++      name: "heading5",
++      label: n("editor.heading.h5.tooltip"),
++      iconName: "Heading5",
++      active: (i?.type.name === "heading" && i?.attrs?.level === 5) || e.isActive("heading", { level: 5 }),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleHeading({ level: 5 }).focus().run()
++    },
++    {
++      name: "heading6",
++      label: n("editor.heading.h6.tooltip"),
++      iconName: "Heading6",
++      active: (i?.type.name === "heading" && i?.attrs?.level === 6) || e.isActive("heading", { level: 6 }),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleHeading({ level: 6 }).focus().run()
++    }
++  ];
++
++  const row2Items = [
++    {
++      name: "bulletList",
++      label: n("editor.bulletlist.tooltip"),
++      iconName: "List",
++      active: i?.type.name === "bulletList" || e.isActive("bulletList"),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleBulletList().focus().run()
++    },
++    {
++      name: "orderedList",
++      label: n("editor.orderedlist.tooltip"),
++      iconName: "ListOrdered",
++      active: i?.type.name === "orderedList" || e.isActive("orderedList"),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleOrderedList().focus().run()
++    },
++    {
++      name: "taskList",
++      label: n("editor.tasklist.tooltip"),
++      iconName: "ListTodo",
++      active: i?.type.name === "taskList" || e.isActive("taskList"),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleTaskList().focus().run()
++    },
++    {
++      name: "blockquote",
++      label: n("editor.blockquote.tooltip"),
++      iconName: "TextQuote",
++      active: i?.type.name === "blockquote" || e.isActive("blockquote"),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleBlockquote().focus().run()
++    },
++    {
++      name: "codeBlock",
++      label: n("editor.codeblock.tooltip"),
++      iconName: "Code2",
++      active: i?.type.name === "codeBlock" || e.isActive("codeBlock"),
++      action: () => e.chain().setNodeSelection(r).clearNodes().toggleCodeBlock().focus().run()
++    }
++  ];
+   return /* @__PURE__ */ p(
+     Wf,
+     {
+@@ -11021,15 +11110,6 @@ function tg() {
+       onNodeChange: k,
+       pluginKey: "RichTextBubbleMenuDragHandle",
+       children: /* @__PURE__ */ x("div", { className: "richtext-flex richtext-items-center richtext-gap-0.5", children: [
+-        /* @__PURE__ */ p(
+-          S,
+-          {
+-            action: R,
+-            disabled: !t,
+-            icon: "Plus",
+-            tooltip: n("editor.draghandle.insertBlock")
+-          }
+-        ),
+         /* @__PURE__ */ p(
+           S,
+           {
+@@ -11047,11 +11127,107 @@ function tg() {
+             gc,
+             {
+               align: "start",
+-              className: "richtext-w-48",
++              className: "!richtext-w-[248px] !richtext-p-1.5",
+               hideWhenDetached: !0,
+               side: "bottom",
+               sideOffset: 0,
+               children: [
++                /* @__PURE__ */ x("div", {
++                  style: {
++                    paddingBottom: "6px",
++                    marginBottom: "6px",
++                    borderBottom: "1px solid var(--border, rgba(0,0,0,0.1))"
++                  },
++                  children: [
++                    /* @__PURE__ */ p("div", {
++                      style: {
++                        fontSize: "11px",
++                        fontWeight: 500,
++                        opacity: 0.6,
++                        paddingLeft: "2px",
++                        marginBottom: "6px"
++                      },
++                      children: n("editor.slash.format") || "切换格式"
++                    }),
++                    /* Row 1: Paragraph + H1..H6 */
++                    /* @__PURE__ */ p("div", {
++                      style: {
++                        display: "flex",
++                        flexDirection: "row",
++                        alignItems: "center",
++                        gap: "4px",
++                        marginBottom: "4px"
++                      },
++                      children: row1Items.map((item) => (
++                        /* @__PURE__ */ p("button", {
++                          key: item.name,
++                          type: "button",
++                          title: item.label,
++                          onClick: (evt) => {
++                            evt.preventDefault();
++                            evt.stopPropagation();
++                            item.action();
++                            V(false);
++                          },
++                          style: {
++                            display: "inline-flex",
++                            alignItems: "center",
++                            justifyContent: "center",
++                            width: "28px",
++                            height: "28px",
++                            borderRadius: "4px",
++                            border: "none",
++                            background: item.active ? "rgba(0, 0, 0, 0.08)" : "transparent",
++                            color: item.active ? "var(--primary, #000)" : "inherit",
++                            cursor: "pointer",
++                            padding: "0",
++                            flexShrink: 0
++                          },
++                          className: "hover:!richtext-bg-accent",
++                          children: /* @__PURE__ */ p(lt, { name: item.iconName, className: "!richtext-size-4" })
++                        })
++                      ))
++                    }),
++                    /* Row 2: Bullet List, Ordered List, Task List, Blockquote, Code Block */
++                    /* @__PURE__ */ p("div", {
++                      style: {
++                        display: "flex",
++                        flexDirection: "row",
++                        alignItems: "center",
++                        gap: "4px"
++                      },
++                      children: row2Items.map((item) => (
++                        /* @__PURE__ */ p("button", {
++                          key: item.name,
++                          type: "button",
++                          title: item.label,
++                          onClick: (evt) => {
++                            evt.preventDefault();
++                            evt.stopPropagation();
++                            item.action();
++                            V(false);
++                          },
++                          style: {
++                            display: "inline-flex",
++                            alignItems: "center",
++                            justifyContent: "center",
++                            width: "28px",
++                            height: "28px",
++                            borderRadius: "4px",
++                            border: "none",
++                            background: item.active ? "rgba(0, 0, 0, 0.08)" : "transparent",
++                            color: item.active ? "var(--primary, #000)" : "inherit",
++                            cursor: "pointer",
++                            padding: "0",
++                            flexShrink: 0
++                          },
++                          className: "hover:!richtext-bg-accent",
++                          children: /* @__PURE__ */ p(lt, { name: item.iconName, className: "!richtext-size-4" })
++                        })
++                      ))
++                    })
++                  ]
++                }),
+                 /* @__PURE__ */ x(
+                   Ot,
+                   {

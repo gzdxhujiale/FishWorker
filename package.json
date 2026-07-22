@@ -114,6 +114,11 @@
     "vite": "^7.0.4",
     "vitest": "^4.1.10"
   },
+  "pnpm": {
+    "patchedDependencies": {
+      "reactjs-tiptap-editor@1.0.29": "patches/reactjs-tiptap-editor@1.0.29.patch"
+    }
+  },
   "pnpm.overrides": {
     "quill": "file:./scripts/npm-stubs/quill",
     "simple-mind-map>quill": "file:./scripts/npm-stubs/quill"

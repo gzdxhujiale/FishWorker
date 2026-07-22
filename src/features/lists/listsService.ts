@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { List, Folder, Note, NoteGroup, Template, ListsData } from './listsTypes';
+import type { List, Folder, Note, NoteGroup, ListsData } from './listsTypes';
 
 /**
  * listsService — the data-access seam for the Lists feature.
@@ -251,25 +251,9 @@ export async function deleteGroup(id: string): Promise<void> {
   }
 }
 
-// ── Templates ────────────────────────────────────────────────────────────────
+// ── Templates (Delegated to templates feature) ───────────────────────────────
 
-export async function upsertTemplate(template: Template): Promise<void> {
-  try {
-    await invoke('list_upsert_template', { template });
-  } catch (e) {
-    console.error('[listsService] upsert_template failed:', e);
-    throw e;
-  }
-}
-
-export async function deleteTemplate(id: string): Promise<void> {
-  try {
-    await invoke('list_delete_template', { id });
-  } catch (e) {
-    console.error('[listsService] delete_template failed:', e);
-    throw e;
-  }
-}
+export { upsertTemplate, deleteTemplate } from '../templates/templateService';
 
 // ── Export / Import ──────────────────────────────────────────────────────────
 

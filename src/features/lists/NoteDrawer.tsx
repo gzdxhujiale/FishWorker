@@ -2,9 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Note } from './listsTypes';
 import { MoreHorizontal } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { Editor } from '@tiptap/react';
-import { getTiptapExtensions } from '../tiptap/config';
-import { SimpleEditor } from '../tiptap/SimpleEditor';
+import { ReactjsTiptapEditor } from '../reactjs-tiptap-v1';
+import { convertMarkdownToTipTapJson, convertTipTapJsonToMarkdown } from '../tiptap/jsonMarkdownAdapter';
 
 interface NoteDrawerProps {
   note: Note | null;
@@ -18,6 +17,23 @@ interface NoteDrawerProps {
   onOpenTemplate: () => void;
   showToast?: (message: string, type?: 'success' | 'error') => void;
 }
+
+const checkJsonEmpty = (val?: string): boolean => {
+  if (!val) return true;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === '{}') return true;
+  try {
+    const json = JSON.parse(trimmed);
+    if (!json.content || !Array.isArray(json.content) || json.content.length === 0) return true;
+    if (json.content.length === 1) {
+      const p = json.content[0];
+      if (p.type === 'paragraph' && (!p.content || p.content.length === 0)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
 
 export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate, onSaveAsTemplate, onDelete, onOpenTemplate, showToast }: NoteDrawerProps) {
   const [title, setTitle] = useState('');
@@ -54,23 +70,18 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
     document.body.style.userSelect = '';
   };
 
-  const [editor, setEditor] = useState<Editor | null>(null);
-
   const latestDataRef = useRef({ title, content, note });
   useEffect(() => {
     latestDataRef.current = { title, content, note };
   }, [title, content, note]);
 
-  // Sync state and editor content when note changes
+  // Sync state when note changes
   useEffect(() => {
     if (note) {
       setTitle(note.title);
-      setContent(note.content);
-      if (editor && !editor.isDestroyed && editor.getHTML() !== note.content) {
-        editor.commands.setContent(note.content || '');
-      }
+      setContent(note.content || '');
     }
-  }, [note, editor]);
+  }, [note]);
 
   // Save unsaved changes on note switch or drawer close
   useEffect(() => {
@@ -108,37 +119,27 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
 
   if (!note) return null;
 
-  const isContentEmpty = !content || content === '<p></p>' || content === '<p></p>\n';
+  const isContentEmpty = checkJsonEmpty(content);
 
   const handleImport = async () => {
     try {
       const mdContent = await invoke<string>('pick_markdown_file');
-      if (editor) {
-        try {
-          const tempEditor = new Editor({
-            extensions: getTiptapExtensions({ enableDragHandle: false }),
-            content: mdContent,
-          });
-          editor.commands.setContent(tempEditor.getHTML());
-          tempEditor.destroy();
-        } catch (e) {
-          console.error('Failed to parse markdown:', e);
-          editor.commands.setContent(mdContent);
-        }
+      if (mdContent) {
+        const jsonStr = convertMarkdownToTipTapJson(mdContent);
+        setContent(jsonStr);
+        if (showToast) showToast('导入成功！');
       }
-      if (showToast) showToast('导入成功！');
     } catch (err) {
       console.warn('Import cancelled or failed:', err);
     }
   };
 
   const handleExport = async () => {
-    if (!editor) return;
-    const markdown = (editor.storage as any).markdown.getMarkdown();
     try {
+      const exportText = convertTipTapJsonToMarkdown(content);
       await invoke('save_markdown_file', {
         defaultName: `${title || '未命名笔记'}.md`,
-        content: markdown,
+        content: exportText,
       });
       if (showToast) showToast('导出成功！');
     } catch (err) {
@@ -203,26 +204,22 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
         </div>
 
         <div className="note-drawer-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 0, overflow: 'hidden', position: 'relative' }}>
-          <SimpleEditor
-            content={content}
+          <ReactjsTiptapEditor
+            initialContent={content}
             onChange={setContent}
-            onCreated={setEditor}
-            placeholder=""
-            style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
-            editorStyle={{ flex: 1, overflowY: 'auto', padding: '8px 12px 12px 20px', minHeight: 0 }}
-            editorClassName="tiptap-editor-wrapper"
-            placeholderOverlay={isContentEmpty && (
-              <div style={{ position: 'absolute', top: '8px', left: '20px', color: 'var(--text-faint)', fontSize: '15px', pointerEvents: 'none', zIndex: 2 }}>
-                记录你的想法，或{' '}
-                <span
-                  style={{ pointerEvents: 'auto', color: 'var(--accent)', cursor: 'pointer' }}
-                  onClick={onOpenTemplate}
-                >
-                  使用模板
-                </span>
-              </div>
-            )}
+            className="note-drawer-reactjs-tiptap"
           />
+          {isContentEmpty && (
+            <div style={{ position: 'absolute', top: '72px', left: '36px', color: 'var(--text-faint)', fontSize: '15px', pointerEvents: 'none', zIndex: 2 }}>
+              记录你的想法，或{' '}
+              <span
+                style={{ pointerEvents: 'auto', color: 'var(--accent)', cursor: 'pointer' }}
+                onClick={onOpenTemplate}
+              >
+                使用模板
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </>

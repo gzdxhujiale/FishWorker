@@ -17,6 +17,7 @@ export default defineConfig(async () => ({
   resolve: {
     dedupe: ['yjs', '@tiptap/pm', 'prosemirror-state', 'prosemirror-model', 'prosemirror-view'],
     alias: [
+      { find: "@", replacement: path.resolve(__dirname, "src") },
       { find: /^quill\/(.*)/, replacement: path.resolve(__dirname, "src/$1") },
       { find: "quill", replacement: path.resolve(__dirname, "scripts/npm-stubs/quill/index.js") }
     ]

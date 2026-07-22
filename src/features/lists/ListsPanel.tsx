@@ -6,7 +6,7 @@ import { ListsSidebar } from './ListsSidebar';
 import { AddListModal } from './AddListModal';
 import { FolderModal } from './FolderModal';
 import { NoteDrawer } from './NoteDrawer';
-import { TemplateModal } from './TemplateModal';
+import { TemplateModal, useTemplateStore } from '../templates';
 import { NoteItem } from './NoteItem';
 import { NoteGroupView } from './NoteGroupView';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -15,8 +15,7 @@ import { SortableItem } from './SortableItem';
 import * as listsService from './listsService';
 import { computeNoteReorder } from './listsReorder';
 import { BatchExportModal } from './BatchExportModal';
-import { Editor } from '@tiptap/react';
-import { getTiptapExtensions } from '../tiptap/config';
+import { convertMarkdownToTipTapJson, convertTipTapJsonToMarkdown } from '../tiptap/jsonMarkdownAdapter';
 import './lists.css';
 
 export function ListsPanel() {
@@ -38,7 +37,9 @@ export function ListsPanel() {
     });
   }, [store.data.folders]);
 
-  const templates = store.data.templates;
+  const templates = useTemplateStore(state => state.templates);
+  const updateTemplate = useTemplateStore(state => state.updateTemplate);
+  const deleteTemplate = useTemplateStore(state => state.deleteTemplate);
 
   const [activeListId, setActiveListId] = useState<string | null>(() => {
     return localStorage.getItem('lists-active-list-id');
@@ -334,27 +335,11 @@ export function ListsPanel() {
     try {
       const importedFiles = await listsService.pickMultipleMarkdownFiles();
       for (const file of importedFiles) {
-        let htmlContent = file.content;
-        try {
-          const editor = new Editor({
-            extensions: getTiptapExtensions({ enableDragHandle: false }),
-            content: file.content,
-          });
-          htmlContent = editor.getHTML();
-          editor.destroy();
-        } catch (e) {
-          console.error('Failed to parse markdown:', e);
-          if (!htmlContent.trim().startsWith('<')) {
-            htmlContent = htmlContent
-              .split('\n\n')
-              .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
-              .join('');
-          }
-        }
+        const jsonContent = convertMarkdownToTipTapJson(file.content);
         store.addNote({
           listId: activeListId,
           title: file.title,
-          content: htmlContent,
+          content: jsonContent,
         });
       }
       showToast(`已成功导入 ${importedFiles.length} 条笔记！`);
@@ -367,26 +352,9 @@ export function ListsPanel() {
     const notesToExport = notes.filter(n => selectedNoteIds.includes(n.id));
     if (notesToExport.length === 0) return;
 
-    const convertHtmlToMarkdown = (html: string) => {
-      let text = html;
-      text = text.replace(/<p>/g, '').replace(/<\/p>/g, '\n\n');
-      text = text.replace(/<br\s*\/?>/g, '\n');
-      text = text.replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n');
-      text = text.replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n');
-      text = text.replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n');
-      text = text.replace(/<strong>(.*?)<\/strong>/g, '**$1**');
-      text = text.replace(/<em>(.*?)<\/em>/g, '*$1*');
-      text = text.replace(/<code>(.*?)<\/code>/g, '`$1`');
-      text = text.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/g, '> $1\n\n');
-      text = text.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/g, '```\n$1\n```\n\n');
-      text = text.replace(/<[^>]+>/g, '');
-      text = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
-      return text.trim();
-    };
-
     const files = notesToExport.map(n => ({
       title: n.title,
-      content: convertHtmlToMarkdown(n.content || ''),
+      content: convertTipTapJsonToMarkdown(n.content || ''),
     }));
 
     try {
@@ -429,30 +397,33 @@ export function ListsPanel() {
     }
   };
 
-  const ensureHtmlFormat = (text: string) => {
-    if (!text) return '';
-    if (text.trim().startsWith('<') && text.trim().endsWith('>')) {
-      return text;
+  const ensureJsonFormat = (text: string) => {
+    if (!text) return JSON.stringify({ type: 'doc', content: [{ type: 'paragraph' }] });
+    const trimmed = text.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      return trimmed;
     }
-    return text
-      .split('\n')
-      .map(line => line.trim() === '' ? '<p></p>' : `<p>${line}</p>`)
-      .join('');
+    const lines = text.split('\n');
+    const content = lines.map(line => ({
+      type: 'paragraph',
+      content: line ? [{ type: 'text', text: line }] : []
+    }));
+    return JSON.stringify({ type: 'doc', content });
   };
 
   const handleSelectTemplate = (template: Template) => {
     if (!activeNoteId) return;
-    const htmlContent = ensureHtmlFormat(template.content);
-    store.updateNote(activeNoteId, { content: htmlContent });
+    const jsonContent = ensureJsonFormat(template.content);
+    store.updateNote(activeNoteId, { content: jsonContent });
     setIsTemplateModalOpen(false);
   };
 
   const handleEditTemplate = (id: string, name: string, content: string) => {
-    store.updateTemplate(id, { name, content });
+    updateTemplate(id, { name, content });
   };
 
   const handleDeleteTemplate = (id: string) => {
-    store.deleteTemplate(id);
+    deleteTemplate(id);
   };
 
   // --- Group Actions ---

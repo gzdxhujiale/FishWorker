@@ -15,8 +15,8 @@ export function CollapsibleGroup({ title, count, children, defaultExpanded = tru
 
   return (
     <div className="tm-collapsible-group">
-      <div 
-        className="tm-collapsible-header" 
+      <div
+        className="tm-collapsible-header"
         onClick={() => setIsExpanded(!isExpanded)}
         style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 0', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '12px' }}
       >
@@ -25,7 +25,7 @@ export function CollapsibleGroup({ title, count, children, defaultExpanded = tru
         <span style={{ background: 'rgba(123, 145, 169, 0.1)', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', color: 'var(--text-muted)' }}>{count}</span>
       </div>
       {isExpanded && (
-        <div className="tm-collapsible-content" style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '4px', marginTop: '4px' }}>
+        <div className="tm-collapsible-content" style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingLeft: '4px', marginTop: '-6px' }}>
           {children}
         </div>
       )}

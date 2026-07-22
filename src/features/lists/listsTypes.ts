@@ -38,11 +38,8 @@ export interface Note {
   updatedAt: number;
 }
 
-export interface Template {
-  id: string;
-  name: string;
-  content: string;
-}
+import { Template } from '../templates/templateTypes';
+export type { Template };
 
 export interface ListsData {
   lists: List[];

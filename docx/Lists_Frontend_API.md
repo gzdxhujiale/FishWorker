@@ -44,7 +44,7 @@ export interface Note {
   listId: string;           // 归属的清单 ID
   groupId: string | null;   // 归属的分组 ID，null 为未分组
   title: string;            // 笔记标题
-  content: string;          // 笔记正文内容 (HTML 富文本格式，支持多级标题、加粗/斜体/下划线、有序/无序/任务列表，文本颜色，背景高亮等)
+  content: string;          // 笔记正文内容 (使用 reactjs-tiptap-v1 的 ReactjsTiptapEditor 编辑，以 TipTap JSON 格式字符串持久化，支持多级标题、加粗/斜体/下划线/删除线、任务列表、代码块、文字颜色与背景高亮等)
   isPinned?: boolean;       // 是否置顶
   sortOrder?: number;       // 用于拖拽排序的连续型整数
   createdAt: number;        // 创建时间 (时间戳)
@@ -129,11 +129,13 @@ export interface Template {
 - `deleteGroup(id: string): void`
   删除指定分组，系统会将原先属于该分组的笔记的 `groupId` 置为 `null`（即移至未分组），不会级联删除笔记。
 
-### 2.4 模板 (Template) 操作
+### 2.5 模板 (Template) 操作 (已解耦重构)
+> **架构说明**: 模板功能现已独立抽离至专属模块 `src/features/templates` (使用 `useTemplateStore` 进行独立管理)，并提供 `TemplateModal` 通用 UI 组件供清单与每日复盘共同使用。完整接口说明请参考 [Templates_Frontend_API.md](file:///c:/Users/Admin/Documents/FishWorker/docx/Templates_Frontend_API.md)。
+
 - `getTemplates(): Template[]`
-  获取所有可用的笔记模板。系统应内置几套默认模板（如：会议纪要、阅读笔记、每周工作总结）。
+  获取所有可用的笔记模板（委托至 `useTemplateStore`）。
 - `addTemplate(name: string, content: string): Template`
-  用户从笔记中保存或新建的模板。
+  用户从笔记中保存或新建模板。
 - `updateTemplate(id: string, updates: Partial<Template>): void`
   更新模板的名称或内容。
 - `deleteTemplate(id: string): void`
