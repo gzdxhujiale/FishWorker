@@ -16,6 +16,9 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
   const daysInMonth = currentMonth.daysInMonth();
   const startDayOfWeek = startOfMonth.day(); // 0 is Sunday
 
+  const todayStr = dayjs().format('YYYY-MM-DD');
+  const todayMonthStr = dayjs().format('YYYY-MM');
+
   const days: (dayjs.Dayjs | null)[] = [];
   for (let i = 0; i < startDayOfWeek; i++) {
     days.push(null);
@@ -67,15 +70,37 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => onSelectDate(currentMonth.subtract(1, 'month').format('YYYY-MM-DD'))}
-              className="p-1 rounded hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
+              onClick={() => onSelectDate(todayStr)}
+              className="px-2 py-0.5 text-xs rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer mr-1 font-medium"
+              title="跳转到今日"
+            >
+              今天
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const prev = currentMonth.subtract(1, 'month');
+                if (prev.format('YYYY-MM') >= '2026-07') {
+                  onSelectDate(prev.format('YYYY-MM-DD'));
+                }
+              }}
+              disabled={currentMonth.format('YYYY-MM') <= '2026-07'}
+              className="p-1 rounded hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="上个月"
             >
               <ChevronLeft size={16} />
             </button>
             <button
               type="button"
-              onClick={() => onSelectDate(currentMonth.add(1, 'month').format('YYYY-MM-DD'))}
-              className="p-1 rounded hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
+              onClick={() => {
+                const next = currentMonth.add(1, 'month');
+                if (next.format('YYYY-MM') <= todayMonthStr) {
+                  onSelectDate(next.format('YYYY-MM-DD'));
+                }
+              }}
+              disabled={currentMonth.format('YYYY-MM') >= todayMonthStr}
+              className="p-1 rounded hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="下个月"
             >
               <ChevronRight size={16} />
             </button>
@@ -92,6 +117,7 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
             {days.map((day, idx) => {
               if (!day) return <div key={`empty-${idx}`} className="h-8" />;
               const dStr = day.format('YYYY-MM-DD');
+              const isDisabled = dStr < '2026-07-01' || dStr > todayStr;
               const review = reviews.find(r => r.date === dStr);
               let cls = '';
               if (review) {
@@ -105,9 +131,14 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
                 <button
                   key={dStr}
                   type="button"
-                  onClick={() => onSelectDate(dStr)}
-                  className={`h-8 rounded-lg flex flex-col items-center justify-center text-xs font-medium transition-all cursor-pointer border ${
-                    isSelected ? 'ring-2 ring-blue-500 ring-offset-1 border-blue-400' : 'border-transparent'
+                  disabled={isDisabled}
+                  onClick={() => !isDisabled && onSelectDate(dStr)}
+                  className={`h-8 rounded-lg flex flex-col items-center justify-center text-xs font-medium transition-all border ${
+                    isDisabled
+                      ? 'opacity-30 cursor-not-allowed border-transparent bg-gray-50'
+                      : isSelected
+                      ? 'ring-2 ring-blue-500 ring-offset-1 border-blue-400 cursor-pointer'
+                      : 'border-transparent cursor-pointer'
                   } ${cls}`}
                 >
                   <span className="arco-calendar-date-value">{day.date()}</span>

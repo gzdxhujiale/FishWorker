@@ -6,6 +6,7 @@ import { useHabitStore } from './habitStore';
 import { OverviewCards } from './OverviewCards';
 import { CalendarHeatmapComponent } from './CalendarHeatmapComponent';
 import { CreateEditModal } from './CreateEditModal';
+import { useConfirmDialog } from '../../components/ui/ConfirmDeleteDialog';
 
 interface HabitSidebarProps {
   habit: Habit;
@@ -15,11 +16,17 @@ interface HabitSidebarProps {
 export const HabitSidebar: React.FC<HabitSidebarProps> = ({ habit, onClose }) => {
   const deleteHabit = useHabitStore(state => state.deleteHabit);
   const updateHabit = useHabitStore(state => state.updateHabit);
+  const { confirm: confirmDelete } = useConfirmDialog();
   
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
-  const handleDelete = () => {
-    if (window.confirm('确定要删除这个习惯吗？该习惯的所有历史打卡记录也将被永久删除。')) {
+  const handleDelete = async () => {
+    const confirmed = await confirmDelete({
+      title: '删除习惯',
+      description: '确定要删除这个习惯吗？该习惯的所有历史打卡记录也将被永久删除。',
+      confirmText: '删除',
+    });
+    if (confirmed) {
       deleteHabit(habit.id).then(() => {
         onClose();
       });

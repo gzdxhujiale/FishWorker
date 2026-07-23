@@ -113,7 +113,7 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
                 size={20}
                 className={`rating-star ${star <= rating ? 'active' : ''}`}
                 fill={star <= rating ? 'currentColor' : 'none'}
-                onClick={() => setRating(star)}
+                onClick={() => setRating(star === rating ? 0 : star)}
               />
             ))}
           </div>

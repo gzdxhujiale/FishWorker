@@ -117,6 +117,8 @@ import 'reactjs-tiptap-editor/style.css';
 import { Header } from './Header';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { EMOJI_LIST } from './emojis';
+import { CustomShortcuts } from '../../lib/CustomShortcuts';
+import { CollapsibleList } from '../../lib/CollapsibleList';
 
 function convertBase64ToBlob(base64: string) {
   const arr = base64.split(',');
@@ -157,6 +159,8 @@ const BaseKit = [
 
 const extensions = [
   ...BaseKit,
+  CustomShortcuts,
+  CollapsibleList,
   History,
   SearchAndReplace,
   Clear,

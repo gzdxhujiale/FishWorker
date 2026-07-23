@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Plus, MoreHorizontal, Timer, Trash2 } from 'lucide-react';
 import { usePomodoroStore } from './pomodoroStore';
 import { PomodoroRecord } from './pomodoroTypes';
+import { useConfirmDialog } from '../../components/ui/ConfirmDeleteDialog';
 
 export const PomodoroHistory: React.FC = () => {
   const { records, deleteRecord, addManualRecord, clearAllRecords } = usePomodoroStore();
+  const { confirm: confirmDelete } = useConfirmDialog();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [manualMins, setManualMins] = useState(25);
@@ -65,11 +67,16 @@ export const PomodoroHistory: React.FC = () => {
               <div className="history-dropdown-menu">
                 <button
                   className="dropdown-item danger"
-                  onClick={() => {
-                    if (confirm('确认清空所有历史专注记录？')) {
+                  onClick={async () => {
+                    setShowMenu(false);
+                    const confirmed = await confirmDelete({
+                      title: '清空历史记录',
+                      description: '确认清空所有历史专注记录？此操作无法撤销。',
+                      confirmText: '清空',
+                    });
+                    if (confirmed) {
                       clearAllRecords();
                     }
-                    setShowMenu(false);
                   }}
                 >
                   <Trash2 size={14} />

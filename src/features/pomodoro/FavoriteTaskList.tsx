@@ -3,6 +3,7 @@ import { Play, Edit3, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import { usePomodoroStore } from './pomodoroStore';
 import { FavoriteFocusTask } from './pomodoroTypes';
 import { FavoriteTaskModal } from './FavoriteTaskModal';
+import { useConfirmDialog } from '../../components/ui/ConfirmDeleteDialog';
 
 interface FavoriteTaskListProps {
   tasks: FavoriteFocusTask[];
@@ -18,6 +19,7 @@ interface ContextMenuState {
 export const FavoriteTaskList: React.FC<FavoriteTaskListProps> = ({ tasks, isArchivedView }) => {
   const { startFavoriteTask, archiveFavoriteTask, unarchiveFavoriteTask, deleteFavoriteTask } =
     usePomodoroStore();
+  const { confirm: confirmDelete } = useConfirmDialog();
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [editingTask, setEditingTask] = useState<FavoriteFocusTask | null>(null);
@@ -119,11 +121,17 @@ export const FavoriteTaskList: React.FC<FavoriteTaskListProps> = ({ tasks, isArc
 
               <button
                 className="context-menu-item danger"
-                onClick={() => {
-                  if (confirm(`确认删除专注任务"${contextMenu.task.name}"？`)) {
-                    deleteFavoriteTask(contextMenu.task.id);
-                  }
+                onClick={async () => {
+                  const task = contextMenu.task;
                   handleCloseContextMenu();
+                  const confirmed = await confirmDelete({
+                    title: '删除专注任务',
+                    description: `确认删除专注任务"${task.name}"？`,
+                    confirmText: '删除',
+                  });
+                  if (confirmed) {
+                    deleteFavoriteTask(task.id);
+                  }
                 }}
               >
                 <Trash2 size={14} />
@@ -145,9 +153,17 @@ export const FavoriteTaskList: React.FC<FavoriteTaskListProps> = ({ tasks, isArc
 
               <button
                 className="context-menu-item danger"
-                onClick={() => {
-                  deleteFavoriteTask(contextMenu.task.id);
+                onClick={async () => {
+                  const task = contextMenu.task;
                   handleCloseContextMenu();
+                  const confirmed = await confirmDelete({
+                    title: '删除专注任务',
+                    description: `确认删除专注任务"${task.name}"？`,
+                    confirmText: '删除',
+                  });
+                  if (confirmed) {
+                    deleteFavoriteTask(task.id);
+                  }
                 }}
               >
                 <Trash2 size={14} />

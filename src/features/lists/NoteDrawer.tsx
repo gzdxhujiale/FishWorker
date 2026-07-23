@@ -100,6 +100,8 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
   );
 }
 
+import { useConfirmDialog } from '../../components/ui/ConfirmDeleteDialog';
+
 function NoteDrawerContent({
   note,
   isOpen,
@@ -123,6 +125,7 @@ function NoteDrawerContent({
   onOpenTemplate: () => void;
   showToast?: (message: string, type?: 'success' | 'error') => void;
 }) {
+  const { confirm: confirmDelete } = useConfirmDialog();
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content || '');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -228,10 +231,15 @@ function NoteDrawerContent({
               <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); handleExport(); }}>导出MD</div>
               <div
                 className="lists-dropdown-item text-danger"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  if (window.confirm('确定要删除这条笔记吗？')) {
-                    setMenuOpen(false);
+                  setMenuOpen(false);
+                  const confirmed = await confirmDelete({
+                    title: '删除笔记',
+                    description: `确定要删除笔记"${note.title || '未命名笔记'}"吗？`,
+                    confirmText: '删除',
+                  });
+                  if (confirmed) {
                     onDelete(note);
                     onClose();
                   }

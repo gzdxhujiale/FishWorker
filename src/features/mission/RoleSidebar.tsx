@@ -4,12 +4,14 @@ import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import { useConfirmDialog } from "../../components/ui/ConfirmDeleteDialog";
 
 const SortableRoleItem: React.FC<{ role: { id: string; name: string; icon: string }; goalCount: number }> = ({ role, goalCount }) => {
   const selectedRoleId = useMissionStore(s => s.selectedRoleId);
   const setSelectedRole = useMissionStore(s => s.setSelectedRole);
   const updateRole = useMissionStore(s => s.updateRole);
   const deleteRole = useMissionStore(s => s.deleteRole);
+  const { confirm: confirmDelete } = useConfirmDialog();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: role.id });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -44,9 +46,14 @@ const SortableRoleItem: React.FC<{ role: { id: string; name: string; icon: strin
     setIsEditing(false);
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`确定删除角色「${role.name}」？相关目标也会被删除。`)) {
+    const confirmed = await confirmDelete({
+      title: '删除角色',
+      description: `确定删除角色「${role.name}」？相关目标也会被删除。`,
+      confirmText: '删除',
+    });
+    if (confirmed) {
       deleteRole(role.id);
     }
   };

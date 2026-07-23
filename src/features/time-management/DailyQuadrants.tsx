@@ -25,6 +25,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function getDeadlineGroup(deadline: number | undefined, now: number): string {
   if (!deadline) return '无日期';
+  if (deadline < now) return '已过期';
   const diffDays = (deadline - now) / MS_PER_DAY;
   if (diffDays <= 1) return '一天内';
   if (diffDays <= 3) return '三天内';
@@ -33,6 +34,9 @@ function getDeadlineGroup(deadline: number | undefined, now: number): string {
 }
 
 function getDefaultDeadlineForGroup(groupName: string, now: number): number | undefined {
+  if (groupName === '已过期') {
+    return now - 3600 * 1000;
+  }
   if (groupName === '一天内') {
     const d = new Date(now + MS_PER_DAY);
     d.setHours(23, 59, 59, 999);
@@ -206,8 +210,10 @@ export function DailyQuadrants({ tasks, onToggleComplete, onAddTask, hideComplet
   };
 
   const renderTasks = (taskList: Task[], color: string) => {
+    const now = Date.now();
     return taskList.map(task => {
       const isHovered = dragOverTaskId === task.id;
+      const isExpired = task.deadline && task.deadline < now && !task.completed;
       return (
         <div 
           key={task.id} 
@@ -234,6 +240,11 @@ export function DailyQuadrants({ tasks, onToggleComplete, onAddTask, hideComplet
           </button>
           <div className="tm-task-content-wrapper" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '4px', minWidth: 0 }}>
             <span className="tm-task-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+            {isExpired && (
+              <span style={{ fontSize: '10px', color: '#dc2626', backgroundColor: '#fef2f2', padding: '1px 5px', borderRadius: '4px', border: '1px solid #fca5a5', flexShrink: 0, fontWeight: 500 }}>
+                已过期
+              </span>
+            )}
             {task.description && (
               <span className="tm-task-meta" style={{ display: 'flex', alignItems: 'center', flexShrink: 0, color: 'var(--text-muted)' }}>
                 <AlignLeft size={12} />
@@ -266,6 +277,7 @@ export function DailyQuadrants({ tasks, onToggleComplete, onAddTask, hideComplet
 
     const now = Date.now();
 
+    const expired: Task[] = [];
     const noDate: Task[] = [];
     const within1Day: Task[] = [];
     const within3Days: Task[] = [];
@@ -275,6 +287,8 @@ export function DailyQuadrants({ tasks, onToggleComplete, onAddTask, hideComplet
     sortedTasks.forEach(t => {
       if (!t.deadline) {
         noDate.push(t);
+      } else if (t.deadline < now) {
+        expired.push(t);
       } else {
         const diffDays = (t.deadline - now) / MS_PER_DAY;
         if (diffDays <= 1) within1Day.push(t);
@@ -311,6 +325,13 @@ export function DailyQuadrants({ tasks, onToggleComplete, onAddTask, hideComplet
         </div>
         
         <div className="quadrant-task-list">
+          {expired.length > 0 && (
+            <div onDragOver={handleDragOver} onDrop={(e) => handleDropOnGroup(e, type, '已过期')}>
+              <CollapsibleGroup title="已过期" count={expired.length} titleColor="#d32f2f">
+                {renderTasks(expired, config.color)}
+              </CollapsibleGroup>
+            </div>
+          )}
           {within1Day.length > 0 && (
             <div onDragOver={handleDragOver} onDrop={(e) => handleDropOnGroup(e, type, '一天内')}>
               <CollapsibleGroup title="一天内" count={within1Day.length}>

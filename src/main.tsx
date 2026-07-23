@@ -157,7 +157,13 @@ function App() {
   );
 }
 
-const rootContent = <App />;
+import { ConfirmDialogProvider } from "./components/ui/ConfirmDeleteDialog";
+
+const rootContent = (
+  <ConfirmDialogProvider>
+    <App />
+  </ConfirmDialogProvider>
+);
 
 createRoot(document.getElementById("root")!).render(
   <AppErrorBoundary>

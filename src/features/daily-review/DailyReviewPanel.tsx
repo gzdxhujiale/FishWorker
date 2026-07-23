@@ -38,6 +38,8 @@ export const DailyReviewPanel: React.FC = () => {
     saveReview(date, content, rating, isHighFreq);
   };
 
+  const MIN_DATE = '2026-07-01';
+
   const changeDate = (days: number) => {
     const [y, m, d_val] = selectedDate.split('-').map(Number);
     const d = new Date(y, m - 1, d_val);
@@ -46,6 +48,10 @@ export const DailyReviewPanel: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (d > today) return;
+
+    const minDate = new Date(2026, 6, 1); // 2026-07-01
+    minDate.setHours(0, 0, 0, 0);
+    if (d < minDate) return;
 
     setSelectedDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
   };
@@ -57,11 +63,28 @@ export const DailyReviewPanel: React.FC = () => {
       {/* Top Bar: Date Navigation */}
       <div className="review-top-bar">
         <div className="top-bar-date-nav">
-          <button className="top-bar-nav-btn" onClick={() => changeDate(-1)} title="前一天">
+          <button 
+            className="top-bar-nav-btn" 
+            onClick={() => changeDate(-1)} 
+            title="前一天"
+            disabled={selectedDate <= MIN_DATE}
+          >
             <ChevronLeft size={18} />
           </button>
           <span className="top-bar-date-display">{formatDateDisplay(selectedDate)}</span>
-          {isCurrentToday && <span className="top-bar-today-badge">今天</span>}
+          {isCurrentToday ? (
+            <span className="top-bar-today-badge">今天</span>
+          ) : (
+            <button
+              type="button"
+              className="top-bar-today-badge"
+              style={{ cursor: 'pointer', border: 'none', transition: 'all 0.15s' }}
+              onClick={() => setSelectedDate(getTodayStr())}
+              title="回到今天"
+            >
+              回到今天
+            </button>
+          )}
           <button
             className="top-bar-nav-btn"
             onClick={() => changeDate(1)}
