@@ -16,10 +16,7 @@ pub struct DailyReviewRow {
 #[tauri::command]
 pub async fn daily_review_load_all(pool: State<'_, SqlitePool>) -> Result<Vec<DailyReviewRow>, String> {
     let rows = sqlx::query(
-        "SELECT id, date, content, rating,
-         CAST(strftime('%s', created_at) * 1000 AS INTEGER) as created_at_ms,
-         CAST(strftime('%s', updated_at) * 1000 AS INTEGER) as updated_at_ms
-         FROM daily_reviews"
+        "SELECT id, date, content, rating, created_at, updated_at FROM daily_reviews"
     )
     .fetch_all(&*pool)
     .await
@@ -27,13 +24,33 @@ pub async fn daily_review_load_all(pool: State<'_, SqlitePool>) -> Result<Vec<Da
 
     Ok(rows
         .into_iter()
-        .map(|r| DailyReviewRow {
-            id: r.try_get("id").unwrap_or_default(),
-            date: r.try_get("date").unwrap_or_default(),
-            content: r.try_get("content").unwrap_or_default(),
-            rating: r.try_get("rating").ok(),
-            created_at: r.try_get::<i64, _>("created_at_ms").ok(),
-            updated_at: r.try_get::<i64, _>("updated_at_ms").ok(),
+        .map(|r| {
+            let parse_ms = |val: Option<String>| -> Option<i64> {
+                let s = val?;
+                if let Ok(ms) = s.parse::<i64>() {
+                    Some(ms)
+                } else if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&s) {
+                    Some(dt.timestamp_millis())
+                } else if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S%.f") {
+                    Some(naive.and_utc().timestamp_millis())
+                } else if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S") {
+                    Some(naive.and_utc().timestamp_millis())
+                } else {
+                    None
+                }
+            };
+
+            let created_at_str: Option<String> = r.try_get("created_at").ok();
+            let updated_at_str: Option<String> = r.try_get("updated_at").ok();
+
+            DailyReviewRow {
+                id: r.try_get("id").unwrap_or_default(),
+                date: r.try_get("date").unwrap_or_default(),
+                content: r.try_get("content").unwrap_or_default(),
+                rating: r.try_get("rating").ok(),
+                created_at: parse_ms(created_at_str),
+                updated_at: parse_ms(updated_at_str),
+            }
         })
         .collect())
 }
@@ -88,8 +105,15 @@ pub async fn daily_review_delete(
         .await
         .map_err(|e| e.to_string())?;
 
+    let _ = sqlx::query("INSERT OR REPLACE INTO sync_queue (table_name, record_id, action) VALUES ('daily_reviews', ?, 'DELETE')")
+        .bind(&id)
+        .execute(&*pool)
+        .await;
+
     if let Some(ref mysql) = *tidb_state.inner().0.read().await {
-        let _ = sqlx::query("DELETE FROM daily_reviews WHERE id = ?").bind(&id).execute(mysql).await;
+        if let Ok(_) = sqlx::query("DELETE FROM daily_reviews WHERE id = ?").bind(&id).execute(mysql).await {
+            let _ = sqlx::query("DELETE FROM sync_queue WHERE table_name = 'daily_reviews' AND record_id = ? AND action = 'DELETE'").bind(&id).execute(&*pool).await;
+        }
     }
 
     Ok(())

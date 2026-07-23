@@ -212,8 +212,15 @@ pub async fn pomodoro_delete_record(
         .await
         .map_err(|e| e.to_string())?;
 
+    let _ = sqlx::query("INSERT OR REPLACE INTO sync_queue (table_name, record_id, action) VALUES ('pomodoro_records', ?, 'DELETE')")
+        .bind(&id)
+        .execute(&*pool)
+        .await;
+
     if let Some(ref mysql) = *tidb_state.inner().0.read().await {
-        let _ = sqlx::query("DELETE FROM pomodoro_records WHERE id = ?").bind(&id).execute(mysql).await;
+        if let Ok(_) = sqlx::query("DELETE FROM pomodoro_records WHERE id = ?").bind(&id).execute(mysql).await {
+            let _ = sqlx::query("DELETE FROM sync_queue WHERE table_name = 'pomodoro_records' AND record_id = ? AND action = 'DELETE'").bind(&id).execute(&*pool).await;
+        }
     }
 
     Ok(())
@@ -273,8 +280,15 @@ pub async fn pomodoro_delete_favorite(
         .await
         .map_err(|e| e.to_string())?;
 
+    let _ = sqlx::query("INSERT OR REPLACE INTO sync_queue (table_name, record_id, action) VALUES ('pomodoro_favorites', ?, 'DELETE')")
+        .bind(&id)
+        .execute(&*pool)
+        .await;
+
     if let Some(ref mysql) = *tidb_state.inner().0.read().await {
-        let _ = sqlx::query("DELETE FROM pomodoro_favorites WHERE id = ?").bind(&id).execute(mysql).await;
+        if let Ok(_) = sqlx::query("DELETE FROM pomodoro_favorites WHERE id = ?").bind(&id).execute(mysql).await {
+            let _ = sqlx::query("DELETE FROM sync_queue WHERE table_name = 'pomodoro_favorites' AND record_id = ? AND action = 'DELETE'").bind(&id).execute(&*pool).await;
+        }
     }
 
     Ok(())

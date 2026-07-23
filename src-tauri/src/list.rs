@@ -265,22 +265,26 @@ pub async fn list_delete_list(id: String, pool: State<'_, SqlitePool>) -> Result
 #[tauri::command]
 pub async fn list_reorder_lists(items: Vec<(String, i32)>, pool: State<'_, SqlitePool>) -> Result<(), String> {
     let now = now_iso();
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     for (id, order) in &items {
         sqlx::query("UPDATE list_lists SET sort_order = ?, updated_at = ? WHERE id = ?")
             .bind(order).bind(&now).bind(id)
-            .execute(&*pool).await.map_err(|e| e.to_string())?;
+            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
+    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 pub async fn list_reorder_folders(items: Vec<(String, i32)>, pool: State<'_, SqlitePool>) -> Result<(), String> {
     let now = now_iso();
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     for (id, order) in &items {
         sqlx::query("UPDATE list_folders SET sort_order = ?, updated_at = ? WHERE id = ?")
             .bind(order).bind(&now).bind(id)
-            .execute(&*pool).await.map_err(|e| e.to_string())?;
+            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
+    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -297,6 +301,7 @@ pub async fn list_move_list(list_id: String, folder_id: Option<String>, sort_ord
 pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: State<'_, SqlitePool>) -> Result<(), String> {
     let now = now_iso();
     let now_ms_val = now_ms();
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
 
     // Insert new list
     let pinned: i32 = if new_list.is_pinned { 1 } else { 0 };
@@ -314,12 +319,12 @@ pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: St
     .bind(new_list.sort_order)
     .bind(&now)
     .bind(&now)
-    .execute(&*pool).await.map_err(|e| e.to_string())?;
+    .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
     // Copy groups
     let group_rows = sqlx::query("SELECT id, list_id, name, sort_order FROM list_note_groups WHERE list_id = ?")
         .bind(&source_id)
-        .fetch_all(&*pool).await.map_err(|e| e.to_string())?;
+        .fetch_all(&mut *tx).await.map_err(|e| e.to_string())?;
 
     let mut group_id_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     for row in &group_rows {
@@ -338,7 +343,7 @@ pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: St
         .bind(sort_order)
         .bind(&now)
         .bind(&now)
-        .execute(&*pool).await.map_err(|e| e.to_string())?;
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
 
         group_id_map.insert(old_id, new_id);
     }
@@ -348,7 +353,7 @@ pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: St
         "SELECT id, group_id, title, content, is_pinned, sort_order FROM list_notes WHERE list_id = ? AND deleted_at IS NULL"
     )
     .bind(&source_id)
-    .fetch_all(&*pool).await.map_err(|e| e.to_string())?;
+    .fetch_all(&mut *tx).await.map_err(|e| e.to_string())?;
 
     for row in &note_rows {
         let old_group_id: Option<String> = row.try_get("group_id").unwrap_or(None);
@@ -372,9 +377,10 @@ pub async fn list_duplicate_list(source_id: String, new_list: ListList, pool: St
         .bind(sort_order)
         .bind(&now)
         .bind(&now)
-        .execute(&*pool).await.map_err(|e| e.to_string())?;
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
+    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -427,11 +433,13 @@ pub async fn list_move_note(note_id: String, list_id: String, group_id: Option<S
 #[tauri::command]
 pub async fn list_reorder_notes(items: Vec<(String, i32)>, pool: State<'_, SqlitePool>) -> Result<(), String> {
     let now = now_iso();
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     for (id, order) in &items {
         sqlx::query("UPDATE list_notes SET sort_order = ?, updated_at = ? WHERE id = ?")
             .bind(order).bind(&now).bind(id)
-            .execute(&*pool).await.map_err(|e| e.to_string())?;
+            .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
+    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -582,6 +590,7 @@ pub struct MigrationTemplate {
 #[tauri::command]
 pub async fn list_migrate_from_local(data: MigrationData, pool: State<'_, SqlitePool>) -> Result<(), String> {
     let now = now_iso();
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
 
     // Migrate folders
     for f in &data.folders {
@@ -592,7 +601,7 @@ pub async fn list_migrate_from_local(data: MigrationData, pool: State<'_, Sqlite
         )
         .bind(&f.id).bind(&f.name).bind(pinned).bind(f.sort_order.unwrap_or(0))
         .bind(&now).bind(&now)
-        .execute(&*pool).await.map_err(|e| e.to_string())?;
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
     // Migrate lists
@@ -608,7 +617,7 @@ pub async fn list_migrate_from_local(data: MigrationData, pool: State<'_, Sqlite
         .bind(&l.id).bind(&l.name).bind(icon).bind(color).bind(view_type)
         .bind(&l.folder_id).bind(pinned).bind(l.sort_order.unwrap_or(0))
         .bind(&now).bind(&now)
-        .execute(&*pool).await.map_err(|e| e.to_string())?;
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
     // Migrate note groups
@@ -619,7 +628,7 @@ pub async fn list_migrate_from_local(data: MigrationData, pool: State<'_, Sqlite
         )
         .bind(&g.id).bind(&g.list_id).bind(&g.name).bind(g.sort_order.unwrap_or(0))
         .bind(&now).bind(&now)
-        .execute(&*pool).await.map_err(|e| e.to_string())?;
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
     // Migrate notes
@@ -642,7 +651,7 @@ pub async fn list_migrate_from_local(data: MigrationData, pool: State<'_, Sqlite
         .bind(&n.id).bind(&n.list_id).bind(&n.group_id).bind(title).bind(content)
         .bind(pinned).bind(n.sort_order.unwrap_or(0))
         .bind(&created).bind(&updated)
-        .execute(&*pool).await.map_err(|e| e.to_string())?;
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
     // Migrate templates
@@ -654,8 +663,9 @@ pub async fn list_migrate_from_local(data: MigrationData, pool: State<'_, Sqlite
         )
         .bind(&t.id).bind(&t.name).bind(content)
         .bind(&now).bind(&now)
-        .execute(&*pool).await.map_err(|e| e.to_string())?;
+        .execute(&mut *tx).await.map_err(|e| e.to_string())?;
     }
 
+    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }

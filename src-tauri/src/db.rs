@@ -69,13 +69,21 @@ fn read_config() -> MysqlConfigJson {
 pub async fn establish_connection() -> Result<MySqlPool, sqlx::Error> {
     let config = read_config();
 
-    let host = config.host.unwrap_or_else(|| "gateway01.ap-southeast-1.prod.aws.tidbcloud.com".to_string());
-    let port = config.port.unwrap_or(4000);
-    let user = config.user.unwrap_or_else(|| "24LcgDNkgTvCTPz.root".to_string());
-    let password = config.password.unwrap_or_else(|| "4DpLYsXL6brv1phl".to_string());
-    let database = config
-        .database
-        .unwrap_or_else(|| "aistudy_public".to_string());
+    let host = std::env::var("TIDB_HOST").ok().or(config.host).unwrap_or_default();
+    let port = std::env::var("TIDB_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .or(config.port)
+        .unwrap_or(4000);
+    let user = std::env::var("TIDB_USER").ok().or(config.user).unwrap_or_default();
+    let password = std::env::var("TIDB_PASSWORD").ok().or(config.password).unwrap_or_default();
+    let database = std::env::var("TIDB_DATABASE").ok().or(config.database).unwrap_or_default();
+
+    if host.is_empty() || user.is_empty() || password.is_empty() || database.is_empty() {
+        return Err(sqlx::Error::Configuration(
+            "TiDB connection configuration is incomplete. Missing host, user, password, or database.".into()
+        ));
+    }
 
     let url = format!(
         "mysql://{}:{}@{}:{}/{}?ssl-mode=required",
