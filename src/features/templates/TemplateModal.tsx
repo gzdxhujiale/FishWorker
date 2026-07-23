@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Template, getTemplatePreviewText } from './templateTypes';
 import { X, Edit2, Trash2 } from 'lucide-react';
-import { ConfirmBubble } from './ConfirmBubble';
 import { ReactjsTiptapEditor } from '../reactjs-tiptap-v1';
+import { useConfirmDialog } from '../../components/ui/ConfirmDeleteDialog';
 
 interface TemplateModalProps {
   templates: Template[];
@@ -14,10 +14,10 @@ interface TemplateModalProps {
 
 
 export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }: TemplateModalProps) {
+  const { confirm: confirmDelete } = useConfirmDialog();
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [editName, setEditName] = useState('');
   const [editContent, setEditContent] = useState('');
-  const [deleteConfirmTemplateId, setDeleteConfirmTemplateId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredTemplates = templates.filter(t =>
@@ -105,23 +105,22 @@ export function TemplateModal({ templates, onSelect, onClose, onEdit, onDelete }
                       <div className="template-action-btn" onClick={(e) => startEdit(e, tpl)}>
                         <Edit2 size={14} />
                       </div>
-                      <ConfirmBubble
-                        isOpen={deleteConfirmTemplateId === tpl.id}
-                        message="确定要删除这个模板吗？"
-                        position="bottom"
-                        onConfirm={() => {
-                          if (onDelete) onDelete(tpl.id);
-                          setDeleteConfirmTemplateId(null);
-                        }}
-                        onCancel={() => setDeleteConfirmTemplateId(null)}
-                      >
-                        <div className="template-action-btn danger" onClick={(e) => {
+                      <div
+                        className="template-action-btn danger"
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          setDeleteConfirmTemplateId(tpl.id);
-                        }}>
-                          <Trash2 size={14} />
-                        </div>
-                      </ConfirmBubble>
+                          const confirmed = await confirmDelete({
+                            title: '删除模板',
+                            description: `确定要删除模板 "${tpl.name}" 吗？`,
+                            confirmText: '删除',
+                          });
+                          if (confirmed && onDelete) {
+                            onDelete(tpl.id);
+                          }
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </div>
                     </div>
                   </div>
                   <div className="template-card-preview">

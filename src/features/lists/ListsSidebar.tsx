@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, cloneElement, ReactElement, ReactNode } from 'react';
 import { Plus, Folder as FolderIcon, ChevronDown, MoreHorizontal, BookOpen, Briefcase, Home, Package, Activity, Star } from 'lucide-react';
 import { List, Folder } from './listsTypes';
-import { ConfirmBubble } from '../templates';
+import { useConfirmDialog } from '../../components/ui/ConfirmDeleteDialog';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from './SortableItem';
@@ -59,12 +59,11 @@ export function ListsSidebar({
   isCollapsed
 }: ListsSidebarProps) {
   const store = useListsStore();
+  const { confirm: confirmDelete } = useConfirmDialog();
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
 
   // Dropdown state
   const [activeDropdown, setActiveDropdown] = useState<{ type: 'folder' | 'list', id: string } | null>(null);
-  const [deleteConfirmListId, setDeleteConfirmListId] = useState<string | null>(null);
-  const [deleteConfirmFolderId, setDeleteConfirmFolderId] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -72,13 +71,8 @@ export function ListsSidebar({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node | null;
-      if (target && (target as Element).closest?.('.confirm-bubble')) {
-        return; // Ignore clicks inside the confirm bubble
-      }
       if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setActiveDropdown(null);
-        setDeleteConfirmListId(null);
-        setDeleteConfirmFolderId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -230,27 +224,23 @@ export function ListsSidebar({
                             <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onAddClick(folder.id); }}>添加清单</div>
                             <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditFolder(folder); }}>编辑</div>
                             <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinFolder(folder); }}>{folder.isPinned ? '取消置顶' : '置顶'}</div>
-                            <ConfirmBubble
-                              isOpen={deleteConfirmFolderId === folder.id}
-                              message={`确定要解散文件夹 "${folder.name}" 吗？（其中的清单不会被删除）`}
-                              position="right"
-                              onConfirm={() => {
-                                onDissolveFolder(folder);
-                                setDeleteConfirmFolderId(null);
+                            <div
+                              className="lists-dropdown-item text-danger"
+                              onClick={async (e) => {
+                                e.stopPropagation();
                                 setActiveDropdown(null);
+                                const confirmed = await confirmDelete({
+                                  title: '解散文件夹',
+                                  description: `确定要解散文件夹 "${folder.name}" 吗？（其中的清单不会被删除）`,
+                                  confirmText: '解散',
+                                });
+                                if (confirmed) {
+                                  onDissolveFolder(folder);
+                                }
                               }}
-                              onCancel={() => setDeleteConfirmFolderId(null)}
                             >
-                              <div
-                                className="lists-dropdown-item text-danger"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDeleteConfirmFolderId(folder.id);
-                                }}
-                              >
-                                解散
-                              </div>
-                            </ConfirmBubble>
+                              解散
+                            </div>
                           </div>
                         )}
                       </div>
@@ -289,27 +279,23 @@ export function ListsSidebar({
                                     <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditList(list); }}>编辑</div>
                                     <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinList(list); }}>{list.isPinned ? '取消置顶' : '置顶'}</div>
                                     <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onDuplicateList(list); }}>复制</div>
-                                    <ConfirmBubble
-                                      isOpen={deleteConfirmListId === list.id}
-                                      message={`确定要删除清单 "${list.name}" 吗？`}
-                                      position="right"
-                                      onConfirm={() => {
-                                        onDeleteList(list);
-                                        setDeleteConfirmListId(null);
+                                    <div
+                                      className="lists-dropdown-item text-danger"
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
                                         setActiveDropdown(null);
+                                        const confirmed = await confirmDelete({
+                                          title: '删除清单',
+                                          description: `确定要删除清单 "${list.name}" 吗？`,
+                                          confirmText: '删除',
+                                        });
+                                        if (confirmed) {
+                                          onDeleteList(list);
+                                        }
                                       }}
-                                      onCancel={() => setDeleteConfirmListId(null)}
                                     >
-                                      <div
-                                        className="lists-dropdown-item text-danger"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setDeleteConfirmListId(list.id);
-                                        }}
-                                      >
-                                        删除
-                                      </div>
-                                    </ConfirmBubble>
+                                      删除
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -363,27 +349,23 @@ export function ListsSidebar({
                                 <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onEditList(list); }}>编辑</div>
                                 <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onPinList(list); }}>{list.isPinned ? '取消置顶' : '置顶'}</div>
                                 <div className="lists-dropdown-item" onClick={() => { setActiveDropdown(null); onDuplicateList(list); }}>复制</div>
-                                <ConfirmBubble
-                                  isOpen={deleteConfirmListId === list.id}
-                                  message={`确定要删除清单 "${list.name}" 吗？`}
-                                  position="right"
-                                  onConfirm={() => {
-                                    onDeleteList(list);
-                                    setDeleteConfirmListId(null);
+                                <div
+                                  className="lists-dropdown-item text-danger"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
                                     setActiveDropdown(null);
+                                    const confirmed = await confirmDelete({
+                                      title: '删除清单',
+                                      description: `确定要删除清单 "${list.name}" 吗？`,
+                                      confirmText: '删除',
+                                    });
+                                    if (confirmed) {
+                                      onDeleteList(list);
+                                    }
                                   }}
-                                  onCancel={() => setDeleteConfirmListId(null)}
                                 >
-                                  <div
-                                    className="lists-dropdown-item text-danger"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteConfirmListId(list.id);
-                                    }}
-                                  >
-                                    删除
-                                  </div>
-                                </ConfirmBubble>
+                                  删除
+                                </div>
                               </div>
                             )}
                           </div>

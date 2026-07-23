@@ -95,6 +95,13 @@ function App() {
     preloadAllModules();
   }, []);
 
+  // Blur any active element (e.g. TipTap editor) when switching sections to prevent aria-hidden focus retention warnings
+  React.useEffect(() => {
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }, [activeSection]);
+
   return (
     <>
       <AppLayout
@@ -122,25 +129,46 @@ function App() {
                 lazy mounting. The Suspense boundary only covers the initial
                 load of each lazy chunk — after that switching is instant. */}
             <React.Suspense fallback={<SectionFallback />}>
-              <div style={{ display: activeSection === "pomodoro" ? "block" : "none", height: "100%" }}>
+              <div
+                inert={activeSection !== "pomodoro" ? true : undefined}
+                style={{ display: activeSection === "pomodoro" ? "block" : "none", height: "100%" }}
+              >
                 <PomodoroPanel />
               </div>
-              <div style={{ display: activeSection === "lists" ? "block" : "none", height: "100%" }}>
+              <div
+                inert={activeSection !== "lists" ? true : undefined}
+                style={{ display: activeSection === "lists" ? "block" : "none", height: "100%" }}
+              >
                 <ListsPanel />
               </div>
-              <div style={{ display: activeSection === "weekly-planning" ? "block" : "none", height: "100%" }}>
+              <div
+                inert={activeSection !== "weekly-planning" ? true : undefined}
+                style={{ display: activeSection === "weekly-planning" ? "block" : "none", height: "100%" }}
+              >
                 <TimeManagementPanel mode="weekly" />
               </div>
-              <div style={{ display: activeSection === "four-quadrants" ? "block" : "none", height: "100%" }}>
+              <div
+                inert={activeSection !== "four-quadrants" ? true : undefined}
+                style={{ display: activeSection === "four-quadrants" ? "block" : "none", height: "100%" }}
+              >
                 <TimeManagementPanel mode="daily" />
               </div>
-              <div style={{ display: activeSection === "daily-review" ? "block" : "none", height: "100%" }}>
+              <div
+                inert={activeSection !== "daily-review" ? true : undefined}
+                style={{ display: activeSection === "daily-review" ? "block" : "none", height: "100%" }}
+              >
                 <DailyReviewPanel />
               </div>
-              <div style={{ display: activeSection === "habit" ? "block" : "none", height: "100%" }}>
+              <div
+                inert={activeSection !== "habit" ? true : undefined}
+                style={{ display: activeSection === "habit" ? "block" : "none", height: "100%" }}
+              >
                 <HabitPanel />
               </div>
-              <div style={{ display: activeSection === "mission" ? "block" : "none", height: "100%" }}>
+              <div
+                inert={activeSection !== "mission" ? true : undefined}
+                style={{ display: activeSection === "mission" ? "block" : "none", height: "100%" }}
+              >
                 <MissionPanel />
               </div>
             </React.Suspense>

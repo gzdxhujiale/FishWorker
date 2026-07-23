@@ -37,6 +37,10 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
       const opts: ConfirmDialogOptions =
         typeof options === 'string' ? { description: options } : options;
 
+      if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+
       setDialogState({
         isOpen: true,
         title: opts.title || '确认删除',

@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { Plus, Search, Edit2, Trash2, ArrowLeft } from 'lucide-react';
-import { useTemplateStore, Template, getTemplatePreviewText, ConfirmBubble } from '../../templates';
+import { useTemplateStore, Template, getTemplatePreviewText } from '../../templates';
 import { ReactjsTiptapEditor } from '../../reactjs-tiptap-v1';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDeleteDialog';
 
 export function TemplateSettingsPanel() {
   const templates = useTemplateStore((state) => state.templates);
   const addTemplate = useTemplateStore((state) => state.addTemplate);
   const updateTemplate = useTemplateStore((state) => state.updateTemplate);
   const deleteTemplate = useTemplateStore((state) => state.deleteTemplate);
+  const { confirm: confirmDelete } = useConfirmDialog();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [editName, setEditName] = useState('');
   const [editContent, setEditContent] = useState('');
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const filteredTemplates = templates.filter(
     (t) =>
@@ -162,27 +163,24 @@ export function TemplateSettingsPanel() {
                     <Edit2 size={14} />
                   </button>
 
-                  <ConfirmBubble
-                    isOpen={deleteConfirmId === tpl.id}
-                    message="确定要删除这个模板吗？"
-                    onConfirm={() => {
-                      deleteTemplate(tpl.id);
-                      setDeleteConfirmId(null);
+                  <button
+                    className="template-action-btn danger"
+                    title="删除"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const confirmed = await confirmDelete({
+                        title: '删除模板',
+                        description: `确定要删除模板 "${tpl.name}" 吗？`,
+                        confirmText: '删除',
+                      });
+                      if (confirmed) {
+                        deleteTemplate(tpl.id);
+                      }
                     }}
-                    onCancel={() => setDeleteConfirmId(null)}
+                    type="button"
                   >
-                    <button
-                      className="template-action-btn danger"
-                      title="删除"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteConfirmId(tpl.id);
-                      }}
-                      type="button"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </ConfirmBubble>
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
 
