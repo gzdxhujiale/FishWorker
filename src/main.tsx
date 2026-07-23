@@ -67,19 +67,33 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, AppError
 
 type AppSection = "weekly-planning" | "four-quadrants" | "daily-review" | "habit" | "lists" | "mission" | "pomodoro";
 
+// Preload all lazy modules during browser idle time after first paint.
+// This mirrors what VS Code / Linear do: critical path loads fast, secondary
+// chunks are quietly fetched in the background so navigation feels instant.
+function preloadAllModules() {
+  const schedule = typeof requestIdleCallback !== "undefined"
+    ? requestIdleCallback
+    : (cb: () => void) => setTimeout(cb, 200);
+
+  schedule(() => {
+    import("./features/pomodoro/PomodoroPanel");
+    import("./features/lists/ListsPanel");
+    import("./features/daily-review/DailyReviewPanel");
+    import("./features/habit/HabitPanel");
+    import("./features/mission/MissionPanel");
+    import("./features/time-management/TimeManagementPanel");
+    import("./features/settings/SettingsModal");
+  });
+}
+
 function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("four-quadrants");
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
-  const [visitedSections, setVisitedSections] = React.useState<Set<AppSection>>(() => new Set(["four-quadrants"]));
 
+  // Preload all chunks once on mount, during idle time.
   React.useEffect(() => {
-    setVisitedSections((prev) => {
-      if (prev.has(activeSection)) return prev;
-      const next = new Set(prev);
-      next.add(activeSection);
-      return next;
-    });
-  }, [activeSection]);
+    preloadAllModules();
+  }, []);
 
   return (
     <>
@@ -89,7 +103,6 @@ function App() {
           <Toolbar
             tools={[
               { id: "four-quadrants", name: "四象限工作台", icon: LayoutGrid, component: () => <></> },
-
               { id: "pomodoro", name: "番茄专注", icon: Timer, component: () => <></> },
               { id: "daily-review", name: "每日复盘", icon: Clock, component: () => <></> },
               { id: "weekly-planning", name: "周计划", icon: CalendarDays, component: () => <></> },
@@ -104,42 +117,32 @@ function App() {
         }
         mainContent={
           <MainContent>
+            {/* All panels are mounted immediately and hidden via display:none.
+                This eliminates the "first-visit stutter" caused by on-demand
+                lazy mounting. The Suspense boundary only covers the initial
+                load of each lazy chunk — after that switching is instant. */}
             <React.Suspense fallback={<SectionFallback />}>
-              {visitedSections.has("pomodoro") && (
-                <div style={{ display: activeSection === "pomodoro" ? "block" : "none", height: "100%" }}>
-                  <PomodoroPanel />
-                </div>
-              )}
-              {visitedSections.has("lists") && (
-                <div style={{ display: activeSection === "lists" ? "block" : "none", height: "100%" }}>
-                  <ListsPanel />
-                </div>
-              )}
-              {visitedSections.has("weekly-planning") && (
-                <div style={{ display: activeSection === "weekly-planning" ? "block" : "none", height: "100%" }}>
-                  <TimeManagementPanel mode="weekly" />
-                </div>
-              )}
-              {visitedSections.has("four-quadrants") && (
-                <div style={{ display: activeSection === "four-quadrants" ? "block" : "none", height: "100%" }}>
-                  <TimeManagementPanel mode="daily" />
-                </div>
-              )}
-              {visitedSections.has("daily-review") && (
-                <div style={{ display: activeSection === "daily-review" ? "block" : "none", height: "100%" }}>
-                  <DailyReviewPanel />
-                </div>
-              )}
-              {visitedSections.has("habit") && (
-                <div style={{ display: activeSection === "habit" ? "block" : "none", height: "100%" }}>
-                  <HabitPanel />
-                </div>
-              )}
-              {visitedSections.has("mission") && (
-                <div style={{ display: activeSection === "mission" ? "block" : "none", height: "100%" }}>
-                  <MissionPanel />
-                </div>
-              )}
+              <div style={{ display: activeSection === "pomodoro" ? "block" : "none", height: "100%" }}>
+                <PomodoroPanel />
+              </div>
+              <div style={{ display: activeSection === "lists" ? "block" : "none", height: "100%" }}>
+                <ListsPanel />
+              </div>
+              <div style={{ display: activeSection === "weekly-planning" ? "block" : "none", height: "100%" }}>
+                <TimeManagementPanel mode="weekly" />
+              </div>
+              <div style={{ display: activeSection === "four-quadrants" ? "block" : "none", height: "100%" }}>
+                <TimeManagementPanel mode="daily" />
+              </div>
+              <div style={{ display: activeSection === "daily-review" ? "block" : "none", height: "100%" }}>
+                <DailyReviewPanel />
+              </div>
+              <div style={{ display: activeSection === "habit" ? "block" : "none", height: "100%" }}>
+                <HabitPanel />
+              </div>
+              <div style={{ display: activeSection === "mission" ? "block" : "none", height: "100%" }}>
+                <MissionPanel />
+              </div>
             </React.Suspense>
           </MainContent>
         }

@@ -23,8 +23,10 @@
 
 .app-layout-toolbar {
   background: #f5f5f5;
-  flex: 0 0 50px;
+  flex: 0 0 58px;
+  width: 58px; /* explicit width prevents flex recalculation during Suspense fallback */
   height: 100%;
+  overflow: hidden;
 }
 
 .app-layout-main {
