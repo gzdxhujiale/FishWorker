@@ -1,7 +1,6 @@
 import React from 'react';
 import { CompoundStats as CompoundStatsType, DailyReview } from './dailyReviewTypes';
-import { Zap, Award, BarChart3 } from 'lucide-react';
-import { Calendar } from '@arco-design/web-react';
+import { Zap, Award, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import dayjs from 'dayjs';
 
 interface Props {
@@ -12,6 +11,21 @@ interface Props {
 }
 
 export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, selectedDate }) => {
+  const currentMonth = dayjs(selectedDate);
+  const startOfMonth = currentMonth.startOf('month');
+  const daysInMonth = currentMonth.daysInMonth();
+  const startDayOfWeek = startOfMonth.day(); // 0 is Sunday
+
+  const days: (dayjs.Dayjs | null)[] = [];
+  for (let i = 0; i < startDayOfWeek; i++) {
+    days.push(null);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    days.push(currentMonth.date(d));
+  }
+
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+
   return (
     <div className="compound-stats-container">
       {/* Stats Cards */}
@@ -48,14 +62,36 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
 
       {/* Calendar Heatmap */}
       <div className="calendar-section">
-        <div className="calendar-section-title">当月打卡</div>
-        <div className="monthly-calendar-wrapper arco-custom-calendar">
-          <Calendar
-            panel
-            value={dayjs(selectedDate)}
-            onChange={(val) => onSelectDate(val.format('YYYY-MM-DD'))}
-            dateRender={(current) => {
-              const dStr = current.format('YYYY-MM-DD');
+        <div className="flex items-center justify-between mb-2">
+          <div className="calendar-section-title">{currentMonth.format('YYYY年 M月')} 打卡记录</div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onSelectDate(currentMonth.subtract(1, 'month').format('YYYY-MM-DD'))}
+              className="p-1 rounded hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectDate(currentMonth.add(1, 'month').format('YYYY-MM-DD'))}
+              className="p-1 rounded hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="monthly-calendar-wrapper bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
+          <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 font-medium mb-1">
+            {weekDays.map((w) => (
+              <div key={w} className="py-1">{w}</div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center">
+            {days.map((day, idx) => {
+              if (!day) return <div key={`empty-${idx}`} className="h-8" />;
+              const dStr = day.format('YYYY-MM-DD');
               const review = reviews.find(r => r.date === dStr);
               let cls = '';
               if (review) {
@@ -66,14 +102,21 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
               }
               const isSelected = dStr === selectedDate;
               return (
-                <div className={`arco-calendar-date ${cls} ${isSelected ? 'arco-calendar-date-selected' : ''}`}>
-                  <div className="arco-calendar-date-value">{current.date()}</div>
-                </div>
+                <button
+                  key={dStr}
+                  type="button"
+                  onClick={() => onSelectDate(dStr)}
+                  className={`h-8 rounded-lg flex flex-col items-center justify-center text-xs font-medium transition-all cursor-pointer border ${
+                    isSelected ? 'ring-2 ring-blue-500 ring-offset-1 border-blue-400' : 'border-transparent'
+                  } ${cls}`}
+                >
+                  <span className="arco-calendar-date-value">{day.date()}</span>
+                </button>
               );
-            }}
-          />
+            })}
+          </div>
         </div>
-        <div className="calendar-legend">
+        <div className="calendar-legend mt-3">
           <span>少</span>
           <div className="legend-box level-0"></div>
           <div className="legend-box level-1"></div>

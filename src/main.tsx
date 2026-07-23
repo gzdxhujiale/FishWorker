@@ -11,16 +11,24 @@ import {
   Timer
 } from "lucide-react";
 import { AppLayout, MenuBar, MainContent, Toolbar } from "./components/layout/AppLayout";
-import { TimeManagementPanel } from "./features/time-management/TimeManagementPanel";
-import { DailyReviewPanel } from "./features/daily-review/DailyReviewPanel";
-import { SettingsModal } from "./features/settings/SettingsModal";
-import { ListsPanel } from "./features/lists/ListsPanel";
-import { MissionPanel } from "./features/mission/MissionPanel";
-import { HabitPanel } from "./features/habit/HabitPanel";
-import { PomodoroPanel } from "./features/pomodoro/PomodoroPanel";
-
 import "./index.css";
-import "@arco-design/web-react/dist/css/arco.css";
+
+const TimeManagementPanel = React.lazy(() => import("./features/time-management/TimeManagementPanel").then(m => ({ default: m.TimeManagementPanel })));
+const DailyReviewPanel = React.lazy(() => import("./features/daily-review/DailyReviewPanel").then(m => ({ default: m.DailyReviewPanel })));
+const SettingsModal = React.lazy(() => import("./features/settings/SettingsModal").then(m => ({ default: m.SettingsModal })));
+const ListsPanel = React.lazy(() => import("./features/lists/ListsPanel").then(m => ({ default: m.ListsPanel })));
+const MissionPanel = React.lazy(() => import("./features/mission/MissionPanel").then(m => ({ default: m.MissionPanel })));
+const HabitPanel = React.lazy(() => import("./features/habit/HabitPanel").then(m => ({ default: m.HabitPanel })));
+const PomodoroPanel = React.lazy(() => import("./features/pomodoro/PomodoroPanel").then(m => ({ default: m.PomodoroPanel })));
+
+const SectionFallback = () => (
+  <div className="flex items-center justify-center h-full w-full bg-gray-50/50 text-gray-400 text-sm">
+    <div className="flex items-center gap-2">
+      <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+      <span>加载模块中...</span>
+    </div>
+  </div>
+);
 
 declare global {
   interface Window {
@@ -96,46 +104,52 @@ function App() {
         }
         mainContent={
           <MainContent>
-            {visitedSections.has("pomodoro") && (
-              <div style={{ display: activeSection === "pomodoro" ? "block" : "none", height: "100%" }}>
-                <PomodoroPanel />
-              </div>
-            )}
-            {visitedSections.has("lists") && (
-              <div style={{ display: activeSection === "lists" ? "block" : "none", height: "100%" }}>
-                <ListsPanel />
-              </div>
-            )}
-            {visitedSections.has("weekly-planning") && (
-              <div style={{ display: activeSection === "weekly-planning" ? "block" : "none", height: "100%" }}>
-                <TimeManagementPanel mode="weekly" />
-              </div>
-            )}
-            {visitedSections.has("four-quadrants") && (
-              <div style={{ display: activeSection === "four-quadrants" ? "block" : "none", height: "100%" }}>
-                <TimeManagementPanel mode="daily" />
-              </div>
-            )}
-            {visitedSections.has("daily-review") && (
-              <div style={{ display: activeSection === "daily-review" ? "block" : "none", height: "100%" }}>
-                <DailyReviewPanel />
-              </div>
-            )}
-            {visitedSections.has("habit") && (
-              <div style={{ display: activeSection === "habit" ? "block" : "none", height: "100%" }}>
-                <HabitPanel />
-              </div>
-            )}
-            {visitedSections.has("mission") && (
-              <div style={{ display: activeSection === "mission" ? "block" : "none", height: "100%" }}>
-                <MissionPanel />
-              </div>
-            )}
+            <React.Suspense fallback={<SectionFallback />}>
+              {visitedSections.has("pomodoro") && (
+                <div style={{ display: activeSection === "pomodoro" ? "block" : "none", height: "100%" }}>
+                  <PomodoroPanel />
+                </div>
+              )}
+              {visitedSections.has("lists") && (
+                <div style={{ display: activeSection === "lists" ? "block" : "none", height: "100%" }}>
+                  <ListsPanel />
+                </div>
+              )}
+              {visitedSections.has("weekly-planning") && (
+                <div style={{ display: activeSection === "weekly-planning" ? "block" : "none", height: "100%" }}>
+                  <TimeManagementPanel mode="weekly" />
+                </div>
+              )}
+              {visitedSections.has("four-quadrants") && (
+                <div style={{ display: activeSection === "four-quadrants" ? "block" : "none", height: "100%" }}>
+                  <TimeManagementPanel mode="daily" />
+                </div>
+              )}
+              {visitedSections.has("daily-review") && (
+                <div style={{ display: activeSection === "daily-review" ? "block" : "none", height: "100%" }}>
+                  <DailyReviewPanel />
+                </div>
+              )}
+              {visitedSections.has("habit") && (
+                <div style={{ display: activeSection === "habit" ? "block" : "none", height: "100%" }}>
+                  <HabitPanel />
+                </div>
+              )}
+              {visitedSections.has("mission") && (
+                <div style={{ display: activeSection === "mission" ? "block" : "none", height: "100%" }}>
+                  <MissionPanel />
+                </div>
+              )}
+            </React.Suspense>
           </MainContent>
         }
       />
 
-      {isSettingsOpen ? <SettingsModal onClose={() => setIsSettingsOpen(false)} /> : null}
+      {isSettingsOpen ? (
+        <React.Suspense fallback={null}>
+          <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+        </React.Suspense>
+      ) : null}
     </>
   );
 }

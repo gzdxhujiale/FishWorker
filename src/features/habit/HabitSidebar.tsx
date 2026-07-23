@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dropdown, Menu } from '@arco-design/web-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { MoreHorizontal, Edit, Trash2, Smile } from 'lucide-react';
 import { Habit } from './habitTypes';
 import { useHabitStore } from './habitStore';
@@ -26,21 +26,6 @@ export const HabitSidebar: React.FC<HabitSidebarProps> = ({ habit, onClose }) =>
     }
   };
 
-  const menu = (
-    <Menu>
-      <Menu.Item key="edit" onClick={() => setIsEditModalVisible(true)}>
-        <div className="flex items-center gap-2">
-          <Edit size={14} /> 编辑
-        </div>
-      </Menu.Item>
-      <Menu.Item key="delete" onClick={handleDelete}>
-        <div className="flex items-center gap-2 text-red-500">
-          <Trash2 size={14} /> 删除
-        </div>
-      </Menu.Item>
-    </Menu>
-  );
-
   return (
     <div className="flex flex-col h-full bg-[#f8f9fc]">
       {/* Header */}
@@ -52,11 +37,29 @@ export const HabitSidebar: React.FC<HabitSidebarProps> = ({ habit, onClose }) =>
           <h2 className="text-xl font-bold text-gray-800 truncate">{habit.name}</h2>
         </div>
         <div className="flex items-center gap-2">
-          <Dropdown droplist={menu} trigger="click" position="br">
-            <button className="p-2 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer">
-              <MoreHorizontal size={24} />
-            </button>
-          </Dropdown>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button className="p-2 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer rounded-lg hover:bg-gray-200/50 outline-none">
+                <MoreHorizontal size={24} />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className="min-w-[140px] bg-white rounded-xl p-1.5 shadow-lg border border-gray-100 z-50">
+                <DropdownMenu.Item
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer outline-none"
+                  onSelect={() => setIsEditModalVisible(true)}
+                >
+                  <Edit size={14} /> 编辑
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg cursor-pointer outline-none"
+                  onSelect={handleDelete}
+                >
+                  <Trash2 size={14} /> 删除
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
       </div>
 

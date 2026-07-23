@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Calendar, AlignLeft, Type } from 'lucide-react';
 import { Task } from './timeManagementTypes';
-import { DatePicker } from '@arco-design/web-react';
 import { ReactjsTiptapEditor } from '../reactjs-tiptap-v1';
 import dayjs from 'dayjs';
 
@@ -199,14 +198,27 @@ export function TaskDetailModal({ task, onClose, onSave }: TaskDetailModalProps)
                 )}
               </div>
             </label>
-            <DatePicker 
-              showTime={hasTime}
-              format={hasTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD"}
-              value={deadline ? dayjs(deadline) : undefined}
-              onChange={handleDeadlineChange}
-              disabledDate={(current) => current && current.isBefore(dayjs(), 'day')}
-              placeholder="选择截止日期..."
-              style={{ width: '100%', borderRadius: '8px', minHeight: '40px' }}
+            <input
+              type={hasTime ? "datetime-local" : "date"}
+              value={
+                deadline
+                  ? hasTime
+                    ? dayjs(deadline).format("YYYY-MM-DDTHH:mm")
+                    : dayjs(deadline).format("YYYY-MM-DD")
+                  : ""
+              }
+              onChange={(e) => handleDeadlineChange(e.target.value)}
+              style={{
+                width: '100%',
+                borderRadius: '8px',
+                minHeight: '40px',
+                padding: '0 12px',
+                border: '1px solid rgba(123, 145, 169, 0.25)',
+                background: 'var(--surface-1)',
+                color: 'inherit',
+                fontSize: '14px',
+                outline: 'none'
+              }}
             />
           </div>
           <div className="tm-form-group" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>

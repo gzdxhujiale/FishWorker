@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, X } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
-import { format } from 'date-fns';
+import dayjs from 'dayjs';
 import 'react-day-picker/dist/style.css';
 
 interface DateTimePickerProps {
@@ -14,7 +14,7 @@ export function DateTimePicker({ value, onChange }: DateTimePickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedDate = value ? new Date(value) : undefined;
-  const timeStr = value ? format(selectedDate!, 'HH:mm') : '12:00';
+  const timeStr = value ? dayjs(selectedDate).format('HH:mm') : '12:00';
 
   // Handle outside clicks to close popover
   useEffect(() => {
@@ -85,7 +85,7 @@ export function DateTimePicker({ value, onChange }: DateTimePickerProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <CalendarIcon size={16} style={{ color: 'var(--text-muted)' }} />
           <span>
-            {value ? format(selectedDate!, 'yyyy-MM-dd HH:mm') : '选择截止日期时间...'}
+            {value ? dayjs(selectedDate).format('YYYY-MM-DD HH:mm') : '选择截止日期时间...'}
           </span>
         </div>
         {value && (
