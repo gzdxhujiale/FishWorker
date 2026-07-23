@@ -2,6 +2,12 @@ use serde::{Deserialize, Serialize};
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+#[derive(Clone, Default)]
+pub struct TidbState(pub Arc<RwLock<Option<MySqlPool>>>);
+
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct MysqlConfigJson {
@@ -170,3 +176,17 @@ pub async fn db_set_preference(key: String, value: String, pool: tauri::State<'_
 
     Ok(())
 }
+
+#[allow(dead_code)]
+pub fn trigger_background_push(tidb_state: &TidbState, sqlite_pool: sqlx::SqlitePool) {
+    let tidb_state = tidb_state.clone();
+    tauri::async_runtime::spawn(async move {
+        let guard = tidb_state.0.read().await;
+        if let Some(mysql) = guard.as_ref() {
+            if let Err(e) = crate::local_db::push_to_tidb(mysql, &sqlite_pool).await {
+                eprintln!("[Realtime Push] push_to_tidb failed: {}", e);
+            }
+        }
+    });
+}
+

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqlitePool};
 use tauri::State;
+use crate::db::TidbState;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LinkedTarget {
@@ -203,12 +204,18 @@ pub async fn pomodoro_upsert_record(
 pub async fn pomodoro_delete_record(
     id: String,
     pool: State<'_, SqlitePool>,
+    tidb_state: State<'_, TidbState>,
 ) -> Result<(), String> {
     sqlx::query("DELETE FROM pomodoro_records WHERE id = ?")
         .bind(&id)
         .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query("DELETE FROM pomodoro_records WHERE id = ?").bind(&id).execute(mysql).await;
+    }
+
     Ok(())
 }
 
@@ -258,11 +265,17 @@ pub async fn pomodoro_upsert_favorite(
 pub async fn pomodoro_delete_favorite(
     id: String,
     pool: State<'_, SqlitePool>,
+    tidb_state: State<'_, TidbState>,
 ) -> Result<(), String> {
     sqlx::query("DELETE FROM pomodoro_favorites WHERE id = ?")
         .bind(&id)
         .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query("DELETE FROM pomodoro_favorites WHERE id = ?").bind(&id).execute(mysql).await;
+    }
+
     Ok(())
 }

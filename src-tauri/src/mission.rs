@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{SqlitePool, Row};
 use tauri::State;
+use crate::db::TidbState;
 
 fn now_iso() -> String {
     chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string()
@@ -159,7 +160,11 @@ pub async fn mission_update_role(id: String, name: String, icon: String, pool: S
 }
 
 #[tauri::command]
-pub async fn mission_delete_role(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+pub async fn mission_delete_role(
+    id: String,
+    pool: State<'_, SqlitePool>,
+    tidb_state: State<'_, TidbState>
+) -> Result<(), String> {
     sqlx::query("DELETE FROM mission_goals WHERE role_id = ?")
         .bind(&id)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
@@ -169,6 +174,13 @@ pub async fn mission_delete_role(id: String, pool: State<'_, SqlitePool>) -> Res
     sqlx::query("DELETE FROM mission_roles WHERE id = ?")
         .bind(&id)
         .execute(&*pool).await.map_err(|e| e.to_string())?;
+
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query("DELETE FROM mission_goals WHERE role_id = ?").bind(&id).execute(mysql).await;
+        let _ = sqlx::query("UPDATE time_management_tasks SET role_id = NULL WHERE role_id = ?").bind(&id).execute(mysql).await;
+        let _ = sqlx::query("DELETE FROM mission_roles WHERE id = ?").bind(&id).execute(mysql).await;
+    }
+
     Ok(())
 }
 
@@ -243,12 +255,20 @@ pub async fn mission_update_goal(
 }
 
 #[tauri::command]
-pub async fn mission_delete_goal(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+pub async fn mission_delete_goal(
+    id: String,
+    pool: State<'_, SqlitePool>,
+    tidb_state: State<'_, TidbState>
+) -> Result<(), String> {
     sqlx::query("DELETE FROM mission_goals WHERE id = ?")
         .bind(&id)
         .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query("DELETE FROM mission_goals WHERE id = ?").bind(&id).execute(mysql).await;
+    }
     Ok(())
 }
 

@@ -172,6 +172,36 @@ const DDL_STATEMENTS: &[&str] = &[
         UNIQUE KEY uk_habit_date (habit_id, date),
         KEY idx_habit_id (habit_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+    // ── Pomodoro Focus ──
+    "CREATE TABLE IF NOT EXISTS pomodoro_records (
+        id VARCHAR(64) NOT NULL,
+        mode VARCHAR(32) NOT NULL,
+        phase VARCHAR(32) NOT NULL,
+        start_time VARCHAR(64) NOT NULL,
+        end_time VARCHAR(64) NOT NULL,
+        duration_minutes BIGINT NOT NULL DEFAULT 0,
+        date VARCHAR(20) NOT NULL,
+        date_label VARCHAR(64) NOT NULL,
+        time_range_label VARCHAR(64) NOT NULL,
+        task_id VARCHAR(64) NULL,
+        linked_target TEXT NULL,
+        created_at DATETIME(3) NOT NULL,
+        PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+    "CREATE TABLE IF NOT EXISTS pomodoro_favorites (
+        id VARCHAR(64) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        icon VARCHAR(64) NOT NULL DEFAULT '',
+        mode VARCHAR(32) NOT NULL,
+        duration_minutes BIGINT NOT NULL DEFAULT 25,
+        accumulated_minutes BIGINT NOT NULL DEFAULT 0,
+        linked_target TEXT NULL,
+        is_archived TINYINT(1) NOT NULL DEFAULT 0,
+        created_at DATETIME(3) NOT NULL,
+        PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 ];
 
 /// 并行执行所有 DDL，将 12 次串行网络往返压缩为 1 轮并发。

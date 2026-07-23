@@ -117,12 +117,23 @@ pub async fn tm_upsert_task(task: Task, pool: State<'_, SqlitePool>) -> Result<(
     Ok(())
 }
 
+use crate::db::TidbState;
+
 #[tauri::command]
-pub async fn tm_delete_task(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+pub async fn tm_delete_task(
+    id: String,
+    pool: State<'_, SqlitePool>,
+    tidb_state: State<'_, TidbState>
+) -> Result<(), String> {
     sqlx::query("DELETE FROM time_management_tasks WHERE id = ?")
         .bind(&id)
         .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query("DELETE FROM time_management_tasks WHERE id = ?").bind(&id).execute(mysql).await;
+    }
+
     Ok(())
 }

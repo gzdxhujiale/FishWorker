@@ -216,8 +216,14 @@ pub async fn habit_update(id: String, payload: HabitPayload, pool: State<'_, Sql
     Ok(())
 }
 
+use crate::db::TidbState;
+
 #[tauri::command]
-pub async fn habit_delete(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+pub async fn habit_delete(
+    id: String,
+    pool: State<'_, SqlitePool>,
+    tidb_state: State<'_, TidbState>
+) -> Result<(), String> {
     sqlx::query("DELETE FROM habit_checkins WHERE habit_id = ?")
         .bind(&id)
         .execute(&*pool)
@@ -230,60 +236,79 @@ pub async fn habit_delete(id: String, pool: State<'_, SqlitePool>) -> Result<(),
         .await
         .map_err(|e| e.to_string())?;
 
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query("DELETE FROM habit_checkins WHERE habit_id = ?").bind(&id).execute(mysql).await;
+        let _ = sqlx::query("DELETE FROM habits WHERE id = ?").bind(&id).execute(mysql).await;
+    }
+
     Ok(())
 }
 
 #[tauri::command]
-pub async fn habit_toggle_checkin(habit_id: String, date: String, completed: bool, pool: State<'_, SqlitePool>) -> Result<HabitCheckIn, String> {
+pub async fn habit_toggle_checkin(
+    habit_id: String,
+    date: String,
+    completed: bool,
+    pool: State<'_, SqlitePool>,
+    tidb_state: State<'_, TidbState>
+) -> Result<HabitCheckIn, String> {
     let now = now_iso();
     let completed_val = if completed { 1i32 } else { 0i32 };
 
-    let existing = sqlx::query(
-        "SELECT id FROM habit_checkins WHERE habit_id = ? AND date = ?"
+    let checkin_id = Uuid::new_v4().to_string();
+
+    // 1. Atomic UPSERT into local SQLite
+    let _ = sqlx::query(
+        "INSERT INTO habit_checkins (id, habit_id, date, completed, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(habit_id, date) DO UPDATE SET completed = excluded.completed, updated_at = excluded.updated_at"
     )
+    .bind(&checkin_id)
     .bind(&habit_id)
     .bind(&date)
-    .fetch_optional(&*pool)
+    .bind(completed_val)
+    .bind(&now)
+    .bind(&now)
+    .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;
 
-    let checkin_id;
-    let is_insert;
-
-    if let Some(row) = existing {
-        checkin_id = row.try_get("id").unwrap_or_default();
-        is_insert = false;
-        sqlx::query("UPDATE habit_checkins SET completed = ?, updated_at = ? WHERE id = ?")
-            .bind(completed_val)
-            .bind(&now)
-            .bind(&checkin_id)
-            .execute(&*pool)
-            .await
-            .map_err(|e| e.to_string())?;
-    } else {
-        checkin_id = Uuid::new_v4().to_string();
-        is_insert = true;
-        sqlx::query(
-            "INSERT INTO habit_checkins (id, habit_id, date, completed, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)"
-        )
-        .bind(&checkin_id)
+    // 2. Fetch updated row
+    let row = sqlx::query("SELECT id, habit_id, date, completed, created_at, updated_at FROM habit_checkins WHERE habit_id = ? AND date = ?")
         .bind(&habit_id)
         .bind(&date)
-        .bind(completed_val)
-        .bind(&now)
-        .bind(&now)
-        .execute(&*pool)
+        .fetch_one(&*pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    let final_id: String = row.try_get("id").unwrap_or_default();
+    let final_completed: i32 = row.try_get("completed").unwrap_or(0);
+    let created_at: String = row.try_get("created_at").unwrap_or_default();
+    let updated_at: String = row.try_get("updated_at").unwrap_or_default();
+
+    // 3. Sync to TiDB if connected
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query(
+            "INSERT INTO habit_checkins (id, habit_id, date, completed, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE completed = VALUES(completed), updated_at = VALUES(updated_at)"
+        )
+        .bind(&final_id)
+        .bind(&habit_id)
+        .bind(&date)
+        .bind(final_completed as i8)
+        .bind(&created_at)
+        .bind(&updated_at)
+        .execute(mysql)
+        .await;
     }
 
     Ok(HabitCheckIn {
-        id: checkin_id,
+        id: final_id,
         habit_id,
         date,
-        completed,
-        created_at: if is_insert { now.clone() } else { "".to_string() },
-        updated_at: now,
+        completed: final_completed != 0,
+        created_at,
+        updated_at,
     })
 }

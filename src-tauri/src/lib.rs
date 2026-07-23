@@ -8,6 +8,8 @@ mod daily_review;
 mod mission;
 mod habit;
 mod pomodoro;
+pub mod entities;
+
 
 use tauri::Manager;
 
@@ -118,15 +120,37 @@ pub fn run() {
             });
             app.manage(sqlite_pool.clone());
 
-            // Async background attempt to connect to remote TiDB and pull cloud data to local SQLite
+            let tidb_state = db::TidbState::default();
+            app.manage(tidb_state.clone());
+
+            // Async background attempt to connect to remote TiDB, pull cloud data, and push local updates
             let sqlite_pool_clone = sqlite_pool.clone();
+            let tidb_state_clone = tidb_state.clone();
             tauri::async_runtime::spawn(async move {
                 match db::establish_connection().await {
                     Ok(mysql_pool) => {
-                        println!("Remote TiDB database connected. Syncing cloud data into local SQLite...");
+                        println!("Remote TiDB database connected. Performing initial two-way sync...");
+                        *tidb_state_clone.0.write().await = Some(mysql_pool.clone());
+
                         if let Err(e) = local_db::pull_from_tidb(&mysql_pool, &sqlite_pool_clone).await {
                             eprintln!("Failed to pull data from TiDB: {}", e);
                         }
+                        if let Err(e) = local_db::push_to_tidb(&mysql_pool, &sqlite_pool_clone).await {
+                            eprintln!("Failed to push data to TiDB: {}", e);
+                        }
+
+                        // Background sync loop: periodically flush local changes to TiDB every 60s
+                        let sqlite_bg = sqlite_pool_clone.clone();
+                        let mysql_bg = mysql_pool.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+                            loop {
+                                interval.tick().await;
+                                if let Err(e) = local_db::push_to_tidb(&mysql_bg, &sqlite_bg).await {
+                                    eprintln!("[SyncEngine Background] Periodic push to TiDB error: {}", e);
+                                }
+                            }
+                        });
                     }
                     Err(e) => {
                         eprintln!("TiDB cloud database unreachable (offline mode): {}", e);

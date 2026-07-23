@@ -74,13 +74,23 @@ pub async fn daily_review_save(review: DailyReviewRow, pool: State<'_, SqlitePoo
     Ok(())
 }
 
+use crate::db::TidbState;
+
 #[tauri::command]
-pub async fn daily_review_delete(id: String, pool: State<'_, SqlitePool>) -> Result<(), String> {
+pub async fn daily_review_delete(
+    id: String,
+    pool: State<'_, SqlitePool>,
+    tidb_state: State<'_, TidbState>
+) -> Result<(), String> {
     sqlx::query("DELETE FROM daily_reviews WHERE id = ?")
-        .bind(id)
+        .bind(&id)
         .execute(&*pool)
         .await
         .map_err(|e| e.to_string())?;
+
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query("DELETE FROM daily_reviews WHERE id = ?").bind(&id).execute(mysql).await;
+    }
 
     Ok(())
 }
