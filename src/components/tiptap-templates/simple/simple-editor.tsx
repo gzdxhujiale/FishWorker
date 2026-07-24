@@ -206,27 +206,53 @@ const BlockContextMenu = ({ editor }: { editor: ReturnType<typeof useEditor> | n
   const handleCopy = async () => {
     if (!editor) return
     const range = getRange(); if (!range) return
-    const ser = DOMSerializer.fromSchema(editor.schema)
-    const div = document.createElement("div")
-    div.appendChild(ser.serializeNode(range.node))
-    await navigator.clipboard.write([new ClipboardItem({
-      "text/html": new Blob([div.innerHTML], { type: "text/html" }),
-      "text/plain": new Blob([range.node.textContent || ""], { type: "text/plain" }),
-    })]).catch(console.error)
+    try {
+      const ser = DOMSerializer.fromSchema(editor.schema)
+      const div = document.createElement("div")
+      div.appendChild(ser.serializeNode(range.node))
+      const text = range.node.textContent || ""
+      const html = div.innerHTML
+
+      if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
+        await navigator.clipboard.write([new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" }),
+        })]).catch(async () => {
+          await navigator.clipboard.writeText(text).catch(() => {})
+        })
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text).catch(() => {})
+      }
+    } catch (e) {
+      console.warn("Copy failed:", e)
+    }
     setIsOpen(false)
   }
 
   const handleCut = async () => {
     if (!editor) return
     const range = getRange(); if (!range) return
-    const ser = DOMSerializer.fromSchema(editor.schema)
-    const div = document.createElement("div")
-    div.appendChild(ser.serializeNode(range.node))
-    await navigator.clipboard.write([new ClipboardItem({
-      "text/html": new Blob([div.innerHTML], { type: "text/html" }),
-      "text/plain": new Blob([range.node.textContent || ""], { type: "text/plain" }),
-    })]).catch(console.error)
-    editor.chain().focus().setNodeSelection(range.pos).deleteSelection().run()
+    try {
+      const ser = DOMSerializer.fromSchema(editor.schema)
+      const div = document.createElement("div")
+      div.appendChild(ser.serializeNode(range.node))
+      const text = range.node.textContent || ""
+      const html = div.innerHTML
+
+      if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
+        await navigator.clipboard.write([new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" }),
+        })]).catch(async () => {
+          await navigator.clipboard.writeText(text).catch(() => {})
+        })
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text).catch(() => {})
+      }
+      editor.chain().focus().setNodeSelection(range.pos).deleteSelection().run()
+    } catch (e) {
+      console.warn("Cut failed:", e)
+    }
     setIsOpen(false)
   }
 

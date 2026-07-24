@@ -220,6 +220,7 @@ pub fn run() {
             pomodoro::pomodoro_load_all,
             pomodoro::pomodoro_upsert_record,
             pomodoro::pomodoro_delete_record,
+            pomodoro::pomodoro_clear_all_records,
             pomodoro::pomodoro_upsert_favorite,
             pomodoro::pomodoro_delete_favorite,
             dictionary::dict_lookup

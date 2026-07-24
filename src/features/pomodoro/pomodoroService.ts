@@ -93,6 +93,18 @@ export const pomodoroService = {
     }
   },
 
+  async clearAllRecords(): Promise<void> {
+    try {
+      localStorage.removeItem(STORAGE_KEY_RECORDS);
+    } catch (e) {}
+
+    try {
+      await invoke('pomodoro_clear_all_records');
+    } catch (e) {
+      console.warn('Failed to clear pomodoro records from backend DB:', e);
+    }
+  },
+
   async upsertFavoriteTask(task: FavoriteFocusTask): Promise<void> {
     try {
       await invoke('pomodoro_upsert_favorite', { task });

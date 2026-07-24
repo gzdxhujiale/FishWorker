@@ -21,6 +21,11 @@ export const PasteMarkdownExtension = Extension.create({
         key: new PluginKey('pasteMarkdownExtension'),
         props: {
           handlePaste(_view, event) {
+            // Do not intercept paste if currently inside a code block or inline code
+            if (editor.isActive('codeBlock') || editor.isActive('code')) {
+              return false;
+            }
+
             const text = event.clipboardData?.getData('text/plain');
             if (!text) return false;
 

@@ -733,6 +733,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     get().records.forEach((r) => syncEngine.cancel(`rec:${r.id}`));
     saveRecords([]);
     set({ records: [] });
+    pomodoroService.clearAllRecords().catch(() => {});
   },
 
   getStats: (): PomodoroStats => {

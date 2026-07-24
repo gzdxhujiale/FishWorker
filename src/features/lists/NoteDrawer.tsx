@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Note } from './listsTypes';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Cloud } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { ReactjsTiptapEditor, convertMarkdownToTipTapJson, convertTipTapJsonToMarkdown } from '../reactjs-tiptap-v1';
 
@@ -110,6 +110,7 @@ function NoteDrawerContent({
   const { confirm: confirmDelete } = useConfirmDialog();
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content || '');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -117,6 +118,7 @@ function NoteDrawerContent({
   useEffect(() => {
     setTitle(note.title);
     setContent(note.content || '');
+    setSaveStatus('saved');
     latestDataRef.current = { title: note.title, content: note.content || '', note };
   }, [note.id, note.title, note.content]);
 
@@ -140,12 +142,14 @@ function NoteDrawerContent({
   // Debounced auto-save effect
   useEffect(() => {
     if (isOpen) {
-      const timer = setTimeout(() => {
-        if (title !== note.title || content !== note.content) {
+      if (title !== note.title || content !== note.content) {
+        setSaveStatus('saving');
+        const timer = setTimeout(() => {
           onUpdate(note.id, title, content);
-        }
-      }, 500);
-      return () => clearTimeout(timer);
+          setSaveStatus('saved');
+        }, 500);
+        return () => clearTimeout(timer);
+      }
     }
   }, [title, content, note.id, note.title, note.content, isOpen, onUpdate]);
 
@@ -196,39 +200,59 @@ function NoteDrawerContent({
           placeholder="笔记标题"
           style={{ flex: 1, marginRight: '16px' }}
         />
-        <div style={{ position: 'relative', flexShrink: 0 }} ref={menuRef}>
-          <MoreHorizontal
-            size={20}
-            style={{ cursor: 'pointer', color: 'var(--text-muted)' }}
-            onClick={() => setMenuOpen(!menuOpen)}
-          />
-          {menuOpen && (
-            <div className="lists-dropdown-menu" style={{ top: '100%', right: 0, marginTop: '8px' }}>
-              <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); onPin(note); }}>{note.isPinned ? '取消置顶' : '置顶'}</div>
-              <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); onDuplicate(note); }}>创建副本</div>
-              <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); onSaveAsTemplate(note); }}>保存为模板</div>
-              <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); handleImport(); }}>导入MD</div>
-              <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); handleExport(); }}>导出MD</div>
-              <div
-                className="lists-dropdown-item text-danger"
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  const confirmed = await confirmDelete({
-                    title: '删除笔记',
-                    description: `确定要删除笔记"${note.title || '未命名笔记'}"吗？`,
-                    confirmText: '删除',
-                  });
-                  if (confirmed) {
-                    onDelete(note);
-                    onClose();
-                  }
-                }}
-              >
-                删除
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span
+            title={saveStatus === 'saving' ? '保存中...' : '已自动保存'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4px',
+            }}
+          >
+            <Cloud
+              size={18}
+              style={{
+                color: saveStatus === 'saved' ? '#3b82f6' : '#9ca3af',
+                fill: saveStatus === 'saved' ? 'rgba(59, 130, 246, 0.18)' : 'none',
+                transition: 'all 0.25s ease',
+              }}
+            />
+          </span>
+          <div style={{ position: 'relative' }} ref={menuRef}>
+            <MoreHorizontal
+              size={20}
+              style={{ cursor: 'pointer', color: 'var(--text-muted)' }}
+              onClick={() => setMenuOpen(!menuOpen)}
+            />
+            {menuOpen && (
+              <div className="lists-dropdown-menu" style={{ top: '100%', right: 0, marginTop: '8px' }}>
+                <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); onPin(note); }}>{note.isPinned ? '取消置顶' : '置顶'}</div>
+                <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); onDuplicate(note); }}>创建副本</div>
+                <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); onSaveAsTemplate(note); }}>保存为模板</div>
+                <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); handleImport(); }}>导入MD</div>
+                <div className="lists-dropdown-item" onClick={() => { setMenuOpen(false); handleExport(); }}>导出MD</div>
+                <div
+                  className="lists-dropdown-item text-danger"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    const confirmed = await confirmDelete({
+                      title: '删除笔记',
+                      description: `确定要删除笔记"${note.title || '未命名笔记'}"吗？`,
+                      confirmText: '删除',
+                    });
+                    if (confirmed) {
+                      onDelete(note);
+                      onClose();
+                    }
+                  }}
+                >
+                  删除
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

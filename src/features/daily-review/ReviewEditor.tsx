@@ -1,6 +1,6 @@
 import React from 'react';
 import { DailyReview } from './dailyReviewTypes';
-import { Star } from 'lucide-react';
+import { Star, Cloud } from 'lucide-react';
 import { ReactjsTiptapEditor } from '../reactjs-tiptap-v1';
 import { useReviewAutoSave } from './useReviewAutoSave';
 
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
-  const { content, rating, setContent, setRating } = useReviewAutoSave({
+  const { content, rating, saveStatus, setContent, setRating } = useReviewAutoSave({
     initialContent: review?.content || '',
     initialRating: review?.rating || 0,
     date,
@@ -48,7 +48,24 @@ export const ReviewEditor: React.FC<Props> = ({ date, review, onSave }) => {
             ))}
           </div>
         </div>
-        <span className="save-status">已自动保存</span>
+        <span
+          title={saveStatus === 'saving' ? '保存中...' : '已自动保存'}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '4px',
+          }}
+        >
+          <Cloud
+            size={18}
+            style={{
+              color: saveStatus === 'saved' ? '#3b82f6' : '#9ca3af',
+              fill: saveStatus === 'saved' ? 'rgba(59, 130, 246, 0.18)' : 'none',
+              transition: 'all 0.25s ease',
+            }}
+          />
+        </span>
       </div>
     </div>
   );

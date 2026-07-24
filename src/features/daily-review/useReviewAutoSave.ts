@@ -18,20 +18,14 @@ interface UseReviewAutoSaveReturn {
   content: string;
   /** Current rating state */
   rating: number;
+  /** Auto save status */
+  saveStatus: 'saved' | 'saving';
   /** Update content (triggers debounced save) */
   setContent: (value: string) => void;
   /** Update rating (triggers immediate save) */
   setRating: (value: number) => void;
 }
 
-/**
- * Hook that manages auto-save for daily review editing.
- * 
- * Responsibilities:
- * - Debounced save when content changes (high-frequency)
- * - Immediate save when rating changes
- * - Save previous date's unsaved content when date switches
- */
 export function useReviewAutoSave({
   initialContent,
   initialRating,
@@ -41,6 +35,7 @@ export function useReviewAutoSave({
 }: UseReviewAutoSaveOptions): UseReviewAutoSaveReturn {
   const [content, setContent] = useState(initialContent);
   const [rating, setRating] = useState(initialRating);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
 
   const stateRef = useRef({ content, rating, date });
   const lastSavedRef = useRef({ content: initialContent, rating: initialRating, date });
@@ -54,7 +49,6 @@ export function useReviewAutoSave({
 
   // Sync initial values when date or props change
   useEffect(() => {
-    // 1. Flush unsaved changes for the previous date if switching dates
     const prev = stateRef.current;
     const last = lastSavedRef.current;
     if (prev.date !== date) {
@@ -63,9 +57,9 @@ export function useReviewAutoSave({
       }
     }
 
-    // 2. Set state for new date
     setContent(initialContent);
     setRating(initialRating);
+    setSaveStatus('saved');
     lastSavedRef.current = { content: initialContent, rating: initialRating, date };
     stateRef.current = { content: initialContent, rating: initialRating, date };
   }, [date, initialContent, initialRating]);
@@ -84,12 +78,15 @@ export function useReviewAutoSave({
   // Debounced auto-save for content changes
   useEffect(() => {
     if (content === lastSavedRef.current.content && rating === lastSavedRef.current.rating) {
+      setSaveStatus('saved');
       return;
     }
 
+    setSaveStatus('saving');
     const timer = setTimeout(() => {
       onSaveRef.current(date, content, rating, true);
       lastSavedRef.current = { content, rating, date };
+      setSaveStatus('saved');
     }, debounceMs);
 
     return () => clearTimeout(timer);
@@ -98,14 +95,17 @@ export function useReviewAutoSave({
   // Immediate save when rating changes
   const handleRatingChange = useCallback((newRating: number) => {
     setRating(newRating);
+    setSaveStatus('saving');
     const currentContent = stateRef.current.content;
     onSaveRef.current(date, currentContent, newRating, false);
     lastSavedRef.current = { content: currentContent, rating: newRating, date };
+    setSaveStatus('saved');
   }, [date]);
 
   return {
     content,
     rating,
+    saveStatus,
     setContent,
     setRating: handleRatingChange,
   };

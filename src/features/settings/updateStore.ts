@@ -82,7 +82,7 @@ export function compareVersions(v1: string, v2: string): number {
   return 0;
 }
 
-const DEFAULT_REPO = 'gzdxhujiale/FishWorker';
+const DEFAULT_REPO = 'gzdxhujiale/Humanmanual';
 
 export const useUpdateStore = create<UpdateState>((set, get) => ({
   currentVersion: '1.0.0',
@@ -253,42 +253,45 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
               break;
           }
         });
+
+        set({
+          updateStatus: 'ready_to_restart',
+          statusMessage: `新版本 ${latestRelease?.tagName || ''} 已完成静默下载，重启应用即可完成升级！`
+        });
+
+        // Send OS Desktop Notification
+        try {
+          let permissionGranted = await isPermissionGranted();
+          if (!permissionGranted) {
+            const permission = await requestPermission();
+            permissionGranted = permission === 'granted';
+          }
+          if (permissionGranted) {
+            sendNotification({
+              title: '软件更新就绪',
+              body: `应用新版本 (${latestRelease?.tagName || '最新版'}) 已自动静默下载完成，重启应用即可完成升级！`
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to send desktop update notification:', e);
+        }
       } else {
-        // Fallback simulation/direct asset fetch for GitHub release
-        const total = latestRelease?.assets[0]?.size || 15 * 1024 * 1024;
-        for (let pct = 10; pct <= 100; pct += 15) {
-          await new Promise(r => setTimeout(r, 200));
-          const currentDownloaded = Math.round((pct / 100) * total);
-          set({
-            downloadProgress: {
-              percentage: Math.min(pct, 100),
-              downloadedBytes: currentDownloaded,
-              totalBytes: total
-            }
-          });
-        }
-      }
+        // Fallback when latest.json manifest is not present: open browser for actual asset download
+        const asset = latestRelease?.assets?.find(a => a.name.endsWith('.msi') || a.name.endsWith('.exe') || a.name.endsWith('.setup.exe')) || latestRelease?.assets[0];
+        const downloadUrl = asset?.downloadUrl || latestRelease?.htmlUrl || `https://github.com/${get().githubRepo}/releases`;
 
-      set({
-        updateStatus: 'ready_to_restart',
-        statusMessage: `新版本 ${latestRelease?.tagName || ''} 已下载完成，重启应用即可完成升级！`
-      });
+        try {
+          const { openUrl } = await import('@tauri-apps/plugin-opener');
+          await openUrl(downloadUrl);
+        } catch {
+          window.open(downloadUrl, '_blank');
+        }
 
-      // Send OS Desktop Notification
-      try {
-        let permissionGranted = await isPermissionGranted();
-        if (!permissionGranted) {
-          const permission = await requestPermission();
-          permissionGranted = permission === 'granted';
-        }
-        if (permissionGranted) {
-          sendNotification({
-            title: '软件更新就绪',
-            body: `应用新版本 (${latestRelease?.tagName || '最新版'}) 已自动静默下载完成，重启应用即可完成升级！`
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to send desktop update notification:', e);
+        set({
+          updateStatus: 'available',
+          statusMessage: `已在浏览器打开安装包下载页面 (${asset?.name || 'GitHub Release'})，请在下载完成后运行安装包完成升级。`,
+          downloadProgress: null
+        });
       }
     } catch (err: any) {
       console.error('Download update error:', err);

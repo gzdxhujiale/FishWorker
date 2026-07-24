@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useListsStore } from './listsStore';
 import { Note } from './listsTypes';
-import { MoreHorizontal, Pin, Save, Minus, Square, Copy, X } from 'lucide-react';
+import { MoreHorizontal, Pin, Cloud, Minus, Square, Copy, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ReactjsTiptapEditor, convertMarkdownToTipTapJson, convertTipTapJsonToMarkdown } from '../reactjs-tiptap-v1';
@@ -289,9 +289,24 @@ function StandaloneNoteEditorContent({ note }: { note: Note }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted, #9ca3af)', display: 'flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
-            <Save size={14} />
-            {saveStatus === 'saving' ? '保存中...' : '已自动保存'}
+          <span
+            title={saveStatus === 'saving' ? '保存中...' : '已自动保存'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: '4px',
+              padding: '4px',
+            }}
+          >
+            <Cloud
+              size={18}
+              style={{
+                color: saveStatus === 'saved' ? '#3b82f6' : '#9ca3af',
+                fill: saveStatus === 'saved' ? 'rgba(59, 130, 246, 0.18)' : 'none',
+                transition: 'all 0.25s ease',
+              }}
+            />
           </span>
 
           <button

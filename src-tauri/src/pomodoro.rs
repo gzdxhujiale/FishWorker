@@ -227,6 +227,27 @@ pub async fn pomodoro_delete_record(
 }
 
 #[tauri::command]
+pub async fn pomodoro_clear_all_records(
+    pool: State<'_, SqlitePool>,
+    tidb_state: State<'_, TidbState>,
+) -> Result<(), String> {
+    sqlx::query("DELETE FROM pomodoro_records")
+        .execute(&*pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let _ = sqlx::query("DELETE FROM sync_queue WHERE table_name = 'pomodoro_records'")
+        .execute(&*pool)
+        .await;
+
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query("DELETE FROM pomodoro_records").execute(mysql).await;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn pomodoro_upsert_favorite(
     task: FavoriteFocusTask,
     pool: State<'_, SqlitePool>,
