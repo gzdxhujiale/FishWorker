@@ -172,15 +172,30 @@ pub async fn db_get_preference(key: String, pool: tauri::State<'_, sqlx::SqliteP
 }
 
 #[tauri::command]
-pub async fn db_set_preference(key: String, value: String, pool: tauri::State<'_, sqlx::SqlitePool>) -> Result<(), String> {
+pub async fn db_set_preference(
+    key: String,
+    value: String,
+    pool: tauri::State<'_, sqlx::SqlitePool>,
+    tidb_state: tauri::State<'_, TidbState>,
+) -> Result<(), String> {
     sqlx::query(
         "INSERT INTO app_preferences (pref_key, pref_value) VALUES (?, ?) ON CONFLICT(pref_key) DO UPDATE SET pref_value = excluded.pref_value"
     )
-    .bind(key)
+    .bind(&key)
     .bind(&value)
     .execute(&*pool)
     .await
     .map_err(|e| e.to_string())?;
+
+    if let Some(ref mysql) = *tidb_state.inner().0.read().await {
+        let _ = sqlx::query(
+            "INSERT INTO app_preferences (pref_key, pref_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE pref_value = VALUES(pref_value)"
+        )
+        .bind(&key)
+        .bind(&value)
+        .execute(mysql)
+        .await;
+    }
 
     Ok(())
 }

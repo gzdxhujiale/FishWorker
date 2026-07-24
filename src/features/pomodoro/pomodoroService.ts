@@ -3,6 +3,7 @@ import { FavoriteFocusTask, PomodoroRecord } from './pomodoroTypes';
 
 const STORAGE_KEY_RECORDS = 'fishworker_pomodoro_records_v1';
 const STORAGE_KEY_FAVORITES = 'fishworker_pomodoro_favorites_v1';
+const STORAGE_KEY_MIN_EFFECTIVE_MINS = 'fishworker_pomodoro_min_effective_mins_v1';
 
 export interface PomodoroData {
   records: PomodoroRecord[];
@@ -37,6 +38,43 @@ export const pomodoroService = {
     }
 
     return { records, favoriteTasks };
+  },
+
+  async getMinEffectiveMinutes(): Promise<number> {
+    try {
+      const val = await invoke<string | null>('db_get_preference', { key: 'pomodoro_min_effective_minutes' });
+      if (val !== null && val !== undefined) {
+        const parsed = parseInt(val, 10);
+        if (!isNaN(parsed) && parsed >= 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      // Fallback to localStorage
+    }
+
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_MIN_EFFECTIVE_MINS);
+      if (raw !== null) {
+        const parsed = parseInt(raw, 10);
+        if (!isNaN(parsed) && parsed >= 0) return parsed;
+      }
+    } catch (e) {}
+
+    return 5; // Default 5 minutes
+  },
+
+  async setMinEffectiveMinutes(mins: number): Promise<void> {
+    const valStr = String(mins);
+    try {
+      localStorage.setItem(STORAGE_KEY_MIN_EFFECTIVE_MINS, valStr);
+    } catch (e) {}
+
+    try {
+      await invoke('db_set_preference', { key: 'pomodoro_min_effective_minutes', value: valStr });
+    } catch (e) {
+      // Offline fallback
+    }
   },
 
   async upsertRecord(record: PomodoroRecord): Promise<void> {

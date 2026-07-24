@@ -389,6 +389,20 @@ pub async fn pull_from_tidb(mysql: &MySqlPool, sqlite: &SqlitePool) -> Result<()
         }
     }
 
+    // 15. app_preferences
+    if let Ok(rows) = sqlx::query("SELECT pref_key, pref_value FROM app_preferences").fetch_all(mysql).await {
+        use sqlx::Row;
+        for row in rows {
+            let key: String = row.try_get("pref_key").unwrap_or_default();
+            let val: String = row.try_get("pref_value").unwrap_or_default();
+            let _ = sqlx::query("INSERT INTO app_preferences (pref_key, pref_value) VALUES (?, ?) ON CONFLICT(pref_key) DO UPDATE SET pref_value = excluded.pref_value")
+                .bind(&key)
+                .bind(&val)
+                .execute(sqlite)
+                .await;
+        }
+    }
+
     Ok(())
 }
 
@@ -829,6 +843,20 @@ pub async fn push_to_tidb(mysql: &MySqlPool, sqlite: &SqlitePool) -> Result<(), 
                         .to_owned()
                 )
                 .exec(&db_mysql)
+                .await;
+        }
+    }
+
+    // 15. app_preferences
+    if let Ok(rows) = sqlx::query("SELECT pref_key, pref_value FROM app_preferences").fetch_all(sqlite).await {
+        use sqlx::Row;
+        for row in rows {
+            let key: String = row.try_get("pref_key").unwrap_or_default();
+            let val: String = row.try_get("pref_value").unwrap_or_default();
+            let _ = sqlx::query("INSERT INTO app_preferences (pref_key, pref_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE pref_value = VALUES(pref_value)")
+                .bind(&key)
+                .bind(&val)
+                .execute(mysql)
                 .await;
         }
     }

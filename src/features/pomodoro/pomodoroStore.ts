@@ -197,6 +197,7 @@ interface PomodoroState {
   sessionStartTime: Date | null;
   focusDuration: number;
   breakDuration: number;
+  minEffectiveMinutes: number;
 
   records: PomodoroRecord[];
   favoriteTasks: FavoriteFocusTask[];
@@ -210,6 +211,7 @@ interface PomodoroState {
   setActiveTab: (tab: 'active' | 'archived') => void;
   setFocusDuration: (mins: number) => void;
   setBreakDuration: (mins: number) => void;
+  setMinEffectiveMinutes: (mins: number) => void;
   startTimer: () => void;
   pauseTimer: () => void;
   resetTimer: () => void;
@@ -315,6 +317,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   sessionStartTime: null,
   focusDuration: FOCUS_DURATION_DEFAULT,
   breakDuration: BREAK_DURATION_DEFAULT,
+  minEffectiveMinutes: 5,
 
   records: loadSavedRecords(),
   favoriteTasks: loadSavedFavorites(),
@@ -324,18 +327,18 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   syncAllFromDB: async () => {
     try {
       const dbData = await pomodoroService.loadAll();
-      if (dbData) {
-        const mergedRecords = dbData.records.length > 0 ? dbData.records : get().records;
-        const mergedFavs = dbData.favoriteTasks.length > 0 ? dbData.favoriteTasks : get().favoriteTasks;
+      const minMins = await pomodoroService.getMinEffectiveMinutes();
+      const mergedRecords = dbData && dbData.records.length > 0 ? dbData.records : get().records;
+      const mergedFavs = dbData && dbData.favoriteTasks.length > 0 ? dbData.favoriteTasks : get().favoriteTasks;
 
-        saveRecords(mergedRecords);
-        saveFavorites(mergedFavs);
+      saveRecords(mergedRecords);
+      saveFavorites(mergedFavs);
 
-        set({
-          records: mergedRecords,
-          favoriteTasks: mergedFavs,
-        });
-      }
+      set({
+        records: mergedRecords,
+        favoriteTasks: mergedFavs,
+        minEffectiveMinutes: minMins,
+      });
     } catch (e) {
       console.error('Failed to sync pomodoro data from DB:', e);
     }
@@ -397,6 +400,12 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
         totalTargetSeconds: isBreak ? secs : state.totalTargetSeconds,
       };
     });
+  },
+
+  setMinEffectiveMinutes: (mins: number) => {
+    const cleanMins = Math.max(0, mins);
+    set({ minEffectiveMinutes: cleanMins });
+    pomodoroService.setMinEffectiveMinutes(cleanMins);
   },
 
   startTimer: () => {
@@ -484,62 +493,89 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     const activeFav = state.favoriteTasks.find((f) => f.id === state.activeFavoriteTaskId);
     const taskName = activeFav ? activeFav.name : (state.phase === 'focus' ? '专注任务' : '休息');
 
+    let isRecordSaved = false;
+
     if (state.phase === 'focus') {
-      const durationMins = state.mode === 'stopwatch'
-        ? Math.max(1, Math.round(state.stopwatchSeconds / 60))
-        : Math.round(state.totalTargetSeconds / 60);
-
-      const newRecord: PomodoroRecord = {
-        id: 'rec-' + Date.now(),
-        mode: state.mode,
-        phase: 'focus',
-        startTime: formatTimeStr(start),
-        endTime: formatTimeStr(now),
-        durationMinutes: durationMins,
-        date: getTodayDateStr(),
-        dateLabel: formatDateLabel(now),
-        timeRangeLabel: `${formatTimeStr(start)} - ${formatTimeStr(now)}`,
-        taskId: activeFav?.id,
-        linkedTarget: activeFav?.linkedTarget,
-        createdAt: now.toISOString(),
-      };
-
-      const updatedRecords = [newRecord, ...state.records];
-      saveRecords(updatedRecords);
-
-      // Schedule sync engine for record
-      syncEngine.schedule(`rec:${newRecord.id}`, () => pomodoroService.upsertRecord(newRecord), LOW_FREQ_DELAY);
-
-      // Accumulate minutes on active favorite task
-      let updatedFavs = state.favoriteTasks;
-      if (activeFav) {
-        const updatedTask = { ...activeFav, accumulatedMinutes: activeFav.accumulatedMinutes + durationMins };
-        updatedFavs = state.favoriteTasks.map((f) => (f.id === activeFav.id ? updatedTask : f));
-        saveFavorites(updatedFavs);
-        syncEngine.schedule(`fav:${updatedTask.id}`, () => pomodoroService.upsertFavoriteTask(updatedTask), HIGH_FREQ_DELAY);
+      let durationMins = 0;
+      if (state.mode === 'stopwatch') {
+        const elapsedSecs = state.sessionStartTime
+          ? Math.max(0, Math.floor((now.getTime() - state.sessionStartTime.getTime()) / 1000))
+          : state.stopwatchSeconds;
+        durationMins = Math.floor(elapsedSecs / 60);
+      } else {
+        if (reason === 'auto') {
+          durationMins = Math.round(state.totalTargetSeconds / 60);
+        } else {
+          const elapsedSecs = state.sessionStartTime
+            ? Math.max(0, Math.floor((now.getTime() - state.sessionStartTime.getTime()) / 1000))
+            : Math.max(0, state.totalTargetSeconds - state.timeLeft);
+          durationMins = Math.floor(elapsedSecs / 60);
+        }
       }
 
-      set({ records: updatedRecords, favoriteTasks: updatedFavs });
+      if (durationMins < state.minEffectiveMinutes) {
+        sendDesktopNotification(
+          '⏱️ 专注时长未达到记录标准',
+          `本次专注【${taskName}】时长为 ${durationMins} 分钟，小于设置的最小计入时长（${state.minEffectiveMinutes} 分钟），未计入专注记录。`
+        );
+      } else {
+        isRecordSaved = true;
+        const newRecord: PomodoroRecord = {
+          id: 'rec-' + Date.now(),
+          mode: state.mode,
+          phase: 'focus',
+          startTime: formatTimeStr(start),
+          endTime: formatTimeStr(now),
+          durationMinutes: durationMins,
+          date: getTodayDateStr(),
+          dateLabel: formatDateLabel(now),
+          timeRangeLabel: `${formatTimeStr(start)} - ${formatTimeStr(now)}`,
+          taskId: activeFav?.id,
+          linkedTarget: activeFav?.linkedTarget,
+          createdAt: now.toISOString(),
+        };
+
+        const updatedRecords = [newRecord, ...state.records];
+        saveRecords(updatedRecords);
+
+        // Schedule sync engine for record
+        syncEngine.schedule(`rec:${newRecord.id}`, () => pomodoroService.upsertRecord(newRecord), LOW_FREQ_DELAY);
+
+        // Accumulate minutes on active favorite task
+        let updatedFavs = state.favoriteTasks;
+        if (activeFav) {
+          const updatedTask = { ...activeFav, accumulatedMinutes: activeFav.accumulatedMinutes + durationMins };
+          updatedFavs = state.favoriteTasks.map((f) => (f.id === activeFav.id ? updatedTask : f));
+          saveFavorites(updatedFavs);
+          syncEngine.schedule(`fav:${updatedTask.id}`, () => pomodoroService.upsertFavoriteTask(updatedTask), HIGH_FREQ_DELAY);
+        }
+
+        set({ records: updatedRecords, favoriteTasks: updatedFavs });
+      }
     }
 
     // Send Desktop System Notification
-    if (reason === 'auto') {
-      if (state.phase === 'focus') {
-        sendDesktopNotification(
-          '🎉 专注时间结束！',
-          `恭喜完成【${taskName}】！已成功专注 ${Math.round(state.totalTargetSeconds / 60)} 分钟，休息一下吧！`
-        );
-      } else {
+    if (state.phase === 'focus') {
+      if (isRecordSaved) {
+        if (reason === 'auto') {
+          sendDesktopNotification(
+            '🎉 专注时间结束！',
+            `恭喜完成【${taskName}】！已成功专注 ${Math.round(state.totalTargetSeconds / 60)} 分钟，休息一下吧！`
+          );
+        } else {
+          sendDesktopNotification(
+            '✅ 专注任务已完成',
+            `提前完成了【${taskName}】并记录结算。`
+          );
+        }
+      }
+    } else {
+      if (reason === 'auto') {
         sendDesktopNotification(
           '☕ 休息时间结束！',
           '休息时间到了，准备好开始新一轮专注了吗？'
         );
       }
-    } else {
-      sendDesktopNotification(
-        '✅ 专注任务已完成',
-        `提前完成了【${taskName}】并记录结算。`
-      );
     }
 
     // Sound chime

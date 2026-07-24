@@ -16,6 +16,7 @@ export const PomodoroPanel: React.FC = () => {
     isRunning,
     focusDuration,
     breakDuration,
+    minEffectiveMinutes,
     activeTab,
     favoriteTasks,
     setMode,
@@ -23,6 +24,7 @@ export const PomodoroPanel: React.FC = () => {
     setActiveTab,
     setFocusDuration,
     setBreakDuration,
+    setMinEffectiveMinutes,
     getActiveFavoriteTasks,
     getArchivedFavoriteTasks,
     syncAllFromDB,
@@ -34,6 +36,7 @@ export const PomodoroPanel: React.FC = () => {
 
   const [customFocusMins, setCustomFocusMins] = useState(Math.round(focusDuration / 60));
   const [customBreakMins, setCustomBreakMins] = useState(Math.round(breakDuration / 60));
+  const [customMinEffectiveMins, setCustomMinEffectiveMins] = useState(minEffectiveMinutes);
 
   const activeFavTasks = getActiveFavoriteTasks();
   const archivedFavTasks = getArchivedFavoriteTasks();
@@ -45,10 +48,19 @@ export const PomodoroPanel: React.FC = () => {
     requestNotificationPermission();
   }, [syncAllFromDB]);
 
+  useEffect(() => {
+    if (showSettingsModal) {
+      setCustomFocusMins(Math.round(focusDuration / 60));
+      setCustomBreakMins(Math.round(breakDuration / 60));
+      setCustomMinEffectiveMins(minEffectiveMinutes);
+    }
+  }, [showSettingsModal, focusDuration, breakDuration, minEffectiveMinutes]);
+
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     setFocusDuration(customFocusMins);
     setBreakDuration(customBreakMins);
+    setMinEffectiveMinutes(customMinEffectiveMins);
     setShowSettingsModal(false);
   };
 
@@ -204,6 +216,17 @@ export const PomodoroPanel: React.FC = () => {
                   value={customBreakMins}
                   onChange={(e) => setCustomBreakMins(Number(e.target.value))}
                 />
+              </div>
+              <div className="form-group">
+                <label>最小计入专注时长 (分钟)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={customMinEffectiveMins}
+                  onChange={(e) => setCustomMinEffectiveMins(Number(e.target.value))}
+                />
+                <span className="form-hint">专注小于此分钟数时不计入专注记录与累计时长（默认 5 分钟）</span>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-cancel" onClick={() => setShowSettingsModal(false)}>
