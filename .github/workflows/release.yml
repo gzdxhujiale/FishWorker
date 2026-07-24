@@ -38,8 +38,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
-          tagName: v__VERSION__
-          releaseName: '人类使用手册 v__VERSION__'
+          tagName: ${{ github.ref_name }}
+          releaseName: '人类使用手册 ${{ github.ref_name }}'
           releaseBody: '请参阅 Commit 变更历史了解详细更新内容。'
           releaseDraft: false
           prerelease: false
