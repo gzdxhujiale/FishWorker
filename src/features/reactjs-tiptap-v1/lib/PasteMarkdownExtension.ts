@@ -1,10 +1,10 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { convertMarkdownToTipTapJson } from '../jsonMarkdownAdapter';
+import { marked } from 'marked';
 
 function isMarkdownText(text: string): boolean {
   if (!text || text.trim().length === 0) return false;
-  // Check if text has markdown block structure or inline markdown indicators
+  // Detect Markdown block patterns or inline markup
   const mdBlockRegex = /^(#{1,6}\s|>|\s*[-*+]\s|\s*\d+\.\s|\s*-\s*\[[ xX]\]|```|---|[*]{3}|_{3})/m;
   const mdInlineRegex = /(\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~|`[^`]+`|\[.+\]\(.+\))/;
   return mdBlockRegex.test(text) || mdInlineRegex.test(text);
@@ -24,21 +24,21 @@ export const PasteMarkdownExtension = Extension.create({
             const text = event.clipboardData?.getData('text/plain');
             if (!text) return false;
 
-            // If the pasted text contains markdown syntax, convert it automatically
             if (isMarkdownText(text)) {
               try {
-                const jsonStr = convertMarkdownToTipTapJson(text);
-                const json = JSON.parse(jsonStr);
-                if (json && Array.isArray(json.content) && json.content.length > 0) {
-                  editor.commands.insertContent(json.content);
-                  return true; // Prevent default plain text paste
+                // Convert Markdown to clean GFM HTML and let TipTap natively insert rich content
+                const htmlResult = marked.parse(text, { gfm: true, breaks: true });
+                const html = typeof htmlResult === 'string' ? htmlResult : '';
+                if (html) {
+                  editor.commands.insertContent(html);
+                  return true; // Intercept and finish paste handling
                 }
               } catch (e) {
-                console.warn('Failed to insert pasted markdown content:', e);
+                console.warn('Failed to parse pasted markdown with marked:', e);
               }
             }
 
-            return false; // Fallback to standard paste
+            return false; // Fallback to normal paste
           },
         },
       }),

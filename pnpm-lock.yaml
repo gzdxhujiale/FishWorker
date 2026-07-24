@@ -178,6 +178,9 @@ importers:
       mammoth:
         specifier: ^1.12.0
         version: 1.12.0
+      marked:
+        specifier: ^18.0.7
+        version: 18.0.7
       prosemirror-model:
         specifier: ^1.24.1
         version: 1.25.11
@@ -6282,6 +6285,12 @@ packages:
 
   /marked@16.4.2:
     resolution: {integrity: sha512-TI3V8YYWvkVf3KJe1dRkpnjs68JUPyEa5vjKrp1XEEJUAOaQc+Qj+L1qWbPd0SJuAdQkFU0h73sXXqwDYxsiDA==}
+    engines: {node: '>= 20'}
+    hasBin: true
+    dev: false
+
+  /marked@18.0.7:
+    resolution: {integrity: sha512-iDVQ5ldaiKXn6b2JroX5kgRfmwgqolW7NpaEzTl1k/2Zh1njIEN9yniyLV/mOvWwtsE8OGgkjsCYvijuPk1dtA==}
     engines: {node: '>= 20'}
     hasBin: true
     dev: false

@@ -471,12 +471,7 @@ const parseContent = (content?: string) => {
   }
 
   // 3. Markdown string or plain text
-  try {
-    const jsonStr = convertMarkdownToTipTapJson(content);
-    return JSON.parse(jsonStr);
-  } catch {
-    return content;
-  }
+  return convertMarkdownToTipTapJson(content);
 };
 
 
