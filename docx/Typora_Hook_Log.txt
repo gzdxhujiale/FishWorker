@@ -448,3 +448,47 @@
 ------------------
 [2026/7/23 17:30:31] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.stat C:\Users\Admin\AppData\Roaming\Typora\draftsRecover
 ------------------
+[2026/7/23 17:57:59] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.statSync C:\Users\Admin\Documents\迁移文档\FishWorker 项目复盘与总结报告_1.md
+------------------
+[2026/7/23 17:58:00] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.stat C:\Users\Admin\AppData\Roaming\Typora\backups
+------------------
+[2026/7/23 17:58:00] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.open C:\Users\Admin\AppData\Roaming\Typora/backups/sum
+------------------
+[2026/7/23 17:58:00] [Log] [&#128064;electron.net Request] POST https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:00] [Log] request.url typeof: string value: https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:00] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.stat C:\Users\Admin\AppData\Roaming\Typora\backups
+------------------
+[2026/7/23 17:58:00] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.open C:\Users\Admin\AppData\Roaming\Typora/backups/sum
+------------------
+[2026/7/23 17:58:00] [Log] [&#128064;electron.net Request] POST https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:00] [Log] request.url typeof: string value: https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:01] [Log] [&#128064;electron.net Request] POST https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:01] [Log] request.url typeof: string value: https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:01] [Log] [&#128064;electron.net Request] POST https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:01] [Log] request.url typeof: string value: https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:05] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.stat C:\Users\Admin\AppData\Roaming\Typora\backups
+------------------
+[2026/7/23 17:58:05] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.open C:\Users\Admin\AppData\Roaming\Typora/backups/sum
+------------------
+[2026/7/23 17:58:05] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.open C:\Users\Admin\AppData\Roaming\Typora/backups/2
+------------------
+[2026/7/23 17:58:06] [Log] [&#128064;electron.net Request] POST https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:06] [Log] request.url typeof: string value: https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:46] [Log] [&#128064;electron.net Request] POST https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:46] [Log] request.url typeof: string value: https://cognito-identity.us-west-2.amazonaws.com/
+------------------
+[2026/7/23 17:58:46] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.statSync C:\Users\Admin\AppData\Roaming\Typora\backups
+------------------
+[2026/7/23 17:58:46] [Log] [&#128737;&#65039; fsHook] 程序试图 fs.statSync C:\Users\Admin\AppData\Roaming\Typora/typora.log
+------------------

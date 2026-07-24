@@ -315,17 +315,15 @@
 }
 
 /* Heatmap Levels - Green Palette */
-.monthly-calendar-wrapper .active-level-1:not(.arco-calendar-date-selected) { background-color: #e8f5e9; color: #2e7d32; font-weight: 600; }
-.monthly-calendar-wrapper .active-level-2:not(.arco-calendar-date-selected) { background-color: #a5d6a7; color: #1b5e20; font-weight: 600; }
-.monthly-calendar-wrapper .active-level-3:not(.arco-calendar-date-selected) { background-color: #66bb6a; color: white; font-weight: 600; }
-.monthly-calendar-wrapper .active-level-4:not(.arco-calendar-date-selected) { background-color: #2e7d32; color: white; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-1:not(.is-selected) { background-color: #e8f5e9; color: #2e7d32; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-2:not(.is-selected) { background-color: #a5d6a7; color: #1b5e20; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-3:not(.is-selected) { background-color: #66bb6a; color: white; font-weight: 600; }
+.monthly-calendar-wrapper .active-level-4:not(.is-selected) { background-color: #2e7d32; color: white; font-weight: 600; }
 
-.monthly-calendar-wrapper .arco-calendar-date-selected {
-  background-color: var(--color-primary) !important;
-  color: white !important;
-  font-weight: bold;
-  box-shadow: 0 0 0 2px var(--color-bg-elevated), 0 0 0 4px var(--color-primary);
-  transform: scale(1.05);
+.monthly-calendar-wrapper .is-selected {
+  position: relative;
+  z-index: 2;
+  font-weight: 700;
 }
 
 /* ── Calendar Legend ── */

@@ -14,28 +14,13 @@ interface NoteDrawerProps {
   onDuplicate: (note: Note) => void;
   onSaveAsTemplate: (note: Note) => void;
   onDelete: (note: Note) => void;
-  onOpenTemplate: () => void;
+  onOpenTemplate?: () => void;
   showToast?: (message: string, type?: 'success' | 'error') => void;
 }
 
-const checkJsonEmpty = (val?: string): boolean => {
-  if (!val) return true;
-  const trimmed = val.trim();
-  if (!trimmed || trimmed === '{}') return true;
-  try {
-    const json = JSON.parse(trimmed);
-    if (!json.content || !Array.isArray(json.content) || json.content.length === 0) return true;
-    if (json.content.length === 1) {
-      const p = json.content[0];
-      if (p.type === 'paragraph' && (!p.content || p.content.length === 0)) return true;
-    }
-    return false;
-  } catch {
-    return false;
-  }
-};
 
-export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate, onSaveAsTemplate, onDelete, onOpenTemplate, showToast }: NoteDrawerProps) {
+
+export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate, onSaveAsTemplate, onDelete, onOpenTemplate: _onOpenTemplate, showToast }: NoteDrawerProps) {
   const [drawerWidth, setDrawerWidth] = useState(600);
   const isResizing = useRef(false);
   const startX = useRef(0);
@@ -92,7 +77,6 @@ export function NoteDrawer({ note, isOpen, onClose, onUpdate, onPin, onDuplicate
           onDuplicate={onDuplicate}
           onSaveAsTemplate={onSaveAsTemplate}
           onDelete={onDelete}
-          onOpenTemplate={onOpenTemplate}
           showToast={showToast}
         />
       </div>
@@ -111,7 +95,6 @@ function NoteDrawerContent({
   onDuplicate,
   onSaveAsTemplate,
   onDelete,
-  onOpenTemplate,
   showToast,
 }: {
   note: Note;
@@ -122,7 +105,6 @@ function NoteDrawerContent({
   onDuplicate: (note: Note) => void;
   onSaveAsTemplate: (note: Note) => void;
   onDelete: (note: Note) => void;
-  onOpenTemplate: () => void;
   showToast?: (message: string, type?: 'success' | 'error') => void;
 }) {
   const { confirm: confirmDelete } = useConfirmDialog();
@@ -176,8 +158,6 @@ function NoteDrawerContent({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const isContentEmpty = checkJsonEmpty(content);
 
   const handleImport = async () => {
     try {
@@ -257,19 +237,9 @@ function NoteDrawerContent({
           content={content}
           initialContent={content}
           onChange={setContent}
+          enableCustomTemplates={true}
           className="note-drawer-reactjs-tiptap"
         />
-        {isContentEmpty && (
-          <div style={{ position: 'absolute', top: '72px', left: '36px', color: 'var(--text-faint)', fontSize: '15px', pointerEvents: 'none', zIndex: 2 }}>
-            记录你的想法，或{' '}
-            <span
-              style={{ pointerEvents: 'auto', color: 'var(--accent)', cursor: 'pointer' }}
-              onClick={onOpenTemplate}
-            >
-              使用模板
-            </span>
-          </div>
-        )}
       </div>
     </>
   );

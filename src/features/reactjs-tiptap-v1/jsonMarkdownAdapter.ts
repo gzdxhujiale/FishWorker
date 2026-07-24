@@ -2,11 +2,11 @@
  * Utility functions for converting between Markdown strings and TipTap JSON strings.
  */
 
-// Parse inline text with bold (**), italic (*), and code (`) marks
+// Parse inline text with bold (**), italic (*), strikethrough (~~), code (`), and links ([text](url))
 function parseInlineText(text: string): any[] {
   if (!text) return [];
   const result: any[] = [];
-  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g);
+  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|~~.*?~~|`.*?`|\[.*?\]\(.*?\))/g);
 
   for (const part of parts) {
     if (!part) continue;
@@ -14,10 +14,23 @@ function parseInlineText(text: string): any[] {
       result.push({ type: 'text', text: part.slice(2, -2), marks: [{ type: 'bold' }] });
     } else if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
       result.push({ type: 'text', text: part.slice(1, -1), marks: [{ type: 'italic' }] });
+    } else if (part.startsWith('~~') && part.endsWith('~~') && part.length > 4) {
+      result.push({ type: 'text', text: part.slice(2, -2), marks: [{ type: 'strike' }] });
     } else if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
       result.push({ type: 'text', text: part.slice(1, -1), marks: [{ type: 'code' }] });
+    } else if (part.startsWith('[') && part.includes('](') && part.endsWith(')')) {
+      const match = part.match(/^\[(.*?)\]\((.*?)\)$/);
+      if (match) {
+        result.push({
+          type: 'text',
+          text: match[1],
+          marks: [{ type: 'link', attrs: { href: match[2] } }]
+        });
+      } else {
+        result.push({ type: 'text', text: part });
+      }
     } else {
-      result.push({ type: 'text', text });
+      result.push({ type: 'text', text: part });
     }
   }
 
@@ -69,8 +82,14 @@ export function convertMarkdownToTipTapJson(markdownStr: string): string {
       continue;
     }
 
-    if (line.trim() === '') {
+    const trimmedLine = line.trim();
+    if (trimmedLine === '') {
       nodes.push({ type: 'paragraph' });
+      continue;
+    }
+
+    if (trimmedLine === '---' || trimmedLine === '***' || trimmedLine === '___') {
+      nodes.push({ type: 'horizontalRule' });
       continue;
     }
 
@@ -80,16 +99,32 @@ export function convertMarkdownToTipTapJson(markdownStr: string): string {
       nodes.push({ type: 'heading', attrs: { level: 2 }, content: parseInlineText(line.slice(3)) });
     } else if (line.startsWith('### ')) {
       nodes.push({ type: 'heading', attrs: { level: 3 }, content: parseInlineText(line.slice(4)) });
+    } else if (line.startsWith('#### ')) {
+      nodes.push({ type: 'heading', attrs: { level: 4 }, content: parseInlineText(line.slice(5)) });
+    } else if (line.startsWith('##### ')) {
+      nodes.push({ type: 'heading', attrs: { level: 5 }, content: parseInlineText(line.slice(6)) });
+    } else if (line.startsWith('###### ')) {
+      nodes.push({ type: 'heading', attrs: { level: 6 }, content: parseInlineText(line.slice(7)) });
     } else if (line.startsWith('> ')) {
       nodes.push({ type: 'blockquote', content: [{ type: 'paragraph', content: parseInlineText(line.slice(2)) }] });
-    } else if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) {
-      const checked = line.startsWith('- [x] ');
+    } else if (line.startsWith('- [ ] ') || line.startsWith('- [x] ') || line.startsWith('- [X] ')) {
+      const checked = line.startsWith('- [x] ') || line.startsWith('- [X] ');
       nodes.push({
         type: 'taskList',
         content: [{
           type: 'taskItem',
           attrs: { checked },
           content: [{ type: 'paragraph', content: parseInlineText(line.slice(6)) }]
+        }]
+      });
+    } else if (/^\d+\.\s/.test(line)) {
+      const match = line.match(/^\d+\.\s/);
+      const textAfter = match ? line.slice(match[0].length) : line;
+      nodes.push({
+        type: 'orderedList',
+        content: [{
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: parseInlineText(textAfter) }]
         }]
       });
     } else if (line.startsWith('- ') || line.startsWith('* ')) {
@@ -144,6 +179,7 @@ function renderNodeToMarkdown(node: any): string {
         if (mark.type === 'italic') text = `*${text}*`;
         if (mark.type === 'strike') text = `~~${text}~~`;
         if (mark.type === 'code') text = `\`${text}\``;
+        if (mark.type === 'link' && mark.attrs?.href) text = `[${text}](${mark.attrs.href})`;
       });
     }
     return text;
@@ -161,6 +197,8 @@ function renderNodeToMarkdown(node: any): string {
     }
     case 'paragraph':
       return childText;
+    case 'horizontalRule':
+      return '---';
     case 'blockquote':
       return `> ${childText}`;
     case 'bulletList':

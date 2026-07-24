@@ -140,7 +140,7 @@ export const PomodoroTimerCircle: React.FC<PomodoroTimerCircleProps> = ({ onTogg
 
             <button
               className="pomodoro-icon-btn"
-              onClick={finishCurrentSession}
+              onClick={() => finishCurrentSession('manual')}
               title="完成并记录"
             >
               <CheckCircle2 size={16} />

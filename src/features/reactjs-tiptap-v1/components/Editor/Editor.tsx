@@ -1,7 +1,12 @@
-import { useEffect, useState, useRef, memo } from 'react';
-import { MoreHorizontal } from 'lucide-react';
+import { useEffect, useState, useRef, memo, useMemo } from 'react';
+import { MoreHorizontal, LayoutTemplate } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Button } from '../ui/button';
+import { useTemplateStore } from '../../../templates/templateStore';
+import { TemplateModal } from '../../../templates/TemplateModal';
+import { Template } from '../../../templates/templateTypes';
+import { InteractivePlaceholder } from '../../lib/InteractivePlaceholder';
+import { convertMarkdownToTipTapJson } from '../../jsonMarkdownAdapter';
 
 import { RichTextProvider } from 'reactjs-tiptap-editor';
 import { localeActions } from 'reactjs-tiptap-editor/locale-bundle';
@@ -119,6 +124,8 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import { EMOJI_LIST } from './emojis';
 import { CustomShortcuts } from '../../lib/CustomShortcuts';
 import { CollapsibleList } from '../../lib/CollapsibleList';
+import { Markdown } from 'tiptap-markdown';
+import { PasteMarkdownExtension } from '../../lib/PasteMarkdownExtension';
 
 function convertBase64ToBlob(base64: string) {
   const arr = base64.split(',');
@@ -219,6 +226,8 @@ const extensions = [
     },
   }),
   SlashCommand,
+  Markdown,
+  PasteMarkdownExtension,
 ];
 
 const DEFAULT = `<h1 dir="auto" style="text-align: center;">Rich Text Editor</h1><p dir="auto" style="text-align: center;">A modern WYSIWYG rich text editor based on <a target="_blank" rel="noopener noreferrer nofollow" class="link" href="https://github.com/scrumpy/tiptap">tiptap</a> and <a target="_blank" rel="noopener noreferrer nofollow" class="link" href="https://ui.shadcn.com/">shadcn</a> for Reactjs</p><p dir="auto"></p><p dir="auto"><div class="image" style="text-align: center;"><img dir="auto" src="https://picsum.photos/1920/1080.webp?t=1" width="303" flipx="false" flipy="false" align="center" inline="false" style=""></div></p><h2 dir="auto">Features</h2><ul dir="auto"><li dir="auto"><p dir="auto">Use React, tailwindcss, <a target="_blank" rel="noopener noreferrer nofollow" class="link" href="https://ui.shadcn.com/">shadcn</a> components</p></li><li dir="auto"><p dir="auto">I18n support (vi, en, zh, pt, ...)</p></li><li dir="auto"><p dir="auto">Slash Commands (type <code>/</code> to show menu list)</p></li><li dir="auto"><p dir="auto">Multi Column</p></li><li dir="auto"><p dir="auto">Support emoji <span dir="auto" data-name="100" data-type="emoji">💯</span> (type <code>:</code> to show emoji list)</p></li><li dir="auto"><p dir="auto">Support iframe</p></li><li dir="auto"><p dir="auto">Support mermaid</p></li><li dir="auto"><p dir="auto">Support mention <span class="mention" data-type="mention" dir="auto" data-id="0" data-label="hunghg255" data-mention-suggestion-char="@">@hunghg255</span> (type <code>@</code> to show list)</p></li><li dir="auto"><p dir="auto">Suport katex math (<span class="katex" dir="auto" text="c%20%3D%20%5Cpm%5Csqrt%7Ba%5E2%20%2B%20b%5E2%7D" macros=""></span>)</p></li></ul><h2 dir="auto">Installation</h2><pre dir="auto"><code>pnpm install reactjs-tiptap-editor@latest</code></pre><p dir="auto"></p>;`;
@@ -258,7 +267,7 @@ const TOOLBAR_ITEMS = [
   { id: 'drawer', component: <RichTextDrawer /> },
 ];
 
-const RichTextToolbar = memo(() => {
+const RichTextToolbar = memo(({ onOpenTemplate }: { onOpenTemplate?: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const itemWidthsRef = useRef<number[] | null>(null);
@@ -274,24 +283,32 @@ const RichTextToolbar = memo(() => {
       const containerWidth = container.clientWidth;
       if (containerWidth <= 0) return;
 
-      // Measure & cache item widths ONCE on initial mount to eliminate DOM reflow layout thrashing
-      if (!itemWidthsRef.current && measureRef.current) {
-        const measureChildren = Array.from(measureRef.current.children) as HTMLElement[];
-        if (measureChildren.length > 0) {
-          itemWidthsRef.current = measureChildren.map(
-            (child) => child.getBoundingClientRect().width || child.offsetWidth || 32
-          );
+      let widths = itemWidthsRef.current;
+      if (!widths || widths.some(w => w <= 0)) {
+        if (measureRef.current) {
+          const measureChildren = Array.from(measureRef.current.children) as HTMLElement[];
+          if (measureChildren.length > 0) {
+            const measured = measureChildren.map(
+              (child) => child.getBoundingClientRect().width || child.offsetWidth || 32
+            );
+            if (measured.every(w => w > 0)) {
+              widths = measured;
+              itemWidthsRef.current = measured;
+            } else {
+              widths = measured;
+            }
+          }
         }
       }
 
-      const widths = itemWidthsRef.current;
       if (!widths || widths.length === 0) return;
 
       const gap = 4;
-      const MORE_BUTTON_WIDTH = 40;
+      const MORE_BUTTON_WIDTH = 36;
+      const TEMPLATE_BUTTON_WIDTH = onOpenTemplate ? 72 : 0;
       const totalItems = TOOLBAR_ITEMS.length;
 
-      let totalWidthNeeded = 0;
+      let totalWidthNeeded = TEMPLATE_BUTTON_WIDTH;
       for (let i = 0; i < widths.length; i++) {
         totalWidthNeeded += widths[i] + (i > 0 ? gap : 0);
       }
@@ -301,7 +318,7 @@ const RichTextToolbar = memo(() => {
         return;
       }
 
-      const availableWidth = containerWidth - MORE_BUTTON_WIDTH - gap;
+      const availableWidth = containerWidth - MORE_BUTTON_WIDTH - TEMPLATE_BUTTON_WIDTH - gap * 2;
       let currentWidth = 0;
       let count = 0;
 
@@ -332,7 +349,7 @@ const RichTextToolbar = memo(() => {
       cancelAnimationFrame(rafId);
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [onOpenTemplate]);
 
   const visibleItems = TOOLBAR_ITEMS.slice(0, visibleCount);
   const overflowItems = TOOLBAR_ITEMS.slice(visibleCount);
@@ -361,30 +378,46 @@ const RichTextToolbar = memo(() => {
           </div>
         ))}
 
-        {overflowItems.length > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 ml-auto"
-                title="更多工具"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="w-auto max-w-[420px] p-2 flex flex-wrap gap-1 shadow-xl border border-border bg-white dark:bg-zinc-900 z-[1100]"
+        <div className="ml-auto flex items-center gap-1 shrink-0">
+          {onOpenTemplate && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border/60 hover:border-border"
+              title="使用模板"
+              onClick={onOpenTemplate}
+              type="button"
             >
-              {overflowItems.map((item) => (
-                <div key={item.id} className="inline-flex items-center shrink-0">
-                  {item.component}
-                </div>
-              ))}
-            </PopoverContent>
-          </Popover>
-        )}
+              <LayoutTemplate className="h-3.5 w-3.5" />
+              <span>模板</span>
+            </Button>
+          )}
+
+          {overflowItems.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  title="更多工具"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                className="w-[360px] sm:w-[420px] max-w-[calc(100vw-32px)] p-2 flex flex-wrap items-center gap-1 shadow-xl border border-border bg-white dark:bg-zinc-900 z-[1100]"
+              >
+                {overflowItems.map((item) => (
+                  <div key={item.id} className="inline-flex items-center shrink-0">
+                    {item.component}
+                  </div>
+                ))}
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -412,20 +445,41 @@ export interface ReactjsTiptapEditorProps {
   className?: string;
   showHeader?: boolean;
   showToolbar?: boolean;
+  enableCustomTemplates?: boolean;
+  supportCustomTemplates?: boolean;
+  enableTemplates?: boolean;
+  supportTemplates?: boolean;
+  templateButtonColor?: string;
 }
 
 const parseContent = (content?: string) => {
   if (!content) return '';
   const trimmed = content.trim();
+
+  // 1. TipTap JSON string
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
     try {
       return JSON.parse(trimmed);
     } catch {
-      return content;
+      // Fallback if not valid JSON
     }
   }
-  return content;
+
+  // 2. HTML string
+  if (trimmed.startsWith('<') && trimmed.endsWith('>')) {
+    return content;
+  }
+
+  // 3. Markdown string or plain text
+  try {
+    const jsonStr = convertMarkdownToTipTapJson(content);
+    return JSON.parse(jsonStr);
+  } catch {
+    return content;
+  }
 };
+
+
 
 function debounce(func: any, wait: number) {
   let timeout: any;
@@ -443,7 +497,22 @@ export function Editor({
   className = '',
   showHeader = false,
   showToolbar = true,
+  enableCustomTemplates,
+  supportCustomTemplates,
+  enableTemplates,
+  supportTemplates,
+  templateButtonColor,
 }: ReactjsTiptapEditorProps = {}) {
+  const hasTemplateSupport = Boolean(
+    enableCustomTemplates || supportCustomTemplates || enableTemplates || supportTemplates
+  );
+
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+
+  const templates = useTemplateStore((state) => state.templates);
+  const updateTemplate = useTemplateStore((state) => state.updateTemplate);
+  const deleteTemplate = useTemplateStore((state) => state.deleteTemplate);
+
   // Store last emitted content to avoid feedback loops and unnecessary setContent calls
   const lastEmittedValueRef = useRef<string>('');
 
@@ -466,10 +535,23 @@ export function Editor({
     initialContentRef.current = parseContent(raw);
   }
 
+  const editorExtensions = useMemo(() => {
+    const list = [...extensions];
+    if (hasTemplateSupport) {
+      list.push(
+        InteractivePlaceholder.configure({
+          templateButtonColor,
+          onOpenTemplate: () => setIsTemplateModalOpen(true),
+        })
+      );
+    }
+    return list;
+  }, [hasTemplateSupport, templateButtonColor]);
+
   const editor = useEditor({
     textDirection: 'auto',
     content: initialContentRef.current,
-    extensions: extensions as any[],
+    extensions: editorExtensions as any[],
     editable,
     immediatelyRender: false,
     onUpdate: ({ editor: ed }) => {
@@ -527,6 +609,16 @@ export function Editor({
     }
   }, [editor, valueProp, initialContent]);
 
+  const handleSelectTemplate = (template: Template) => {
+    if (!editor || editor.isDestroyed) return;
+    const parsed = parseContent(template.content);
+    editor.commands.setContent(parsed);
+    const jsonStr = JSON.stringify(editor.getJSON());
+    lastEmittedValueRef.current = jsonStr;
+    onChange?.(jsonStr);
+    setIsTemplateModalOpen(false);
+  };
+
   if (!editor) {
     return null;
   }
@@ -541,11 +633,15 @@ export function Editor({
         </div>
       )}
 
-      <div className={`w-full h-full flex flex-col min-h-0 ${className}`}>
+      <div className={`w-full h-full flex flex-col min-h-0 relative ${className}`}>
         <RichTextProvider editor={editor as any}>
-          <div className="overflow-hidden rounded-[0.5rem] bg-[var(--surface-1,#fafbfc)] !border !border-border flex flex-col h-full flex-1 min-h-0">
-            <div className="flex w-full flex-col h-full flex-1 min-h-0">
-              {showToolbar && <RichTextToolbar />}
+          <div className="overflow-hidden rounded-[0.5rem] bg-[var(--surface-1,#fafbfc)] !border !border-border flex flex-col h-full flex-1 min-h-0 relative">
+            <div className="flex w-full flex-col h-full flex-1 min-h-0 relative">
+              {showToolbar && (
+                <RichTextToolbar
+                  onOpenTemplate={hasTemplateSupport ? () => setIsTemplateModalOpen(true) : undefined}
+                />
+              )}
 
               <EditorContent editor={editor} className="flex-1 overflow-y-auto min-h-0" />
 
@@ -553,6 +649,16 @@ export function Editor({
             </div>
           </div>
         </RichTextProvider>
+
+        {hasTemplateSupport && isTemplateModalOpen && (
+          <TemplateModal
+            templates={templates}
+            onSelect={handleSelectTemplate}
+            onClose={() => setIsTemplateModalOpen(false)}
+            onEdit={(id, name, templateContent) => updateTemplate(id, { name, content: templateContent })}
+            onDelete={(id) => deleteTemplate(id)}
+          />
+        )}
       </div>
     </>
   );

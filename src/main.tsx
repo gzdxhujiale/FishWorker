@@ -90,9 +90,12 @@ function App() {
   const [activeSection, setActiveSection] = React.useState<AppSection>("four-quadrants");
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
-  // Preload all chunks once on mount, during idle time.
+  // Preload all chunks once on mount, during idle time, and initialize background auto-update check
   React.useEffect(() => {
     preloadAllModules();
+    import("./features/settings/updateStore").then(({ useUpdateStore }) => {
+      useUpdateStore.getState().initBackgroundUpdate();
+    });
   }, []);
 
   // Blur any active element (e.g. TipTap editor) when switching sections to prevent aria-hidden focus retention warnings

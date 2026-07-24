@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Template, getTemplatePreviewText } from './templateTypes';
 import { X, Edit2, Trash2 } from 'lucide-react';
-import { ReactjsTiptapEditor } from '../reactjs-tiptap-v1';
+import ReactjsTiptapEditor from '../reactjs-tiptap-v1/components/Editor/Editor';
 import { useConfirmDialog } from '../../components/ui/ConfirmDeleteDialog';
 
 interface TemplateModalProps {

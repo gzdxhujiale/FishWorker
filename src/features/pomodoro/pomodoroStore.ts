@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { PomodoroMode, PomodoroPhase, PomodoroRecord, PomodoroStats, FavoriteFocusTask, LinkedTarget } from './pomodoroTypes';
 import { pomodoroService } from './pomodoroService';
 import { createSyncEngine } from '../../lib/createSyncEngine';
@@ -191,6 +192,7 @@ interface PomodoroState {
   isRunning: boolean;
   timeLeft: number; // in seconds
   totalTargetSeconds: number; // 25*60 or custom
+  targetEndTime: number | null; // target end timestamp in ms
   stopwatchSeconds: number;
   sessionStartTime: Date | null;
   focusDuration: number;
@@ -212,7 +214,7 @@ interface PomodoroState {
   pauseTimer: () => void;
   resetTimer: () => void;
   tick: () => void;
-  finishCurrentSession: () => void;
+  finishCurrentSession: (reason?: 'auto' | 'manual') => void;
 
   // Favorite Tasks CRUD
   addFavoriteTask: (payload: {
@@ -239,12 +241,76 @@ interface PomodoroState {
   getArchivedFavoriteTasks: () => FavoriteFocusTask[];
 }
 
+export const requestNotificationPermission = async () => {
+  try {
+    let granted = await isPermissionGranted();
+    if (!granted) {
+      const permission = await requestPermission();
+      granted = permission === 'granted';
+    }
+  } catch (e) {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      try {
+        await Notification.requestPermission();
+      } catch (err) {}
+    }
+  }
+};
+
+export const sendDesktopNotification = async (title: string, body: string) => {
+  try {
+    let granted = await isPermissionGranted();
+    if (!granted) {
+      const permission = await requestPermission();
+      granted = permission === 'granted';
+    }
+    if (granted) {
+      sendNotification({
+        title,
+        body,
+      });
+      return;
+    }
+  } catch (e) {
+    console.warn('Tauri notification plugin failed, trying Web Notification fallback:', e);
+  }
+
+  // Fallback to Web Notification API
+  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, {
+        body,
+        tag: 'fishworker-pomodoro-notification',
+      });
+    } catch (e) {
+      console.error('Failed to send desktop notification via Web API:', e);
+    }
+  }
+};
+
+let globalTimerInterval: NodeJS.Timeout | null = null;
+
+const stopGlobalTimer = () => {
+  if (globalTimerInterval) {
+    clearInterval(globalTimerInterval);
+    globalTimerInterval = null;
+  }
+};
+
+const startGlobalTimer = () => {
+  stopGlobalTimer();
+  globalTimerInterval = setInterval(() => {
+    usePomodoroStore.getState().tick();
+  }, 500);
+};
+
 export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   mode: 'pomodoro',
   phase: 'focus',
   isRunning: false,
   timeLeft: FOCUS_DURATION_DEFAULT,
   totalTargetSeconds: FOCUS_DURATION_DEFAULT,
+  targetEndTime: null,
   stopwatchSeconds: 0,
   sessionStartTime: null,
   focusDuration: FOCUS_DURATION_DEFAULT,
@@ -277,11 +343,15 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
   setMode: (mode: PomodoroMode) => {
     const state = get();
-    if (state.mode === mode) return;
+    // Do not allow switching mode while timer is running
+    if (state.isRunning || state.mode === mode) return;
+    stopGlobalTimer();
     set({
       mode,
       isRunning: false,
       stopwatchSeconds: 0,
+      targetEndTime: null,
+      sessionStartTime: null,
       timeLeft: state.phase === 'focus' ? state.focusDuration : state.breakDuration,
       totalTargetSeconds: state.phase === 'focus' ? state.focusDuration : state.breakDuration,
     });
@@ -289,10 +359,12 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
   setPhase: (phase: PomodoroPhase) => {
     const state = get();
+    stopGlobalTimer();
     const duration = phase === 'focus' ? state.focusDuration : state.breakDuration;
     set({
       phase,
       isRunning: false,
+      targetEndTime: null,
       timeLeft: duration,
       totalTargetSeconds: duration,
       sessionStartTime: null,
@@ -330,24 +402,46 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   startTimer: () => {
     const state = get();
     if (state.isRunning) return;
+    requestNotificationPermission();
+
+    const now = Date.now();
+    const startTime = state.sessionStartTime || new Date(now);
+    let targetEnd = state.targetEndTime;
+
+    if (state.mode === 'pomodoro' && !targetEnd) {
+      targetEnd = now + state.timeLeft * 1000;
+    }
+
     set({
       isRunning: true,
-      sessionStartTime: state.sessionStartTime || new Date(),
+      sessionStartTime: startTime,
+      targetEndTime: targetEnd,
     });
+
+    startGlobalTimer();
   },
 
   pauseTimer: () => {
-    set({ isRunning: false });
+    stopGlobalTimer();
+    set({ isRunning: false, targetEndTime: null });
   },
 
   resetTimer: () => {
     const state = get();
+    const wasRunning = state.isRunning;
+    stopGlobalTimer();
     const target = state.phase === 'focus' ? state.focusDuration : state.breakDuration;
+
+    if (wasRunning) {
+      sendDesktopNotification('⏱️ 番茄计时已停止', '当前番茄计时已手动重置并停止。');
+    }
+
     set({
       isRunning: false,
       timeLeft: target,
       stopwatchSeconds: 0,
       sessionStartTime: null,
+      targetEndTime: null,
     });
   },
 
@@ -355,24 +449,40 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     const state = get();
     if (!state.isRunning) return;
 
+    const now = Date.now();
+
     if (state.mode === 'stopwatch') {
-      set({ stopwatchSeconds: state.stopwatchSeconds + 1 });
+      if (!state.sessionStartTime) return;
+      const elapsed = Math.max(0, Math.floor((now - state.sessionStartTime.getTime()) / 1000));
+      if (elapsed !== state.stopwatchSeconds) {
+        set({ stopwatchSeconds: elapsed });
+      }
       return;
     }
 
-    if (state.timeLeft > 1) {
-      set({ timeLeft: state.timeLeft - 1 });
-    } else {
-      get().finishCurrentSession();
+    if (state.mode === 'pomodoro') {
+      if (!state.targetEndTime) return;
+      const remaining = Math.max(0, Math.ceil((state.targetEndTime - now) / 1000));
+
+      if (remaining !== state.timeLeft) {
+        set({ timeLeft: remaining });
+      }
+
+      if (remaining <= 0) {
+        stopGlobalTimer();
+        get().finishCurrentSession('auto');
+      }
     }
   },
 
-  finishCurrentSession: () => {
+  finishCurrentSession: (reason: 'auto' | 'manual' = 'manual') => {
     const state = get();
+    stopGlobalTimer();
     const now = new Date();
     const start = state.sessionStartTime || new Date(now.getTime() - state.totalTargetSeconds * 1000);
 
     const activeFav = state.favoriteTasks.find((f) => f.id === state.activeFavoriteTaskId);
+    const taskName = activeFav ? activeFav.name : (state.phase === 'focus' ? '专注任务' : '休息');
 
     if (state.phase === 'focus') {
       const durationMins = state.mode === 'stopwatch'
@@ -412,6 +522,26 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
       set({ records: updatedRecords, favoriteTasks: updatedFavs });
     }
 
+    // Send Desktop System Notification
+    if (reason === 'auto') {
+      if (state.phase === 'focus') {
+        sendDesktopNotification(
+          '🎉 专注时间结束！',
+          `恭喜完成【${taskName}】！已成功专注 ${Math.round(state.totalTargetSeconds / 60)} 分钟，休息一下吧！`
+        );
+      } else {
+        sendDesktopNotification(
+          '☕ 休息时间结束！',
+          '休息时间到了，准备好开始新一轮专注了吗？'
+        );
+      }
+    } else {
+      sendDesktopNotification(
+        '✅ 专注任务已完成',
+        `提前完成了【${taskName}】并记录结算。`
+      );
+    }
+
     // Sound chime
     try {
       const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU');
@@ -428,12 +558,14 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
         timeLeft: nextDuration,
         totalTargetSeconds: nextDuration,
         sessionStartTime: null,
+        targetEndTime: null,
       });
     } else {
       set({
         isRunning: false,
         stopwatchSeconds: 0,
         sessionStartTime: null,
+        targetEndTime: null,
       });
     }
   },
@@ -508,7 +640,11 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     const fav = get().favoriteTasks.find((f) => f.id === id);
     if (!fav) return;
 
+    requestNotificationPermission();
+    stopGlobalTimer();
+
     const targetSecs = (fav.durationMinutes || 25) * 60;
+    const now = Date.now();
     set({
       activeFavoriteTaskId: id,
       mode: fav.mode,
@@ -517,8 +653,11 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
       totalTargetSeconds: targetSecs,
       stopwatchSeconds: 0,
       isRunning: true,
-      sessionStartTime: new Date(),
+      sessionStartTime: new Date(now),
+      targetEndTime: fav.mode === 'pomodoro' ? now + targetSecs * 1000 : null,
     });
+
+    startGlobalTimer();
   },
 
   addManualRecord: (minutes: number) => {

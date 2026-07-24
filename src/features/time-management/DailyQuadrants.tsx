@@ -241,7 +241,43 @@ export function DailyQuadrants({ tasks, onToggleComplete, onAddTask, hideComplet
           <div className="tm-task-content-wrapper" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '4px', minWidth: 0 }}>
             <span className="tm-task-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
             {isExpired && (
-              <span style={{ fontSize: '10px', color: '#dc2626', backgroundColor: '#fef2f2', padding: '1px 5px', borderRadius: '4px', border: '1px solid #fca5a5', flexShrink: 0, fontWeight: 500 }}>
+              <span
+                className="tm-overdue-tag"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const today = new Date();
+                  today.setHours(23, 59, 59, 999);
+                  onUpdateTask(task.id, { deadline: today.getTime() });
+                }}
+                title="点击延期至今日"
+                style={{
+                  fontSize: '10px',
+                  color: '#dc2626',
+                  backgroundColor: '#fef2f2',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  border: '1px solid #fca5a5',
+                  flexShrink: 0,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  userSelect: 'none',
+                }}
+                onMouseEnter={(e) => {
+                  const target = e.currentTarget;
+                  target.textContent = '延期';
+                  target.style.backgroundColor = '#dc2626';
+                  target.style.color = '#ffffff';
+                  target.style.borderColor = '#dc2626';
+                }}
+                onMouseLeave={(e) => {
+                  const target = e.currentTarget;
+                  target.textContent = '已过期';
+                  target.style.backgroundColor = '#fef2f2';
+                  target.style.color = '#dc2626';
+                  target.style.borderColor = '#fca5a5';
+                }}
+              >
                 已过期
               </span>
             )}

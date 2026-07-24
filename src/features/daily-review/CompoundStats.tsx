@@ -123,7 +123,7 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
               if (review) {
                 if (review.rating === 5) cls = 'active-level-4';
                 else if (review.rating === 4) cls = 'active-level-3';
-                else if (review.rating && review.rating >= 2) cls = 'active-level-2';
+                else if (review.rating === 3) cls = 'active-level-2';
                 else cls = 'active-level-1';
               }
               const isSelected = dStr === selectedDate;
@@ -137,7 +137,7 @@ export const CompoundStats: React.FC<Props> = ({ stats, reviews, onSelectDate, s
                     isDisabled
                       ? 'opacity-30 cursor-not-allowed border-transparent bg-gray-50'
                       : isSelected
-                      ? 'ring-2 ring-blue-500 ring-offset-1 border-blue-400 cursor-pointer'
+                      ? 'arco-calendar-date-selected is-selected ring-2 ring-blue-500 ring-offset-1 border-blue-400 cursor-pointer'
                       : 'border-transparent cursor-pointer'
                   } ${cls}`}
                 >

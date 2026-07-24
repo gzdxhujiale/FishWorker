@@ -136,7 +136,7 @@ export const useDailyReviewStore = create<DailyReviewStore>((set, get) => ({
   },
 
   getCompoundStats: (): CompoundStats => {
-    const reviews = get().data.reviews.filter(r => !isReviewEmpty(r.content));
+    const reviews = get().data.reviews.filter(r => !isReviewEmpty(r.content) || (r.rating !== undefined && r.rating > 0));
     if (reviews.length === 0) {
       return { currentStreak: 0, longestStreak: 0, totalReviews: 0, compoundValue: 1.00 };
     }

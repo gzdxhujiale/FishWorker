@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, MoreHorizontal, Settings, ArrowLeft } from 'lucide-react';
-import { usePomodoroStore } from './pomodoroStore';
+import { requestNotificationPermission, usePomodoroStore } from './pomodoroStore';
 import { PomodoroTimerCircle } from './PomodoroTimerCircle';
 import { PomodoroOverview } from './PomodoroOverview';
 import { PomodoroHistory } from './PomodoroHistory';
@@ -23,7 +23,6 @@ export const PomodoroPanel: React.FC = () => {
     setActiveTab,
     setFocusDuration,
     setBreakDuration,
-    tick,
     getActiveFavoriteTasks,
     getArchivedFavoriteTasks,
     syncAllFromDB,
@@ -40,23 +39,11 @@ export const PomodoroPanel: React.FC = () => {
   const archivedFavTasks = getArchivedFavoriteTasks();
   const hasFavTasks = favoriteTasks.length > 0;
 
-  // Sync data on mount
+  // Sync data & request notification permission on mount
   useEffect(() => {
     syncAllFromDB();
+    requestNotificationPermission();
   }, [syncAllFromDB]);
-
-  // Timer Ticking Interval Effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isRunning) {
-      interval = setInterval(() => {
-        tick();
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isRunning, tick]);
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,13 +94,25 @@ export const PomodoroPanel: React.FC = () => {
             <div className="mode-pill-switch">
               <button
                 className={`pill-btn ${mode === 'pomodoro' ? 'active' : ''}`}
-                onClick={() => setMode('pomodoro')}
+                onClick={() => !isRunning && setMode('pomodoro')}
+                disabled={isRunning}
+                title={isRunning ? '计时进行中，无法切换模式' : '番茄计时模式'}
+                style={{
+                  opacity: isRunning && mode !== 'pomodoro' ? 0.5 : 1,
+                  cursor: isRunning ? 'not-allowed' : 'pointer',
+                }}
               >
                 番茄计时
               </button>
               <button
                 className={`pill-btn ${mode === 'stopwatch' ? 'active' : ''}`}
-                onClick={() => setMode('stopwatch')}
+                onClick={() => !isRunning && setMode('stopwatch')}
+                disabled={isRunning}
+                title={isRunning ? '计时进行中，无法切换模式' : '正计时模式'}
+                style={{
+                  opacity: isRunning && mode !== 'stopwatch' ? 0.5 : 1,
+                  cursor: isRunning ? 'not-allowed' : 'pointer',
+                }}
               >
                 正计时
               </button>
