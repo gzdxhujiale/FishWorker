@@ -1,7 +1,7 @@
 {
   "name": "humanmanual",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.0.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,9 @@
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "build:dict": "node scripts/build-ecdict.mjs",
+    "build:dict:placeholder": "node scripts/build-ecdict.mjs --placeholder"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

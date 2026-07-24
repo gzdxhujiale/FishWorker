@@ -1,7 +1,6 @@
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions, SqliteConnectOptions};
 use sqlx::MySqlPool;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 /// Get the local database file path under the user's AppData directory.
 fn get_local_db_path() -> PathBuf {
@@ -18,12 +17,11 @@ fn get_local_db_path() -> PathBuf {
 /// Creates the database file and parent directories if they don't exist.
 pub async fn establish_local_connection() -> Result<SqlitePool, sqlx::Error> {
     let db_path = get_local_db_path();
-    let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
-
-    let options = SqliteConnectOptions::from_str(&db_url)?
+    let options = SqliteConnectOptions::new()
+        .filename(&db_path)
+        .create_if_missing(true)
         .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-        .busy_timeout(std::time::Duration::from_secs(10))
-        .create_if_missing(true);
+        .busy_timeout(std::time::Duration::from_secs(10));
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)

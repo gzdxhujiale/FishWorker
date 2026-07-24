@@ -87,9 +87,18 @@ function preloadAllModules() {
 }
 
 const StandaloneNoteWindow = React.lazy(() => import("./features/lists/StandaloneNoteWindow").then(m => ({ default: m.StandaloneNoteWindow })));
+const DictionaryWindow = React.lazy(() => import("./features/dictionary/DictionaryWindow").then(m => ({ default: m.DictionaryWindow })));
+
+import { useDictionaryHotkey } from "./features/dictionary/useDictionaryHotkey";
 
 function App() {
-  const isNoteWindow = new URLSearchParams(window.location.search).get('window') === 'note';
+  const params = new URLSearchParams(window.location.search);
+  const windowType = params.get('window');
+  const isNoteWindow = windowType === 'note';
+  const isDictionaryWindow = windowType === 'dictionary';
+
+  // Register the global-in-app Ctrl+L dictionary shortcut (works in every window).
+  useDictionaryHotkey();
 
   const [activeSection, setActiveSection] = React.useState<AppSection>("four-quadrants");
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
@@ -103,6 +112,14 @@ function App() {
       });
     }
   }, [isNoteWindow]);
+
+  if (isDictionaryWindow) {
+    return (
+      <React.Suspense fallback={<SectionFallback />}>
+        <DictionaryWindow />
+      </React.Suspense>
+    );
+  }
 
   if (isNoteWindow) {
     return (

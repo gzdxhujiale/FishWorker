@@ -8,6 +8,7 @@ mod daily_review;
 mod mission;
 mod habit;
 mod pomodoro;
+mod dictionary;
 pub mod entities;
 
 
@@ -123,6 +124,10 @@ pub fn run() {
             });
             app.manage(sqlite_pool.clone());
 
+            // Resolve the bundled ECDICT dictionary database (offline word lookup).
+            let dict_path = dictionary::resolve_dict_path(app.handle());
+            app.manage(dictionary::DictState::new(dict_path));
+
             let tidb_state = db::TidbState::default();
             app.manage(tidb_state.clone());
 
@@ -216,7 +221,8 @@ pub fn run() {
             pomodoro::pomodoro_upsert_record,
             pomodoro::pomodoro_delete_record,
             pomodoro::pomodoro_upsert_favorite,
-            pomodoro::pomodoro_delete_favorite
+            pomodoro::pomodoro_delete_favorite,
+            dictionary::dict_lookup
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
