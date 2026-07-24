@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowDownUp, MoreHorizontal, Plus, PanelLeftClose, PanelLeftOpen, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowDownUp, MoreHorizontal, Plus, PanelLeftClose, PanelLeftOpen, CheckCircle, AlertCircle, ChevronRight, Check, Sidebar, ExternalLink } from 'lucide-react';
 import { useListsStore } from './listsStore';
 import { List, Folder, ViewType, Note, Template } from './listsTypes';
 import { ListsSidebar } from './ListsSidebar';
 import { AddListModal } from './AddListModal';
 import { FolderModal } from './FolderModal';
 import { NoteDrawer } from './NoteDrawer';
+import { ListSettingsModal } from './ListSettingsModal';
+import { getNoteOpenMode, setNoteOpenMode, openNoteInNewWindow } from './noteOpenService';
 import { TemplateModal, useTemplateStore } from '../templates';
 import { NoteItem } from './NoteItem';
 import { NoteGroupView } from './NoteGroupView';
@@ -85,6 +87,7 @@ export function ListsPanel() {
 
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editFolderTarget, setEditFolderTarget] = useState<Folder | undefined>();
+  const [isListSettingsOpen, setIsListSettingsOpen] = useState(false);
 
   // Note state
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
@@ -318,6 +321,16 @@ export function ListsPanel() {
   };
 
   // --- Note Actions ---
+  const handleOpenNote = (noteId: string, noteTitle?: string) => {
+    const mode = getNoteOpenMode();
+    if (mode === 'window') {
+      openNoteInNewWindow(noteId, noteTitle);
+    } else {
+      setActiveNoteId(noteId);
+      setIsDrawerOpen(true);
+    }
+  };
+
   const handleAddNote = () => {
     if (!activeListId || !newNoteTitle.trim()) return;
     const newNote = store.addNote({
@@ -326,8 +339,7 @@ export function ListsPanel() {
       content: '',
     });
     setNewNoteTitle('');
-    setActiveNoteId(newNote.id);
-    setIsDrawerOpen(true);
+    handleOpenNote(newNote.id, newNote.title);
   };
 
   const handleBatchImport = async () => {
@@ -380,8 +392,7 @@ export function ListsPanel() {
       title: note.title + ' (副本)',
       content: note.content,
     });
-    setActiveNoteId(newNote.id);
-    setIsDrawerOpen(true);
+    handleOpenNote(newNote.id, newNote.title);
   };
 
   const handleSaveAsTemplate = (note: Note) => {
@@ -496,7 +507,52 @@ export function ListsPanel() {
                     onClick={(e) => { e.stopPropagation(); setListMenuOpen(!listMenuOpen); }}
                   />
                   {listMenuOpen && (
-                    <div className="lists-dropdown-menu" style={{ right: 0, top: '100%', marginTop: '4px', zIndex: 10, width: '130px' }}>
+                    <div className="lists-dropdown-menu" style={{ right: 0, top: '100%', marginTop: '4px', zIndex: 10, width: '160px' }}>
+                      {/* 1st-level item with hover/click 2nd-level submenu */}
+                      <div className="lists-dropdown-submenu-container">
+                        <div className="lists-dropdown-item" style={{ justifyContent: 'space-between' }}>
+                          <span>笔记打开方式</span>
+                          <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+                        </div>
+
+                        {/* 2nd-level submenu */}
+                        <div className="lists-dropdown-submenu">
+                          <div
+                            className="lists-dropdown-item"
+                            style={{ justifyContent: 'space-between' }}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await setNoteOpenMode('sidebar');
+                              showToast('已成功切换为：侧边栏弹出笔记');
+                              setListMenuOpen(false);
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Sidebar size={14} />
+                              侧边栏弹出
+                            </span>
+                            {getNoteOpenMode() === 'sidebar' && <Check size={14} style={{ color: 'var(--primary-color, #3b82f6)' }} />}
+                          </div>
+
+                          <div
+                            className="lists-dropdown-item"
+                            style={{ justifyContent: 'space-between' }}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await setNoteOpenMode('window');
+                              showToast('已成功切换为：新窗口弹出笔记');
+                              setListMenuOpen(false);
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <ExternalLink size={14} />
+                              新窗口弹出
+                            </span>
+                            {getNoteOpenMode() === 'window' && <Check size={14} style={{ color: 'var(--primary-color, #3b82f6)' }} />}
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="lists-dropdown-item" onClick={() => { handleAddGroupClick(); setListMenuOpen(false); }}>新建分组</div>
                       <div className="lists-dropdown-item" onClick={() => { handleBatchImport(); setListMenuOpen(false); }}>批量导入MD</div>
                       <div className="lists-dropdown-item" onClick={() => { setBatchExportModalOpen(true); setListMenuOpen(false); }}>批量导出MD</div>
@@ -557,7 +613,7 @@ export function ListsPanel() {
                               key={note.id}
                               note={note}
                               allLists={lists}
-                              onClick={() => { setActiveNoteId(note.id); setIsDrawerOpen(true); }}
+                              onClick={() => handleOpenNote(note.id, note.title)}
                               onPin={handlePinNote}
                               onDuplicate={handleDuplicateNote}
                               onDelete={handleDeleteNote}
@@ -581,7 +637,7 @@ export function ListsPanel() {
                               isDragOverTarget={!!isDragOverTarget}
                               onRenameGroup={handleRenameGroup}
                               onDeleteGroup={handleDeleteGroup}
-                              onNoteClick={(note) => { setActiveNoteId(note.id); setIsDrawerOpen(true); }}
+                              onNoteClick={(note) => handleOpenNote(note.id, note.title)}
                               onPinNote={handlePinNote}
                               onDuplicateNote={handleDuplicateNote}
                               onDeleteNote={handleDeleteNote}
@@ -603,7 +659,7 @@ export function ListsPanel() {
                                 isDragOverTarget={!!isDragOverTarget}
                                 onRenameGroup={() => { }}
                                 onDeleteGroup={() => { }}
-                                onNoteClick={(note) => { setActiveNoteId(note.id); setIsDrawerOpen(true); }}
+                                onNoteClick={(note) => handleOpenNote(note.id, note.title)}
                                 onPinNote={handlePinNote}
                                 onDuplicateNote={handleDuplicateNote}
                                 onDeleteNote={handleDeleteNote}
@@ -673,6 +729,13 @@ export function ListsPanel() {
           notes={notes}
           onExport={handleBatchExport}
           onClose={() => setBatchExportModalOpen(false)}
+        />
+      )}
+
+      {isListSettingsOpen && (
+        <ListSettingsModal
+          onClose={() => setIsListSettingsOpen(false)}
+          showToast={showToast}
         />
       )}
 

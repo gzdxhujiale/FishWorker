@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Database, LayoutTemplate, RefreshCw, Settings, X } from "lucide-react";
+import { ClipboardList, Database, LayoutTemplate, RefreshCw, Settings, X } from "lucide-react";
 import { DatabaseSettingsPanel } from "./components/DatabaseSettingsPanel";
 import { TemplateSettingsPanel } from "./components/TemplateSettingsPanel";
 import { UpdateSettingsPanel } from "./components/UpdateSettingsPanel";
+import { ListSettingsPanel } from "./components/ListSettingsPanel";
 import { useUpdateStore } from "./updateStore";
 
-type SettingsTab = "templates" | "database" | "update";
+type SettingsTab = "templates" | "lists" | "database" | "update";
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("templates");
@@ -40,6 +41,15 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </button>
 
           <button 
+            className={`settings-nav-item ${activeTab === "lists" ? "active" : ""}`} 
+            type="button"
+            onClick={() => setActiveTab("lists")}
+          >
+            <ClipboardList size={16} />
+            <span>清单设置</span>
+          </button>
+
+          <button 
             className={`settings-nav-item ${activeTab === "database" ? "active" : ""}`} 
             type="button"
             onClick={() => setActiveTab("database")}
@@ -64,6 +74,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         <main className="settings-content">
           <header className="settings-header">
             <h2>
+              {activeTab === "lists" && "清单设置"}
               {activeTab === "templates" && "模板管理"}
               {activeTab === "database" && "数据库连接配置"}
               {activeTab === "update" && "软件更新"}
@@ -74,6 +85,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </header>
 
           <div className="settings-panels-wrapper">
+            {activeTab === "lists" && <ListSettingsPanel />}
             {activeTab === "templates" && <TemplateSettingsPanel />}
             {activeTab === "database" && <DatabaseSettingsPanel />}
             {activeTab === "update" && <UpdateSettingsPanel />}

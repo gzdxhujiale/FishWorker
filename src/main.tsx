@@ -86,17 +86,31 @@ function preloadAllModules() {
   });
 }
 
+const StandaloneNoteWindow = React.lazy(() => import("./features/lists/StandaloneNoteWindow").then(m => ({ default: m.StandaloneNoteWindow })));
+
 function App() {
+  const isNoteWindow = new URLSearchParams(window.location.search).get('window') === 'note';
+
   const [activeSection, setActiveSection] = React.useState<AppSection>("four-quadrants");
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
   // Preload all chunks once on mount, during idle time, and initialize background auto-update check
   React.useEffect(() => {
-    preloadAllModules();
-    import("./features/settings/updateStore").then(({ useUpdateStore }) => {
-      useUpdateStore.getState().initBackgroundUpdate();
-    });
-  }, []);
+    if (!isNoteWindow) {
+      preloadAllModules();
+      import("./features/settings/updateStore").then(({ useUpdateStore }) => {
+        useUpdateStore.getState().initBackgroundUpdate();
+      });
+    }
+  }, [isNoteWindow]);
+
+  if (isNoteWindow) {
+    return (
+      <React.Suspense fallback={<SectionFallback />}>
+        <StandaloneNoteWindow />
+      </React.Suspense>
+    );
+  }
 
   // Blur any active element (e.g. TipTap editor) when switching sections to prevent aria-hidden focus retention warnings
   React.useEffect(() => {
