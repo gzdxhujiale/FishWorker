@@ -109,6 +109,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             // Establish local SQLite connection (offline-first primary storage)
             let sqlite_pool = tauri::async_runtime::block_on(async {

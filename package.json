@@ -1,7 +1,7 @@
 {
   "name": "humanmanual",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -30,6 +30,7 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-notification": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2",
     "@tauri-apps/plugin-updater": "^2",
     "@tauri-apps/plugin-window-state": "^2",
     "@tiptap/core": "^3.27.4",

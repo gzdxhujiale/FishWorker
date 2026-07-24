@@ -61,8 +61,16 @@ export function UpdateSettingsPanel() {
     }
   };
 
-  const handleRestart = () => {
-    window.location.reload();
+  const handleRestart = async () => {
+    try {
+      // Relaunch the Tauri app so the already-downloaded update is applied.
+      // A plain window.location.reload() only refreshes the webview and never installs the update.
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      await relaunch();
+    } catch (err) {
+      console.error("Relaunch failed, falling back to webview reload:", err);
+      window.location.reload();
+    }
   };
 
   const isChecking = updateStatus === "checking";
