@@ -1047,3 +1047,47 @@
 .tiptap-bubble-menu .toolbar-select:hover {
   border-color: var(--text-muted);
 }
+
+/* Standalone Note Window Header & Controls */
+.standalone-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid var(--line-soft, #e5e7eb);
+  background: var(--bg-surface, #ffffff);
+  user-select: none;
+  height: 48px;
+}
+
+.standalone-window-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin-left: 8px;
+  gap: 2px;
+}
+
+.standalone-window-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.standalone-window-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-strong, #111827);
+}
+
+.standalone-window-btn.close-btn:hover {
+  background: #e81123;
+  color: #ffffff;
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useListsStore } from './listsStore';
 import { Note } from './listsTypes';
-import { MoreHorizontal, Pin, Save } from 'lucide-react';
+import { MoreHorizontal, Pin, Save, Minus, Square, Copy, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ReactjsTiptapEditor, convertMarkdownToTipTapJson, convertTipTapJsonToMarkdown } from '../reactjs-tiptap-v1';
@@ -50,7 +50,41 @@ function StandaloneNoteEditorContent({ note }: { note: Note }) {
   const [content, setContent] = useState(note.content || '');
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const isDraggingRef = useRef(false);
+
+  // Focus and select title input when switching to edit mode
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  // Synchronize window state (isMaximized)
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    const initWindowState = async () => {
+      try {
+        const appWin = getCurrentWindow();
+        setIsMaximized(await appWin.isMaximized());
+        unlisten = await appWin.onResized(async () => {
+          setIsMaximized(await appWin.isMaximized());
+        });
+      } catch (e) {
+        console.warn('Tauri window API listener warning:', e);
+      }
+    };
+    initWindowState();
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   // Synchronize when note prop is updated externally
   useEffect(() => {
@@ -99,6 +133,24 @@ function StandaloneNoteEditorContent({ note }: { note: Note }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleMinimizeWindow = async () => {
+    try {
+      await getCurrentWindow().minimize();
+    } catch (err) {
+      console.warn('Failed to minimize window:', err);
+    }
+  };
+
+  const handleToggleMaximizeWindow = async () => {
+    try {
+      const appWin = getCurrentWindow();
+      await appWin.toggleMaximize();
+      setIsMaximized(await appWin.isMaximized());
+    } catch (err) {
+      console.warn('Failed to toggle maximize:', err);
+    }
+  };
+
   const handleCloseWindow = async () => {
     try {
       const appWindow = getCurrentWindow();
@@ -106,6 +158,43 @@ function StandaloneNoteEditorContent({ note }: { note: Note }) {
     } catch {
       window.close();
     }
+  };
+
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.closest('button') || target.closest('.lists-dropdown-menu')) {
+      return;
+    }
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+    isDraggingRef.current = false;
+  };
+
+  const handleHeaderMouseMove = (e: React.MouseEvent) => {
+    if (!dragStartPosRef.current || isDraggingRef.current) return;
+    const dx = e.clientX - dragStartPosRef.current.x;
+    const dy = e.clientY - dragStartPosRef.current.y;
+    if (Math.hypot(dx, dy) > 4) {
+      isDraggingRef.current = true;
+      try {
+        getCurrentWindow().startDragging();
+      } catch (err) {
+        console.warn('startDragging error:', err);
+      }
+    }
+  };
+
+  const handleHeaderMouseUp = () => {
+    dragStartPosRef.current = null;
+    isDraggingRef.current = false;
+  };
+
+  const handleHeaderDoubleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.closest('button') || target.closest('.lists-dropdown-menu')) {
+      return;
+    }
+    setIsEditingTitle(true);
   };
 
   const handlePin = () => {
@@ -147,38 +236,60 @@ function StandaloneNoteEditorContent({ note }: { note: Note }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-app, #ffffff)', color: 'var(--text-strong, #1f2937)' }}>
       {/* Top Header Bar */}
       <div
-        data-tauri-drag-region
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 20px',
-          borderBottom: '1px solid var(--line-soft, #e5e7eb)',
-          background: 'var(--bg-surface, #ffffff)',
-          userSelect: 'none',
-        }}
+        className="standalone-note-header"
+        onMouseDown={handleHeaderMouseDown}
+        onMouseMove={handleHeaderMouseMove}
+        onMouseUp={handleHeaderMouseUp}
+        onDoubleClick={handleHeaderDoubleClick}
       >
-        <div style={{ display: 'flex', alignItems: 'center', flex: 1, marginRight: '16px' }} data-tauri-drag-region>
-          <input
-            type="text"
-            className="note-drawer-title-input"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="笔记标题"
-            style={{
-              flex: 1,
-              fontSize: '18px',
-              fontWeight: 600,
-              border: 'none',
-              outline: 'none',
-              background: 'transparent',
-              color: 'var(--text-strong, #111827)',
-            }}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1, marginRight: '16px', minWidth: 0 }}>
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              className="note-drawer-title-input"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              onBlur={() => setIsEditingTitle(false)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === 'Escape') {
+                  setIsEditingTitle(false);
+                }
+              }}
+              placeholder="笔记标题"
+              style={{
+                flex: 1,
+                fontSize: '18px',
+                fontWeight: 600,
+                border: 'none',
+                outline: 'none',
+                background: 'transparent',
+                color: 'var(--text-strong, #111827)',
+              }}
+            />
+          ) : (
+            <div
+              title="双击修改标题，按住拖拽窗口"
+              style={{
+                flex: 1,
+                fontSize: '18px',
+                fontWeight: 600,
+                color: 'var(--text-strong, #111827)',
+                cursor: 'default',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                userSelect: 'none',
+                padding: '4px 0',
+              }}
+            >
+              {title || <span style={{ color: 'var(--text-faint, #9ca3af)', fontWeight: 400 }}>未命名笔记 (双击修改)</span>}
+            </div>
+          )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted, #9ca3af)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted, #9ca3af)', display: 'flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
             <Save size={14} />
             {saveStatus === 'saving' ? '保存中...' : '已自动保存'}
           </span>
@@ -224,6 +335,37 @@ function StandaloneNoteEditorContent({ note }: { note: Note }) {
                 <div className="lists-dropdown-item text-danger" onClick={() => { setMenuOpen(false); handleDelete(); }}>删除笔记</div>
               </div>
             )}
+          </div>
+
+          {/* Window Control Buttons */}
+          <div className="standalone-window-controls">
+            <button
+              type="button"
+              className="standalone-window-btn"
+              onClick={handleMinimizeWindow}
+              title="最小化"
+              aria-label="最小化"
+            >
+              <Minus size={15} />
+            </button>
+            <button
+              type="button"
+              className="standalone-window-btn"
+              onClick={handleToggleMaximizeWindow}
+              title={isMaximized ? "向下还原" : "最大化"}
+              aria-label={isMaximized ? "向下还原" : "最大化"}
+            >
+              {isMaximized ? <Copy size={13} /> : <Square size={13} />}
+            </button>
+            <button
+              type="button"
+              className="standalone-window-btn close-btn"
+              onClick={handleCloseWindow}
+              title="关闭"
+              aria-label="关闭"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
       </div>
