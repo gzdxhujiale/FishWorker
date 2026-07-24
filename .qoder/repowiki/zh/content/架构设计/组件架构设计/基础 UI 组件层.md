@@ -25,10 +25,18 @@
 - [src/components/tiptap-ui-primitive/separator.scss](file://src/components/tiptap-ui-primitive/separator.scss)
 - [src/components/tiptap-ui-primitive/spacer.tsx](file://src/components/tiptap-ui-primitive/spacer.tsx)
 - [src/components/tiptap-ui-primitive/tooltip.tsx](file://src/components/tiptap-ui-primitive/tooltip.tsx)
-- [src/components/tiptap-ui-primitive/tooltip.scss](file://src/components/tiptap-ui-primitive/tooltip.scss)
+- [src/components/tiptap-ui-primitive/tooltip.scss](file://src/components/tiptap-ui-primitive/tooltip.tsx)
 - [src/components/tiptap-ui-primitive/index.tsx](file://src/components/tiptap-ui-primitive/index.tsx)
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
+- [src/components/ui/confirmDialog.css](file://src/components/ui/confirmDialog.css)
 - [src/styles/_variables.scss](file://src/styles/_variables.scss)
 </cite>
+
+## 更新摘要
+**变更内容**   
+- 新增统一的删除确认对话框组件（ConfirmDeleteDialog）
+- 改进弹窗逻辑，提供标准化的用户确认交互模式
+- 增强基础组件层的可访问性和用户体验一致性
 
 ## 目录
 1. [简介](#简介)
@@ -36,14 +44,15 @@
 3. [核心组件](#核心组件)
 4. [架构总览](#架构总览)
 5. [详细组件分析](#详细组件分析)
-6. [依赖关系分析](#依赖关系分析)
-7. [性能考量](#性能考量)
-8. [故障排查指南](#故障排查指南)
-9. [结论](#结论)
-10. [附录](#附录)
+6. [新增组件：删除确认对话框](#新增组件删除确认对话框)
+7. [依赖关系分析](#依赖关系分析)
+8. [性能考量](#性能考量)
+9. [故障排查指南](#故障排查指南)
+10. [结论](#结论)
+11. [附录](#附录)
 
 ## 简介
-本章节面向 FishWorker 应用的基础 UI 组件层，聚焦 tiptap-ui-primitive 目录中的原子级组件（Button、Card、Input、Popover、Toolbar 等）。文档将系统阐述：
+本章节面向 FishWorker 应用的基础 UI 组件层，聚焦 tiptap-ui-primitive 目录中的原子级组件（Button、Card、Input、Popover、Toolbar 等），以及新增的统一删除确认对话框组件。文档将系统阐述：
 - 设计理念与职责边界
 - Props 接口设计与类型约定
 - 样式系统与主题支持（SCSS）
@@ -53,7 +62,7 @@
 - 测试策略与性能优化建议
 
 ## 项目结构
-tiptap-ui-primitive 采用“按组件拆分”的组织方式：每个组件包含独立的 TSX 实现与 SCSS 样式，并通过统一入口 index.tsx 进行再导出。该结构有利于：
+tiptap-ui-primitive 采用"按组件拆分"的组织方式：每个组件包含独立的 TSX 实现与 SCSS 样式，并通过统一入口 index.tsx 进行再导出。该结构有利于：
 - 单一职责与高内聚
 - 按需引入与打包体积控制
 - 样式隔离与主题变量复用
@@ -73,7 +82,11 @@ I["spacer.tsx"]
 J["tooltip.tsx<br/>tooltip.scss"]
 K["index.tsx"]
 end
-L["_variables.scss"]
+subgraph "UI 增强组件"
+L["ConfirmDeleteDialog.tsx"]
+M["confirmDialog.css"]
+end
+N["_variables.scss"]
 A --> K
 B --> K
 C --> K
@@ -84,23 +97,26 @@ G --> K
 H --> K
 I --> K
 J --> K
-L --> A
-L --> B
-L --> C
-L --> D
-L --> E
-L --> F
-L --> G
-L --> H
-L --> J
+N --> A
+N --> B
+N --> C
+N --> D
+N --> E
+N --> F
+N --> G
+N --> H
+N --> J
+L --> M
 ```
 
 图表来源
 - [src/components/tiptap-ui-primitive/index.tsx](file://src/components/tiptap-ui-primitive/index.tsx)
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
 - [src/styles/_variables.scss](file://src/styles/_variables.scss)
 
 章节来源
 - [src/components/tiptap-ui-primitive/index.tsx](file://src/components/tiptap-ui-primitive/index.tsx)
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
 - [src/styles/_variables.scss](file://src/styles/_variables.scss)
 
 ## 核心组件
@@ -116,6 +132,7 @@ L --> J
 - Separator：分割线，用于视觉分隔。
 - Spacer：间距占位元素，便于布局微调。
 - Tooltip：悬浮提示，用于补充说明信息。
+- ConfirmDeleteDialog：统一的删除确认对话框，提供标准化的危险操作确认流程。
 
 章节来源
 - [src/components/tiptap-ui-primitive/button.tsx](file://src/components/tiptap-ui-primitive/button.tsx)
@@ -128,26 +145,29 @@ L --> J
 - [src/components/tiptap-ui-primitive/input.tsx](file://src/components/tiptap-ui-primitive/input.tsx)
 - [src/components/tiptap-ui-primitive/input.scss](file://src/components/tiptap-ui-primitive/input.scss)
 - [src/components/tiptap-ui-primitive/popover.tsx](file://src/components/tiptap-ui-primitive/popover.tsx)
-- [src/components/tiptap-ui-primitive/popover.scss](file://src/components/tiptap-ui-primitive/popover.tsx)
+- [src/components/tiptap-ui-primitive/popover.scss](file://src/components/tiptap-ui-primitive/popover.scss)
 - [src/components/tiptap-ui-primitive/toolbar.tsx](file://src/components/tiptap-ui-primitive/toolbar.tsx)
-- [src/components/tiptap-ui-primitive/toolbar.scss](file://src/components/tiptap-ui-primitive/toolbar.tsx)
+- [src/components/tiptap-ui-primitive/toolbar.scss](file://src/components/tiptap-ui-primitive/toolbar.scss)
 - [src/components/tiptap-ui-primitive/dropdown-menu.tsx](file://src/components/tiptap-ui-primitive/dropdown-menu.tsx)
-- [src/components/tiptap-ui-primitive/dropdown-menu.scss](file://src/components/tiptap-ui-primitive/dropdown-menu.tsx)
+- [src/components/tiptap-ui-primitive/dropdown-menu.scss](file://src/components/tiptap-ui-primitive/dropdown-menu.scss)
 - [src/components/tiptap-ui-primitive/badge.tsx](file://src/components/tiptap-ui-primitive/badge.tsx)
-- [src/components/tiptap-ui-primitive/badge.scss](file://src/components/tiptap-ui-primitive/badge.tsx)
+- [src/components/tiptap-ui-primitive/badge.scss](file://src/components/tiptap-ui-primitive/badge.scss)
 - [src/components/tiptap-ui-primitive/badge-colors.scss](file://src/components/tiptap-ui-primitive/badge-colors.scss)
 - [src/components/tiptap-ui-primitive/badge-group.scss](file://src/components/tiptap-ui-primitive/badge-group.scss)
 - [src/components/tiptap-ui-primitive/separator.tsx](file://src/components/tiptap-ui-primitive/separator.tsx)
-- [src/components/tiptap-ui-primitive/separator.scss](file://src/components/tiptap-ui-primitive/separator.tsx)
+- [src/components/tiptap-ui-primitive/separator.scss](file://src/components/tiptap-ui-primitive/separator.scss)
 - [src/components/tiptap-ui-primitive/spacer.tsx](file://src/components/tiptap-ui-primitive/spacer.tsx)
 - [src/components/tiptap-ui-primitive/tooltip.tsx](file://src/components/tiptap-ui-primitive/tooltip.tsx)
 - [src/components/tiptap-ui-primitive/tooltip.scss](file://src/components/tiptap-ui-primitive/tooltip.tsx)
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
+- [src/components/ui/confirmDialog.css](file://src/components/ui/confirmDialog.css)
 
 ## 架构总览
-基础组件层遵循“原子化 + 主题变量驱动”的架构：
+基础组件层遵循"原子化 + 主题变量驱动"的架构：
 - 组件仅关注自身渲染与交互逻辑，不耦合业务数据
 - 样式通过 SCSS 变量集中管理，便于主题切换与一致性维护
 - 通过 index.tsx 统一导出，上层可按需引用，避免重复导入
+- 新增的 ConfirmDeleteDialog 组件提供标准化的危险操作确认流程
 
 ```mermaid
 classDiagram
@@ -180,10 +200,15 @@ class Spacer
 class Tooltip {
 +属性 : 文本/位置/延迟
 }
+class ConfirmDeleteDialog {
++属性 : 标题/消息/确认回调/取消回调
++方法 : show/hide
+}
 Button --> Toolbar : "组合"
 DropdownMenu --> Popover : "基于"
 Badge --> Toolbar : "组合"
 Tooltip --> Button : "增强"
+ConfirmDeleteDialog --> Button : "使用"
 ```
 
 图表来源
@@ -193,6 +218,7 @@ Tooltip --> Button : "增强"
 - [src/components/tiptap-ui-primitive/toolbar.tsx](file://src/components/tiptap-ui-primitive/toolbar.tsx)
 - [src/components/tiptap-ui-primitive/badge.tsx](file://src/components/tiptap-ui-primitive/badge.tsx)
 - [src/components/tiptap-ui-primitive/tooltip.tsx](file://src/components/tiptap-ui-primitive/tooltip.tsx)
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
 
 ## 详细组件分析
 
@@ -304,11 +330,11 @@ P-->>U : "隐藏浮层"
 
 图表来源
 - [src/components/tiptap-ui-primitive/popover.tsx](file://src/components/tiptap-ui-primitive/popover.tsx)
-- [src/components/tiptap-ui-primitive/popover.scss](file://src/components/tiptap-ui-primitive/popover.tsx)
+- [src/components/tiptap-ui-primitive/popover.scss](file://src/components/tiptap-ui-primitive/popover.scss)
 
 章节来源
 - [src/components/tiptap-ui-primitive/popover.tsx](file://src/components/tiptap-ui-primitive/popover.tsx)
-- [src/components/tiptap-ui-primitive/popover.scss](file://src/components/tiptap-ui-primitive/popover.tsx)
+- [src/components/tiptap-ui-primitive/popover.scss](file://src/components/tiptap-ui-primitive/popover.scss)
 
 ### Toolbar 组件
 - 设计目标：工具栏容器，用于排列一组操作按钮或菜单项。
@@ -322,7 +348,7 @@ P-->>U : "隐藏浮层"
 
 章节来源
 - [src/components/tiptap-ui-primitive/toolbar.tsx](file://src/components/tiptap-ui-primitive/toolbar.tsx)
-- [src/components/tiptap-ui-primitive/toolbar.scss](file://src/components/tiptap-ui-primitive/toolbar.tsx)
+- [src/components/tiptap-ui-primitive/toolbar.scss](file://src/components/tiptap-ui-primitive/toolbar.scss)
 
 ### DropdownMenu 组件
 - 设计目标：下拉菜单，常与 Popover 组合使用。
@@ -336,7 +362,7 @@ P-->>U : "隐藏浮层"
 
 章节来源
 - [src/components/tiptap-ui-primitive/dropdown-menu.tsx](file://src/components/tiptap-ui-primitive/dropdown-menu.tsx)
-- [src/components/tiptap-ui-primitive/dropdown-menu.scss](file://src/components/tiptap-ui-primitive/dropdown-menu.tsx)
+- [src/components/tiptap-ui-primitive/dropdown-menu.scss](file://src/components/tiptap-ui-primitive/dropdown-menu.scss)
 
 ### Badge 组件
 - 设计目标：标签/徽章，用于计数、状态标识。
@@ -350,7 +376,7 @@ P-->>U : "隐藏浮层"
 
 章节来源
 - [src/components/tiptap-ui-primitive/badge.tsx](file://src/components/tiptap-ui-primitive/badge.tsx)
-- [src/components/tiptap-ui-primitive/badge.scss](file://src/components/tiptap-ui-primitive/badge.tsx)
+- [src/components/tiptap-ui-primitive/badge.scss](file://src/components/tiptap-ui-primitive/badge.scss)
 - [src/components/tiptap-ui-primitive/badge-colors.scss](file://src/components/tiptap-ui-primitive/badge-colors.scss)
 - [src/components/tiptap-ui-primitive/badge-group.scss](file://src/components/tiptap-ui-primitive/badge-group.scss)
 
@@ -360,7 +386,7 @@ P-->>U : "隐藏浮层"
 
 章节来源
 - [src/components/tiptap-ui-primitive/separator.tsx](file://src/components/tiptap-ui-primitive/separator.tsx)
-- [src/components/tiptap-ui-primitive/separator.scss](file://src/components/tiptap-ui-primitive/separator.tsx)
+- [src/components/tiptap-ui-primitive/separator.scss](file://src/components/tiptap-ui-primitive/separator.scss)
 - [src/components/tiptap-ui-primitive/spacer.tsx](file://src/components/tiptap-ui-primitive/spacer.tsx)
 
 ### Tooltip 组件
@@ -374,15 +400,69 @@ P-->>U : "隐藏浮层"
 
 章节来源
 - [src/components/tiptap-ui-primitive/tooltip.tsx](file://src/components/tiptap-ui-primitive/tooltip.tsx)
-- [src/components/tiptap-ui-primitive/tooltip.scss](file://src/components/tiptap-ui-primitive/tooltip.tsx)
+- [src/components/tiptap-ui-primitive/tooltip.scss](file://src/components/tiptap-ui-primitive/tooltip.scss)
+
+## 新增组件：删除确认对话框
+
+### ConfirmDeleteDialog 组件
+- 设计目标：提供统一的删除确认对话框，标准化危险操作的确认流程，提升用户体验和数据安全性。
+- Props 要点：
+  - 标题：对话框标题，通常为"确认删除"
+  - 消息：确认提示信息，描述删除操作的后果
+  - 确认回调：用户确认后的处理函数
+  - 取消回调：用户取消时的处理函数
+  - 确认按钮文本：自定义确认按钮文字
+  - 取消按钮文本：自定义取消按钮文字
+  - 受控状态：通过 isOpen 控制对话框显示/隐藏
+- 样式系统：
+  - confirmDialog.css 定义对话框样式、动画效果与响应式布局
+  - 使用全局样式变量保持一致的视觉风格
+- 可访问性：
+  - 使用 dialog 语义化标签
+  - 支持 ESC 键关闭
+  - 焦点陷阱确保用户在对话框内导航
+  - 适当的 aria-label 和 aria-describedby 属性
+- 交互逻辑：
+  - 点击确认按钮执行删除操作并关闭对话框
+  - 点击取消按钮或遮罩层关闭对话框
+  - 支持键盘导航和焦点管理
+
+```mermaid
+sequenceDiagram
+participant U as "用户"
+participant D as "ConfirmDeleteDialog"
+participant C as "调用组件"
+U->>C : "点击删除按钮"
+C->>D : "show() 打开对话框"
+D->>U : "显示确认对话框"
+alt 用户点击确认
+U->>D : "点击确认按钮"
+D->>C : "调用 onConfirm 回调"
+D->>D : "关闭对话框"
+else 用户点击取消
+U->>D : "点击取消按钮/ESC/遮罩"
+D->>C : "调用 onCancel 回调"
+D->>D : "关闭对话框"
+end
+```
+
+图表来源
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
+- [src/components/ui/confirmDialog.css](file://src/components/ui/confirmDialog.css)
+
+章节来源
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
+- [src/components/ui/confirmDialog.css](file://src/components/ui/confirmDialog.css)
 
 ## 依赖关系分析
 - 组件间依赖：
   - DropdownMenu 依赖 Popover 提供定位与生命周期
   - ButtonGroup 聚合多个 Button，负责选中态与布局
   - Toolbar 聚合 Button/Badge/DropdownMenu 等
+  - ConfirmDeleteDialog 独立组件，可被任何需要删除确认的组件使用
 - 样式依赖：
   - 所有组件共享 _variables.scss 中的主题变量（颜色、圆角、阴影、字体等）
+  - ConfirmDeleteDialog 使用 confirmDialog.css 专用样式
 - 导出依赖：
   - index.tsx 统一再导出，供上层模块按需引入
 
@@ -397,6 +477,7 @@ V --> DROP["dropdown-menu.tsx/scss"]
 V --> BADGE["badge.tsx/scss<br/>badge-colors.scss<br/>badge-group.scss"]
 V --> SEP["separator.tsx/scss"]
 V --> TIP["tooltip.tsx/scss"]
+CD["ConfirmDeleteDialog.tsx"] --> CDCS["confirmDialog.css"]
 BTN --> TOOL
 BADGE --> TOOL
 DROP --> POP
@@ -406,10 +487,14 @@ BTN --> BTNGRP["button-group.tsx/scss"]
 图表来源
 - [src/styles/_variables.scss](file://src/styles/_variables.scss)
 - [src/components/tiptap-ui-primitive/index.tsx](file://src/components/tiptap-ui-primitive/index.tsx)
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
+- [src/components/ui/confirmDialog.css](file://src/components/ui/confirmDialog.css)
 
 章节来源
 - [src/components/tiptap-ui-primitive/index.tsx](file://src/components/tiptap-ui-primitive/index.tsx)
 - [src/styles/_variables.scss](file://src/styles/_variables.scss)
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
+- [src/components/ui/confirmDialog.css](file://src/components/ui/confirmDialog.css)
 
 ## 性能考量
 - 按需引入：通过 index.tsx 的命名导出，避免全量引入导致包体膨胀
@@ -418,9 +503,8 @@ BTN --> BTNGRP["button-group.tsx/scss"]
 - 渲染优化：
   - 避免在高频回调中创建新对象/函数，提升 React 比较效率
   - 对复杂浮层（Popover/DropdownMenu）使用惰性渲染与条件挂载
+  - ConfirmDeleteDialog 使用条件渲染，仅在需要时挂载到 DOM
 - 可访问性开销：合理设置 aria-* 与 tabindex，避免不必要的焦点陷阱
-
-[本节为通用指导，无需特定文件引用]
 
 ## 故障排查指南
 - 浮层遮挡问题：
@@ -435,17 +519,20 @@ BTN --> BTNGRP["button-group.tsx/scss"]
 - 移动端体验差：
   - 调整触摸目标尺寸与间距
   - 在小屏下简化浮层内容或改用抽屉/模态
+- 删除确认对话框问题：
+  - 确认回调函数是否正确传递和执行
+  - 检查对话框状态管理（isOpen）是否正确同步
+  - 验证样式冲突，特别是与其他模态框组件的 z-index 冲突
 
 章节来源
 - [src/components/tiptap-ui-primitive/popover.tsx](file://src/components/tiptap-ui-primitive/popover.tsx)
 - [src/components/tiptap-ui-primitive/button.tsx](file://src/components/tiptap-ui-primitive/button.tsx)
 - [src/components/tiptap-ui-primitive/input.tsx](file://src/components/tiptap-ui-primitive/input.tsx)
+- [src/components/ui/ConfirmDeleteDialog.tsx](file://src/components/ui/ConfirmDeleteDialog.tsx)
 - [src/styles/_variables.scss](file://src/styles/_variables.scss)
 
 ## 结论
-tiptap-ui-primitive 以原子化组件为核心，结合 SCSS 变量驱动的主题体系，提供了稳定、可访问且易于组合的基础 UI 能力。通过合理的依赖管理与性能优化策略，可在复杂编辑器场景中保持良好的一致性与可维护性。
-
-[本节为总结性内容，无需特定文件引用]
+tiptap-ui-primitive 以原子化组件为核心，结合 SCSS 变量驱动的主题体系，提供了稳定、可访问且易于组合的基础 UI 能力。新增的 ConfirmDeleteDialog 组件进一步完善了用户交互的一致性，特别是在危险操作确认方面提供了标准化的解决方案。通过合理的依赖管理与性能优化策略，可在复杂编辑器场景中保持良好的一致性与可维护性。
 
 ## 附录
 
@@ -458,21 +545,23 @@ tiptap-ui-primitive 以原子化组件为核心，结合 SCSS 变量驱动的主
   - 为菜单项提供键盘导航与选中态反馈
 - 表单与提示：
   - Input 配合 Tooltip 提供字段说明，错误态使用 aria-invalid 与辅助文本
+- 危险操作确认：
+  - 使用 ConfirmDeleteDialog 包装删除按钮，提供二次确认机制
+  - 在删除操作前显示明确的警告信息和后果说明
 - 主题定制：
   - 通过覆盖 _variables.scss 中的变量实现品牌化主题
   - 避免在组件内硬编码颜色，优先使用变量与语义类名
-
-[本节为概念性内容，无需特定文件引用]
 
 ### 测试策略建议
 - 单元测试：
   - 针对 Button/Input 的交互与状态变更编写用例
   - 验证 Popover/DropdownMenu 的打开/关闭与键盘导航
+  - 测试 ConfirmDeleteDialog 的确认/取消逻辑与状态管理
 - 集成测试：
   - 组合 Toolbar 与多个子组件，验证布局与交互一致性
+  - 测试删除操作流程的完整用户体验
 - 可访问性测试：
   - 使用屏幕阅读器与键盘遍历验证焦点顺序与语义标注
+  - 特别验证 ConfirmDeleteDialog 的键盘导航与焦点管理
 - 快照测试：
   - 对复杂组件树进行快照比对，防止意外回归
-
-[本节为通用指导，无需特定文件引用]
